@@ -434,7 +434,12 @@ mod tests_someip_header {
                 assert_eq!(input.message_type_tp, slice.message_type_tp());
                 assert_eq!(input.return_code, slice.return_code());
                 assert_eq!(&buffer[SOMEIP_HEADER_LENGTH..expected_length], slice.payload());
+
+                //internal slice checking
                 assert_eq!(&buffer[..expected_length], slice.slice);
+
+                //to_header
+                assert_eq!(input, slice.to_header());
 
                 //check that a too small slice triggers an error
                 use ReadError::*;

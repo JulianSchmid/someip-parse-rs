@@ -3,6 +3,10 @@ name = "someip-parse"
 version = "0.1.0"
 authors = ["Julian Schmid <info@julianschmid.name>"]
 description = "A library for parsing the SOME/IP network protocol (without payload interpretation)."
+categories = ["network-programming", "parser-implementations"]
+keywords = ["someip", "autosar"]
+license = "BSD-3-Clause"
+readme = "README.md"
 
 [dependencies]
 byteorder = "1.2.3"

@@ -436,6 +436,7 @@ mod tests_someip_header {
                 assert_eq!(&buffer[SOMEIP_HEADER_LENGTH..expected_length], slice.payload());
 
                 //internal slice checking
+                assert_eq!(&buffer[..expected_length], slice.slice());
                 assert_eq!(&buffer[..expected_length], slice.slice);
 
                 //to_header

@@ -429,6 +429,7 @@ mod tests_someip_header {
                 assert_eq!(input.message_id, slice.message_id());
                 assert_eq!(input.length, slice.length());
                 assert_eq!(input.request_id, slice.request_id());
+                assert_eq!(SOMEIP_PROTOCOL_VERSION, slice.protocol_version());
                 assert_eq!(input.interface_version, slice.interface_version());
                 assert_eq!(input.message_type, slice.message_type());
                 assert_eq!(input.message_type_tp, slice.message_type_tp());

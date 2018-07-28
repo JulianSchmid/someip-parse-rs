@@ -321,15 +321,30 @@ pub enum ValueError {
 mod tests_someip_header {
     use super::*;
     use super::proptest_generators::*;
+    use proptest::prelude::*;
     use std::io::Cursor;
     use MessageType::*;
+    use ReadError::*;
 
-    const MESSAGE_TYPE_VALUES: [MessageType;5] = [
+    const MESSAGE_TYPE_VALUES: &'static [MessageType;5] = &[
         Request,
         RequestNoReturn,
         Notification,
         Response,
         Error
+    ];
+
+    const MESSAGE_TYPE_VALUES_RAW: &'static [u8;10] = &[
+        Request as u8,
+        RequestNoReturn as u8,
+        Notification as u8,
+        Response as u8,
+        Error as u8,
+        Request as u8 | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
+        RequestNoReturn as u8 | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
+        Notification as u8 | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
+        Response as u8 | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
+        Error as u8 | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
     ];
 
     #[test]
@@ -366,7 +381,7 @@ mod tests_someip_header {
     proptest! {
         #[test]
         fn write_read(ref input_base in someip_header_any()) {
-            for message_type in &MESSAGE_TYPE_VALUES {
+            for message_type in MESSAGE_TYPE_VALUES {
                 let input = {
                     let mut value = input_base.clone();
                     value.message_type = message_type.clone();
@@ -388,7 +403,7 @@ mod tests_someip_header {
         fn from_slice(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
                       ref input_base in someip_header_any(),
                       add in 0usize..15) {
-            for message_type in &MESSAGE_TYPE_VALUES {
+            for message_type in MESSAGE_TYPE_VALUES {
                 let input = {
                     let mut value = input_base.clone();
                     value.length = length;
@@ -414,7 +429,65 @@ mod tests_someip_header {
                 assert_eq!(input.return_code, slice.return_code());
                 assert_eq!(&buffer[SOMEIP_HEADER_LENGTH..expected_length], slice.payload());
                 assert_eq!(&buffer[..expected_length], slice.slice);
+
+                //check that a too small slice triggers an error
+                use ReadError::*;
+                assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..expected_length-1]), Err(UnexpectedEndOfSlice(_)));
+                assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..1]), Err(UnexpectedEndOfSlice(_)));
             }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn unknown_message_type(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
+                                ref input_base in someip_header_any(),
+                                message_type in any::<u8>().prop_filter("message type must be unknown",
+                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| v == &x)))
+        {
+            let input = {
+                let mut value = input_base.clone();
+                value.length = length;
+                value
+            };
+
+            //serialize to buffer
+            let mut buffer = Vec::new();
+            input.write(&mut buffer).unwrap();
+
+            //add some payload
+            let expected_length = length as usize + (SOMEIP_HEADER_LENGTH - SOMEIP_LEN_OFFSET_TO_PAYLOAD as usize);
+            buffer.resize(expected_length, 0);
+
+            //insert the invalid message type
+            buffer[14] = message_type;
+
+            //check that deserialization triggers an error
+            assert_matches!(SomeIpHeader::read(&mut Cursor::new(&buffer)), Err(UnknownMessageType(_)));
+            assert_matches!(SomeIpHeaderSlice::from_slice(&buffer), Err(UnknownMessageType(_)));
+        }
+    }
+
+    proptest! {
+        #[test]
+        #[should_panic]
+        fn unknown_message_type_slice_getter(message_type in any::<u8>().prop_filter("message type must be unknown",
+                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| v == &x)))
+        {
+            //serialize to buffer
+            let buffer: [u8;16] = {
+                let mut value = [0;16];
+                value[14] = message_type;
+                value
+            };
+
+            //create the type
+            let slice = SomeIpHeaderSlice {
+                slice: &buffer
+            };
+
+            //trigger the panic
+            slice.message_type()
         }
     }
 

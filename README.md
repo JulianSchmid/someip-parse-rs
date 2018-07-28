@@ -1,4 +1,4 @@
-# someip-parse-rs
+# someip-parse
 [![Build Status][build_badge]][build_status]
 [![Code Coverage][coverage_badge]][coverage_report]
 

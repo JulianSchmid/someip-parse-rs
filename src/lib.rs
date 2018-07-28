@@ -394,6 +394,12 @@ mod tests_someip_header {
                 let mut cursor = Cursor::new(&buffer);
                 let result = SomeIpHeader::read(&mut cursor).unwrap();
                 assert_eq!(input, result);
+
+                //check that a too smal cursor results in an io error
+                {
+                    let buffer_len = buffer.len();
+                    assert_matches!(SomeIpHeader::read(&mut Cursor::new(&buffer[..buffer_len-1])), Err(IoError(_)));
+                }
             }
         }
     }
@@ -504,7 +510,7 @@ mod tests_someip_header {
     }
 
     #[test]
-    fn read_too_small_length() {
+    fn read_too_small_length_field() {
         //0
         {
             let mut buffer = Vec::new();

@@ -1,0 +1,12 @@
+[package]
+name = "someip-parse"
+version = "0.1.0"
+authors = ["Julian Schmid <info@julianschmid.name>"]
+description = "A library for parsing the SOME/IP network protocol (without payload interpretation)."
+
+[dependencies]
+byteorder = "1.2.3"
+
+[dev-dependencies]
+assert_matches = "1.3.0"
+proptest = "0.8.3"

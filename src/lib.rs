@@ -536,4 +536,26 @@ mod tests_someip_header {
             assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..]), Err(ReadError::LengthFieldTooSmall(TOO_SMALL)));
         }
     }
+
+    #[test]
+    fn debug_write() {
+        //ReadError
+        {
+            use ReadError::*;
+            for value in [
+                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+                UnexpectedEndOfSlice(0),
+                UnsupportedProtocolVersion(0),
+                LengthFieldTooSmall(0),
+                UnknownMessageType(0),
+            ].iter() {
+                println!("{:?}", value);
+            }
+        }
+        //SomeIpHeaderSlice
+        {
+            let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
+            println!("{:?}", SomeIpHeaderSlice{ slice: &buffer[..]});
+        }
+    }
 }

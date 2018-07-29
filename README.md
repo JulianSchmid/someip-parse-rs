@@ -1,4 +1,4 @@
-# someip-parse
+# SOMEIP Parse
 [![Build Status][build_badge]][build_status]
 [![Code Coverage][coverage_badge]][coverage_report]
 [![pipeline status][gitlab_badge]][gitlab_link]

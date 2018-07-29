@@ -1,5 +1,5 @@
 [package]
-name = "someip-parse"
+name = "someip_parse"
 version = "0.1.0"
 authors = ["Julian Schmid <info@julianschmid.name>"]
 description = "A library for parsing the SOME/IP network protocol (without payload interpretation)."

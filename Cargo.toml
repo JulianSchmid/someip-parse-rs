@@ -24,3 +24,4 @@ proptest = "0.8.3"
 [badges]
 travis-ci = { repository = "JulianSchmid/someip-parse-rs", branch = "master" }
 codecov = { repository = "JulianSchmid/someip-parse-rs", branch = "master", service = "github" }
+gitlab = { repository = "julian.schmid/etherparse", branch = "master" }

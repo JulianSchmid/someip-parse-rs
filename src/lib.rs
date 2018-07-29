@@ -12,6 +12,21 @@ extern crate proptest;
 #[cfg(test)]
 mod proptest_generators;
 
+///The currently supported protocol version.
+pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
+
+///Offset that must be substracted from the length field to determine the 
+pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4*2; // 2x 32bits
+
+///Maximum payload length supported by some ip.
+pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
+
+///Length of a someip header.
+pub const SOMEIP_HEADER_LENGTH: usize = 4*4;
+
+///Length of a someip header.
+pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SomeIpHeader {
     pub message_id: u32,
@@ -48,21 +63,6 @@ pub enum ReturnCode {
     Generic(u8),
     InterfaceError(u8),
 }
-
-///The currently supported protocol version.
-pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
-
-///Offset that must be substracted from the length field to determine the 
-pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4*2; // 2x 32bits
-
-///Maximum payload length supported by some ip.
-pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
-
-///Length of a someip header.
-pub const SOMEIP_HEADER_LENGTH: usize = 4*4;
-
-///Length of a someip header.
-pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
 
 impl SomeIpHeader {
     ///Return the length of the payload based on the length field in the header.
@@ -144,7 +144,7 @@ impl SomeIpHeader {
     }
 }
 
-///A slice containing an some ip header of a network package.
+///A slice containing an some ip header & payload of that message.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SomeIpHeaderSlice<'a> {
     slice: &'a [u8]

@@ -278,6 +278,48 @@ impl<'a> SomeIpHeaderSlice<'a> {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SomeIpHeaderSliceIterator<'a> {
+    slice: &'a [u8]
+}
+
+impl<'a> SomeIpHeaderSliceIterator<'a> {
+    pub fn new(slice: &'a [u8]) -> SomeIpHeaderSliceIterator<'a> {
+        SomeIpHeaderSliceIterator {
+            slice: slice
+        }
+    }
+}
+
+impl<'a> Iterator for SomeIpHeaderSliceIterator<'a> {
+    type Item = Result<SomeIpHeaderSlice<'a>, ReadError>;
+
+    fn next(&mut self) -> Option<Result<SomeIpHeaderSlice<'a>, ReadError>> {
+        if self.slice.len() > 0 {
+            //parse
+            let result = SomeIpHeaderSlice::from_slice(self.slice);
+
+            //move the slice depending on the result
+            match &result {
+                Err(_) => {
+                    //error => move the slice to an len = 0 position so that the iterator ends
+                    let len = self.slice.len();
+                    self.slice = &self.slice[len..];
+                }
+                Ok(ref value) => {
+                    //by the length just taken by the slice
+                    self.slice = &self.slice[value.slice().len()..];
+                }
+            }
+
+            //return parse result
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 impl Default for SomeIpHeader {
     fn default() -> SomeIpHeader {
         SomeIpHeader{

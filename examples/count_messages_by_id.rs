@@ -39,8 +39,6 @@ fn main() {
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 struct Stats {
     total_payload_size: usize,
-    ok: usize,
-    err: usize,
     ipv4: usize,
     ipv6: usize,
     udp: usize,
@@ -83,13 +81,10 @@ fn read(in_file_path: &str) -> Result<(),Error> {
         let sliced = SlicedPacket::from_ethernet(&packet.data);
 
         match sliced {
-            Err(_) => {
-                stats.err += 1;
-            },
+            Err(_) => {},
             Ok(value) => {
-                stats.ok += 1;
-                use InternetSlice::*;
                 use TransportSlice::*;
+                use InternetSlice::*;
 
                 match &value.ip {
                     Some(Ipv4(_)) => {
@@ -106,7 +101,7 @@ fn read(in_file_path: &str) -> Result<(),Error> {
                         stats.udp += 1;
 
                         //try parsing some ip message
-                        for someip_message in SomeIpHeaderSliceIterator::new(value.payload) {
+                        for someip_message in SliceIterator::new(value.payload) {
                             match someip_message {
                                 Ok(value) => {
                                     stats.someip_message_ok += 1;

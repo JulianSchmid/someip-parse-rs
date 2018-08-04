@@ -278,20 +278,21 @@ impl<'a> SomeIpHeaderSlice<'a> {
     }
 }
 
+///Allows iterating over the someip message in a udp or tcp payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SomeIpHeaderSliceIterator<'a> {
+pub struct SliceIterator<'a> {
     slice: &'a [u8]
 }
 
-impl<'a> SomeIpHeaderSliceIterator<'a> {
-    pub fn new(slice: &'a [u8]) -> SomeIpHeaderSliceIterator<'a> {
-        SomeIpHeaderSliceIterator {
+impl<'a> SliceIterator<'a> {
+    pub fn new(slice: &'a [u8]) -> SliceIterator<'a> {
+        SliceIterator {
             slice: slice
         }
     }
 }
 
-impl<'a> Iterator for SomeIpHeaderSliceIterator<'a> {
+impl<'a> Iterator for SliceIterator<'a> {
     type Item = Result<SomeIpHeaderSlice<'a>, ReadError>;
 
     fn next(&mut self) -> Option<Result<SomeIpHeaderSlice<'a>, ReadError>> {
@@ -605,6 +606,56 @@ mod tests_someip_header {
         {
             let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
             println!("{:?}", SomeIpHeaderSlice{ slice: &buffer[..]});
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn iterator(expected in proptest::collection::vec(someip_header_with_payload_any(), 0..5))
+        {
+            //serialize
+            let mut buffer = Vec::new();
+            for (message, payload) in expected.iter() {
+                message.write(&mut buffer).unwrap();
+                buffer.write(&payload[..]).unwrap();
+            }
+
+            //read message with iterator
+            let actual = SliceIterator::new(&buffer[..]).fold(
+                Vec::with_capacity(expected.len()), 
+                |mut acc, x| {
+                    let x_unwraped = x.unwrap();
+                    acc.push((
+                        x_unwraped.to_header(),
+                        {
+                            let mut vec = Vec::with_capacity(x_unwraped.payload().len());
+                            vec.extend_from_slice(x_unwraped.payload());
+                            vec
+                        })
+                    );
+                    acc
+                });
+            assert_eq!(expected, actual);
+        }
+
+    }
+
+    proptest! {
+        #[test]
+        fn iterator_error(packet in someip_header_with_payload_any()) {
+            //serialize
+            let mut buffer = Vec::new();
+            packet.0.write(&mut buffer).unwrap();
+            buffer.write(&packet.1[..]).unwrap();
+
+            //generate iterator
+            let len = buffer.len();
+            let mut iterator = SliceIterator::new(&buffer[..len-1]);
+
+            //check that an error is generated
+            assert_matches!(iterator.next(), Some(Err(ReadError::UnexpectedEndOfSlice(_))));
+            assert_matches!(iterator.next(), None);
+            assert_matches!(iterator.next(), None);
         }
     }
 }

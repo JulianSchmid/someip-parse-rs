@@ -137,7 +137,7 @@ fn read(in_file_path: &str) -> Result<(),Error> {
     println!("{:?}GB/s (packets data)", gigabytes_per_sec_packets);
 
     for (key, value) in &stats.someip_message_count {
-        println!("message id {}: {}", key, value);
+        println!("message id {:x}: {}", key, value);
     }
 
     Ok(())

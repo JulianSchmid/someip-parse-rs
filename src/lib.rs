@@ -83,6 +83,17 @@ impl SomeIpHeader {
         }
     }
 
+    ///Set the event id + the event bit.
+    pub fn set_event_id(&mut self, event_id : u16) {
+        self.message_id = (self.message_id & 0xffff0000) | ((0x8000 | event_id) as u32);
+    }
+
+    ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
+    pub fn set_method_id(&mut self, method_id : u16) {
+        debug_assert!(method_id <= 0x7FFF);
+        self.message_id = (self.message_id & 0xffff0000) | ((0x7FFF & method_id) as u32);
+    }
+
     ///Serialize the header.
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
         writer.write_u32::<BigEndian>(self.message_id)?;
@@ -199,9 +210,38 @@ impl<'a> SomeIpHeaderSlice<'a> {
         BigEndian::read_u32(&self.slice[..4])
     }
 
+    ///Returns the service id (first 16 bits of the message id)
+    pub fn service_id(&self) -> u16 {
+        BigEndian::read_u16(&self.slice[..2])
+    }
+
+    ///Returns true if the event or notification bit in the message id is set
+    pub fn is_event(&self) -> bool {
+        0 != self.slice[2] & 0x80
+    }
+
+    ///Return the event id or method id depending on if "is_event" is true.
+    pub fn event_id(&self) -> u16 {
+        let buffer = [
+            self.slice[2] & 0x7F, 
+            self.slice[3]
+        ];
+        BigEndian::read_u16(&buffer[..])
+    }
+
+    ///Return the event id or method id depending on if "is_event" is true.
+    pub fn event_id_with_bit(&self) -> u16 {
+        BigEndian::read_u16(&self.slice[2..4])
+    }
+
     //TODO is some ip service discovery message
     //TODO service id
     //TODO method/event id
+
+    ///Returns true if the message has the message id of a some ip service discovery message.
+    pub fn is_someip_sd(&self) -> bool {
+        0xFFFF8100 == self.message_id()
+    }
 
     ///Returns the length contained in the header. WARNING: the length paritally 
     ///contains the header and partially the payload, use the payload() method 

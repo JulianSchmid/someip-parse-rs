@@ -220,23 +220,12 @@ impl<'a> SomeIpHeaderSlice<'a> {
         0 != self.slice[2] & 0x80
     }
 
-    ///Return the event id or method id depending on if "is_event" is true.
-    pub fn event_id(&self) -> u16 {
-        let buffer = [
-            self.slice[2] & 0x7F, 
-            self.slice[3]
-        ];
-        BigEndian::read_u16(&buffer[..])
-    }
-
-    ///Return the event id or method id depending on if "is_event" is true.
-    pub fn event_id_with_bit(&self) -> u16 {
+    ///Return the event id or method id. This number includes the "event bit".
+    pub fn event_or_method_id(&self) -> u16 {
         BigEndian::read_u16(&self.slice[2..4])
     }
 
     //TODO is some ip service discovery message
-    //TODO service id
-    //TODO method/event id
 
     ///Returns true if the message has the message id of a some ip service discovery message.
     pub fn is_someip_sd(&self) -> bool {

@@ -70,7 +70,7 @@ fn read(in_file_path: &str) -> Result<(),Error> {
                         for someip_message in SliceIterator::new(value.payload) {
                             match someip_message {
                                 Ok(value) => {
-                                    println!("{} (service id: {}, method/event id: {})", 
+                                    println!("{:x} (service id: {:x}, method/event id: {:x})", 
                                              value.message_id(), 
                                              value.service_id(),
                                              value.event_or_method_id());

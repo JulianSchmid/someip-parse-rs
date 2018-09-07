@@ -86,6 +86,16 @@ impl SomeIpHeader {
         }
     }
 
+    ///Returns the service id (first 16 bits of the message id)
+    pub fn service_id(&self) -> u16 {
+        ((self.message_id & 0xffff0000) >> 16) as u16
+    }
+
+    ///Set the servide id (first 16 bits of the message id)
+    pub fn set_service_id(&mut self, service_id: u16) {
+        self.message_id = (self.message_id & 0x0000ffff) | ((service_id as u32) << 16);
+    }
+
     ///Set the event id + the event bit.
     pub fn set_event_id(&mut self, event_id : u16) {
         self.message_id = (self.message_id & 0xffff0000) | ((0x8000 | event_id) as u32);
@@ -706,6 +716,25 @@ mod tests_someip_header {
             assert_matches!(iterator.next(), Some(Err(ReadError::UnexpectedEndOfSlice(_))));
             assert_matches!(iterator.next(), None);
             assert_matches!(iterator.next(), None);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn service_id(packet in someip_header_with_payload_any(),
+                      service_id in 0x0u16..std::u16::MAX)
+        {
+            let mut header = packet.0.clone();
+            header.set_service_id(service_id);
+            assert_eq!(service_id, header.service_id());
+
+            //serialize and check the slice methods
+            let mut buffer = Vec::new();
+            header.write(&mut buffer).unwrap();
+            buffer.write(&packet.1[..]).unwrap();
+            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+
+            assert_eq!(service_id, slice.service_id());
         }
     }
 

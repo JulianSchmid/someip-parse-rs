@@ -6,8 +6,7 @@
 A Rust library for parsing the SOME/IP network protocol (without payload interpretation).
 
 ## Todo
-* SOMEIP Service Discovery
-* SOMEIP 
+* SOMEIP Service Discovery Message Parsing
 
 ## References
 * (SOME/IP Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf]

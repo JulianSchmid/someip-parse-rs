@@ -91,7 +91,22 @@ impl SomeIpHeader {
     ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
     pub fn set_method_id(&mut self, method_id : u16) {
         debug_assert!(method_id <= 0x7FFF);
-        self.message_id = (self.message_id & 0xffff0000) | ((0x7FFF & method_id) as u32);
+        self.message_id = (self.message_id & 0xffff0000) | ((0x7fff & method_id) as u32);
+    }
+
+    ///Sets the event id or method id. This number mjust include the "event bit".
+    pub fn set_method_or_event_id(&mut self, method_id : u16) {
+        self.message_id = (self.message_id & 0xffff0000) | ((0xffff & method_id) as u32);
+    }
+
+    ///Returns true if the event or notification bit in the message id is set
+    pub fn is_event(&self) -> bool {
+        0 != self.message_id & 0x8000
+    }
+
+    ///Return the event id or method id. This number includes the "event bit".
+    pub fn event_or_method_id(&self) -> u16 {
+        (self.message_id & 0x0000ffff) as u16
     }
 
     ///Serialize the header.
@@ -224,8 +239,6 @@ impl<'a> SomeIpHeaderSlice<'a> {
     pub fn event_or_method_id(&self) -> u16 {
         BigEndian::read_u16(&self.slice[2..4])
     }
-
-    //TODO is some ip service discovery message
 
     ///Returns true if the message has the message id of a some ip service discovery message.
     pub fn is_someip_sd(&self) -> bool {
@@ -687,4 +700,75 @@ mod tests_someip_header {
             assert_matches!(iterator.next(), None);
         }
     }
+
+    proptest! {
+        #[test]
+        fn set_get_method_id(packet in someip_header_with_payload_any(),
+                             method_id in 0u16..0x7fff)
+        {
+            let mut header = packet.0.clone();
+            header.set_method_id(method_id);
+
+            assert_eq!(method_id, header.event_or_method_id());
+            assert_eq!(false, header.is_event());
+
+            //serialize and check the slice methods
+            let mut buffer = Vec::new();
+            packet.0.write(&mut buffer).unwrap();
+            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+
+            assert_eq!(false, slice.is_event());
+            assert_eq!(method_id, slice.event_or_method_id());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn set_get_event_id(packet in someip_header_with_payload_any(),
+                            event_id in 0x8000u16..std::u16::MAX)
+        {
+            let mut header = packet.0.clone();
+            header.set_event_id(event_id);
+
+            let id_with_bit = event_id | 0x8000;
+
+            assert_eq!(id_with_bit, header.event_or_method_id());
+            assert_eq!(true, header.is_event());
+
+            //serialize and check the slice methods
+            let mut buffer = Vec::new();
+            packet.0.write(&mut buffer).unwrap();
+            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+
+            assert_eq!(true, slice.is_event());
+            assert_eq!(id_with_bit, slice.event_or_method_id());
+        }
+    }
+
+    /*    ///Set the event id + the event bit.
+    pub fn set_event_id(&mut self, event_id : u16) {
+        self.message_id = (self.message_id & 0xffff0000) | ((0x8000 | event_id) as u32);
+    }
+
+    ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
+    pub fn set_method_id(&mut self, method_id : u16) {
+        debug_assert!(method_id <= 0x7FFF);
+        self.message_id = (self.message_id & 0xffff0000) | ((0x7fff & method_id) as u32);
+    }
+
+    ///Sets the event id or method id. This number mjust include the "event bit".
+    pub fn set_method_or_event_id(&mut self, method_id : u16) {
+        self.message_id = (self.message_id & 0xffff0000) | ((0xffff & method_id) as u32);
+    }
+
+    ///Returns true if the event or notification bit in the message id is set
+    pub fn is_event(&self) -> bool {
+        0 != self.message_id & 0x8000
+    }
+
+    ///Return the event id or method id. This number includes the "event bit".
+    pub fn event_or_method_id(&self) -> u16 {
+        (self.message_id & 0x0000ffff) as u16
+    }
+*/
 }

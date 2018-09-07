@@ -27,6 +27,9 @@ pub const SOMEIP_HEADER_LENGTH: usize = 4*4;
 ///Length of a someip header.
 pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
 
+///Message id of SOMEIP service discovery messages
+pub const SOMEIP_SD_MESSAGE_ID: u32 = 0xffff8100;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SomeIpHeader {
     pub message_id: u32,
@@ -97,6 +100,11 @@ impl SomeIpHeader {
     ///Sets the event id or method id. This number mjust include the "event bit".
     pub fn set_method_or_event_id(&mut self, method_id : u16) {
         self.message_id = (self.message_id & 0xffff0000) | ((0xffff & method_id) as u32);
+    }
+
+    ///Returns true if the message has the message id of a some ip service discovery message.
+    pub fn is_someip_sd(&self) -> bool {
+        SOMEIP_SD_MESSAGE_ID == self.message_id
     }
 
     ///Returns true if the event or notification bit in the message id is set
@@ -242,7 +250,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
 
     ///Returns true if the message has the message id of a some ip service discovery message.
     pub fn is_someip_sd(&self) -> bool {
-        0xFFFF8100 == self.message_id()
+        SOMEIP_SD_MESSAGE_ID == self.message_id()
     }
 
     ///Returns the length contained in the header. WARNING: the length paritally 
@@ -714,7 +722,8 @@ mod tests_someip_header {
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
-            packet.0.write(&mut buffer).unwrap();
+            header.write(&mut buffer).unwrap();
+            buffer.write(&packet.1[..]).unwrap();
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(false, slice.is_event());
@@ -737,7 +746,8 @@ mod tests_someip_header {
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
-            packet.0.write(&mut buffer).unwrap();
+            header.write(&mut buffer).unwrap();
+            buffer.write(&packet.1[..]).unwrap();
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(true, slice.is_event());
@@ -745,30 +755,59 @@ mod tests_someip_header {
         }
     }
 
-    /*    ///Set the event id + the event bit.
-    pub fn set_event_id(&mut self, event_id : u16) {
-        self.message_id = (self.message_id & 0xffff0000) | ((0x8000 | event_id) as u32);
+    proptest! {
+        #[test]
+        fn set_method_or_event_id(packet in someip_header_with_payload_any(),
+                                  id in 0x0u16..std::u16::MAX)
+        {
+            let mut header = packet.0.clone();
+            header.set_method_or_event_id(id);
+
+            assert_eq!(id, header.event_or_method_id());
+            assert_eq!(id > 0x8000, header.is_event());
+
+            //serialize and check the slice methods
+            let mut buffer = Vec::new();
+            header.write(&mut buffer).unwrap();
+            buffer.write(&packet.1[..]).unwrap();
+            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+
+            assert_eq!(id > 0x8000, slice.is_event());
+            assert_eq!(id, slice.event_or_method_id());
+        }
     }
 
-    ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
-    pub fn set_method_id(&mut self, method_id : u16) {
-        debug_assert!(method_id <= 0x7FFF);
-        self.message_id = (self.message_id & 0xffff0000) | ((0x7fff & method_id) as u32);
-    }
+    proptest! {
+        #[test]
+        fn is_someip_sd(packet in someip_header_with_payload_any())
+        {
+            const SD_MESSAGE_ID: u32 = 0xFFFF8100;
 
-    ///Sets the event id or method id. This number mjust include the "event bit".
-    pub fn set_method_or_event_id(&mut self, method_id : u16) {
-        self.message_id = (self.message_id & 0xffff0000) | ((0xffff & method_id) as u32);
-    }
+            let mut header = packet.0.clone();
+            header.message_id = SD_MESSAGE_ID;
 
-    ///Returns true if the event or notification bit in the message id is set
-    pub fn is_event(&self) -> bool {
-        0 != self.message_id & 0x8000
-    }
+            assert_eq!(true, header.is_someip_sd());
+            assert_eq!(packet.0.message_id == SD_MESSAGE_ID, packet.0.is_someip_sd());
 
-    ///Return the event id or method id. This number includes the "event bit".
-    pub fn event_or_method_id(&self) -> u16 {
-        (self.message_id & 0x0000ffff) as u16
+            //serialize and check the slice methods
+            //some ip sd packet
+            {
+                let mut buffer = Vec::new();
+                header.write(&mut buffer).unwrap();
+                buffer.write(&packet.1[..]).unwrap();
+                let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+
+                assert_eq!(true, slice.is_someip_sd());
+            }
+            //random packet
+            {
+                let mut buffer = Vec::new();
+                packet.0.write(&mut buffer).unwrap();
+                buffer.write(&packet.1[..]).unwrap();
+                let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+
+                assert_eq!(packet.0.message_id == SD_MESSAGE_ID, slice.is_someip_sd());
+            }
+        }
     }
-*/
 }

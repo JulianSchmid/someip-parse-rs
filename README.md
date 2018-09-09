@@ -43,7 +43,7 @@ for someip_message in SliceIterator::new(value.payload) {
 ```
 
 ## Todo
-* Example for serializing headers someip packets
+* Example how to serialize someip packets
 * SOMEIP Service Discovery Message Parsing
 
 ## References

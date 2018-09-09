@@ -66,16 +66,21 @@ fn read(in_file_path: &str) -> Result<(),Error> {
                 match value.transport {
                     Some(Udp(_)) => {
 
-                        //try parsing some ip message
+                        //trying parsing some ip messages located in a udp payload
                         for someip_message in SliceIterator::new(value.payload) {
                             match someip_message {
                                 Ok(value) => {
-                                    println!("{:x} (service id: {:x}, method/event id: {:x})", 
-                                             value.message_id(), 
-                                             value.service_id(),
-                                             value.event_or_method_id());
+                                    if value.is_someip_sd() {
+                                        println!("someip service discovery packet");
+                                    } else {
+                                        println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})", 
+                                                 value.message_id(), 
+                                                 value.service_id(),
+                                                 value.event_or_method_id());
+                                    }
+                                    println!("  with payload {:?}", value.payload())
                                 },
-                                Err(_) => {}
+                                Err(_) => {} //error reading a someip packet (based on size, protocol version value or message type value)
                             }
                         }
                     },

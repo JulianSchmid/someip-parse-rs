@@ -21,6 +21,7 @@ extern crate someip_parse;
 ```
 
 ## Example
+[examples/print_messages.rs](examples/print_messages.rs):
 ```Rust
 //trying parsing some ip messages located in a udp payload
 for someip_message in SliceIterator::new(value.payload) {
@@ -42,6 +43,7 @@ for someip_message in SliceIterator::new(value.payload) {
 ```
 
 ## Todo
+* Example for serializing headers someip packets
 * SOMEIP Service Discovery Message Parsing
 
 ## References

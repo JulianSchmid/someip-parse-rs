@@ -5,6 +5,42 @@
 
 A Rust library for parsing the SOME/IP network protocol (without payload interpretation).
 
+## Usage
+
+First, add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+someip_parse = "0.1.0"
+```
+
+Next, add this to your crate root:
+
+```rust
+extern crate someip_parse;
+```
+
+## Example
+```Rust
+//trying parsing some ip messages located in a udp payload
+for someip_message in SliceIterator::new(value.payload) {
+    match someip_message {
+        Ok(value) => {
+            if value.is_someip_sd() {
+                println!("someip service discovery packet");
+            } else {
+                println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})", 
+                         value.message_id(), 
+                         value.service_id(),
+                         value.event_or_method_id());
+            }
+            println!("  with payload {:?}", value.payload())
+        },
+        Err(_) => {} //error reading a someip packet (based on size, protocol version value or message type value)
+    }
+}
+```
+
 ## Todo
 * SOMEIP Service Discovery Message Parsing
 

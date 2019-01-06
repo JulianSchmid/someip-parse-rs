@@ -15,7 +15,7 @@ mod proptest_generators;
 ///The currently supported protocol version.
 pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
 
-///Offset that must be substracted from the length field to determine the 
+///Offset that must be substracted from the length field to determine the length of the actual payload.
 pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4*2; // 2x 32bits
 
 ///Maximum payload length supported by some ip.
@@ -24,7 +24,7 @@ pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAY
 ///Length of a someip header.
 pub const SOMEIP_HEADER_LENGTH: usize = 4*4;
 
-///Length of a someip header.
+///Flag in the message type field marking the package a as tp message (transporting large SOME/IP messages of UDP).
 pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
 
 ///Message id of SOMEIP service discovery messages

@@ -1,6 +1,7 @@
 use super::*;
 
 use proptest::prelude::*;
+use proptest::option;
 
 fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
     prop_oneof![
@@ -13,24 +14,34 @@ fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
 }
 
 prop_compose! {
+    [pub] fn someip_tp_any()(
+        offset in 0..(std::u32::MAX / 16),
+        more_segments in any::<bool>())
+    -> TpHeader
+    {
+        TpHeader::with_offset(offset*16, more_segments).unwrap()
+    }
+}
+
+prop_compose! {
     [pub] fn someip_header_any()(
         message_id in any::<u32>(),
         length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..SOMEIP_MAX_PAYLOAD_LEN + 1,
         request_id in any::<u32>(),
         interface_version in any::<u8>(),
         message_type in someip_header_message_type(),
-        message_type_tp in any::<bool>(),
-        return_code in any::<u8>())
+        return_code in any::<u8>(),
+        tp_header in option::of(someip_tp_any()))
     -> SomeIpHeader
     {
         SomeIpHeader {
-            message_id: message_id,
-            length: length,
-            request_id: request_id,
-            interface_version: interface_version,
-            message_type: message_type,
-            message_type_tp: message_type_tp,
-            return_code: return_code
+            message_id,
+            length,
+            request_id,
+            interface_version,
+            message_type,
+            return_code,
+            tp_header
         }
     }
 }
@@ -44,7 +55,6 @@ prop_compose! {
         request_id in any::<u32>(),
         interface_version in any::<u8>(),
         message_type in someip_header_message_type(),
-        message_type_tp in any::<bool>(),
         return_code in any::<u8>(),
         payload in proptest::collection::vec(any::<u8>(), payload_length as usize))
     -> (SomeIpHeader, Vec<u8>)
@@ -55,8 +65,8 @@ prop_compose! {
             request_id: request_id,
             interface_version: interface_version,
             message_type: message_type,
-            message_type_tp: message_type_tp,
-            return_code: return_code
+            return_code: return_code,
+            tp_header: None
         }, payload)
     }
 }

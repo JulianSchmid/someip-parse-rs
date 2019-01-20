@@ -1,7 +1,7 @@
 # SOMEIP Parse
 [![Build Status][build_badge]][build_status]
 [![Code Coverage][coverage_badge]][coverage_report]
-[![pipeline status][gitlab_badge]][gitlab_link]
+[![Pipeline Status][gitlab_badge]][gitlab_link]
 
 A Rust library for parsing the SOME/IP network protocol (without payload interpretation).
 

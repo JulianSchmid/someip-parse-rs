@@ -18,30 +18,39 @@ pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
 ///Offset that must be substracted from the length field to determine the length of the actual payload.
 pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4*2; // 2x 32bits
 
-///Maximum payload length supported by some ip.
+///Maximum payload length supported by some ip. This is NOT the maximum length that is supported when
+///sending packets over UDP. This constant is based on the limitation of the length field data type (uint32).
 pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
 
 ///Length of a someip header.
 pub const SOMEIP_HEADER_LENGTH: usize = 4*4;
 
+///Length of the tp header that follows a someip header if a someip packet has been flaged as tp.
+pub const TP_HEADER_LENGTH: usize = 4;
+
 ///Flag in the message type field marking the package a as tp message (transporting large SOME/IP messages of UDP).
 pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
 
 ///Message id of SOMEIP service discovery messages
-pub const SOMEIP_SD_MESSAGE_ID: u32 = 0xffff8100;
+pub const SOMEIP_SD_MESSAGE_ID: u32 = 0xffff_8100;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SomeIpHeader {
     pub message_id: u32,
-    length: u32,
+    pub length: u32,
     pub request_id: u32,
     pub interface_version: u8,
+    ///Message type (does not contain the tp flag, this is determined if something is present in the tp_header field).
     pub message_type: MessageType,
-    ///If true the tp flag in the message type is set (Transporting large SOME/IP messages of UDP [SOME/IP-TP])
-    pub message_type_tp: bool,
-    pub return_code: u8 //TODO replace with enum?
+    pub return_code: u8, //TODO replace with enum?
+    ///Contains a tp header (Transporting large SOME/IP messages of UDP [SOME/IP-TP]).
+    ///
+    ///If there is a tp header a someip payload is split over multiple messages and the tp header contains the 
+    ///start offset of the payload of this message relative to the completly assembled payload.
+    pub tp_header: Option<TpHeader>
 }
 
+///Message types of a SOME/IP message.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MessageType {
     Request = 0x0,
@@ -51,6 +60,7 @@ pub enum MessageType {
     Error = 0x81
 }
 
+///Return code contained in a SOME/IP header.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReturnCode {
     Ok,// = 0x00,
@@ -68,48 +78,31 @@ pub enum ReturnCode {
 }
 
 impl SomeIpHeader {
-    ///Return the length of the payload based on the length field in the header.
-    pub fn payload_len(&self) -> u32 {
-        debug_assert!(self.length >= SOMEIP_LEN_OFFSET_TO_PAYLOAD);
-        self.length - SOMEIP_LEN_OFFSET_TO_PAYLOAD
-    }
-
-    ///Set the length of the payload (automatically adds 8 bytes).
-    ///
-    ///Returns an error if the given value is bigger then SOMEIP_MAX_PAYLOAD_LEN.
-    pub fn set_payload_len(&mut self, value: u32) -> Result<(), ValueError> {
-        if value > SOMEIP_MAX_PAYLOAD_LEN {
-            Err(ValueError::LengthTooLarge(value))
-        } else {
-            self.length = value + SOMEIP_LEN_OFFSET_TO_PAYLOAD;
-            Ok(())
-        }
-    }
 
     ///Returns the service id (first 16 bits of the message id)
     pub fn service_id(&self) -> u16 {
-        ((self.message_id & 0xffff0000) >> 16) as u16
+        ((self.message_id & 0xffff_0000) >> 16) as u16
     }
 
     ///Set the servide id (first 16 bits of the message id)
     pub fn set_service_id(&mut self, service_id: u16) {
-        self.message_id = (self.message_id & 0x0000ffff) | ((service_id as u32) << 16);
+        self.message_id = (self.message_id & 0x0000_ffff) | (u32::from(service_id) << 16);
     }
 
     ///Set the event id + the event bit.
     pub fn set_event_id(&mut self, event_id : u16) {
-        self.message_id = (self.message_id & 0xffff0000) | ((0x8000 | event_id) as u32);
+        self.message_id = (self.message_id & 0xffff_0000) | u32::from(0x8000 | event_id);
     }
 
     ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
     pub fn set_method_id(&mut self, method_id : u16) {
         debug_assert!(method_id <= 0x7FFF);
-        self.message_id = (self.message_id & 0xffff0000) | ((0x7fff & method_id) as u32);
+        self.message_id = (self.message_id & 0xffff_0000) | u32::from(0x7fff & method_id);
     }
 
     ///Sets the event id or method id. This number mjust include the "event bit".
     pub fn set_method_or_event_id(&mut self, method_id : u16) {
-        self.message_id = (self.message_id & 0xffff0000) | ((0xffff & method_id) as u32);
+        self.message_id = (self.message_id & 0xffff_0000) | u32::from(method_id);
     }
 
     ///Returns true if the message has the message id of a some ip service discovery message.
@@ -124,73 +117,230 @@ impl SomeIpHeader {
 
     ///Return the event id or method id. This number includes the "event bit".
     pub fn event_or_method_id(&self) -> u16 {
-        (self.message_id & 0x0000ffff) as u16
+        (self.message_id & 0x0000_ffff) as u16
     }
 
     ///Serialize the header.
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
+    pub fn write_raw<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
         writer.write_u32::<BigEndian>(self.message_id)?;
         writer.write_u32::<BigEndian>(self.length)?;
         writer.write_u32::<BigEndian>(self.request_id)?;
         writer.write_u8(SOMEIP_PROTOCOL_VERSION)?;
         writer.write_u8(self.interface_version)?;
         writer.write_u8({
-             if self.message_type_tp { 
-                (self.message_type.clone() as u8) | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG
-            } else {
-                (self.message_type.clone() as u8)
+            match self.tp_header {
+                Some(_) => (self.message_type.clone() as u8) | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
+                None => (self.message_type.clone() as u8)
             }
         })?;
         writer.write_u8(self.return_code)?;
+        if let Some(ref tp) = self.tp_header {
+            tp.write(writer)?;
+        }
         Ok(())
     }
 
     ///Read a header from a byte stream.
     pub fn read<T: Read>(reader: &mut T) -> Result<SomeIpHeader, ReadError> {
         use ReadError::*;
-        let message_type;
+        let message_id = reader.read_u32::<BigEndian>()?;
+        let length = {
+            let len = reader.read_u32::<BigEndian>()?;
+            if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
+                return Err(LengthFieldTooSmall(len));
+            }
+            len
+        };
+        let request_id = reader.read_u32::<BigEndian>()?;
+        let interface_version = {
+            //read the protocol version and generate an error if the version is non matching
+            let protocol_version = reader.read_u8()?;
+            if SOMEIP_PROTOCOL_VERSION != protocol_version {
+                return Err(UnsupportedProtocolVersion(protocol_version));
+            }
+            //now read the interface version
+            reader.read_u8()?
+        };
+        let message_type_raw = reader.read_u8()?;
+        let message_type = {
+            use MessageType::*;
+            //check that message type is valid
+            match message_type_raw & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
+                0x0 => Request,
+                0x1 => RequestNoReturn,
+                0x2 => Notification,
+                0x80 => Response,
+                0x81 => Error,
+                _ => return Err(UnknownMessageType(message_type_raw))
+            }
+        };
         Ok(SomeIpHeader {
-            message_id: reader.read_u32::<BigEndian>()?,
-            length: {
-                let len = reader.read_u32::<BigEndian>()?;
-                if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
-                    return Err(LengthFieldTooSmall(len));
-                }
-                len
-            },
-            request_id: reader.read_u32::<BigEndian>()?,
-            interface_version: {
-                //read the protocol version and generate an error if the version is non matching
-                let protocol_version = reader.read_u8()?;
-                if SOMEIP_PROTOCOL_VERSION != protocol_version {
-                    return Err(UnsupportedProtocolVersion(protocol_version));
-                }
-                //now read the interface version
-                reader.read_u8()?
-            },
-            message_type: {
-                use MessageType::*;
-                //set message type (required for the flag afterwords)
-                message_type = reader.read_u8()?;
-                //check that message type is valid
-                match message_type & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
-                    0x0 => Request,
-                    0x1 => RequestNoReturn,
-                    0x2 => Notification,
-                    0x80 => Response,
-                    0x81 => Error,
-                    _ => return Err(UnknownMessageType(message_type))
-                }
-            },
-            message_type_tp: 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
-            return_code: reader.read_u8()?
+            message_id,
+            length,
+            request_id,
+            interface_version,
+            message_type,
+            return_code: reader.read_u8()?,
+            //read the tp header if the flag is set
+            tp_header: if 0 != message_type_raw & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG {
+                Some(TpHeader::read(reader)?)
+            } else {
+                None
+            }
         })
+    }
+}
+
+///Additional header when a packet contains a TP header (transporting large SOME/IP messages).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TpHeader {
+    ///Offset of the payload relativ the start of the completly assempled payload.
+    offset: u32,
+    ///Flag signaling that more packets should follow
+    pub more_segment: bool
+}
+
+impl TpHeader {
+
+    ///Creates a tp header with offset 0 and the given "move_segment" flag.
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// use someip_parse::TpHeader;
+    /// 
+    /// // create a header with the more_segement flag set
+    /// let header = TpHeader::new(true);
+    ///
+    /// assert_eq!(0, header.offset());
+    /// assert_eq!(true, header.more_segment);
+    /// ```
+    pub fn new(more_segment: bool) -> TpHeader {
+        TpHeader {
+            offset: 0,
+            more_segment
+        }
+    }
+
+    /// Creates a tp header with the given offset & "more_segment" flag if the offset is a multiple of 16.
+    /// Otherwise an TpOffsetNotMultipleOf16 error is returned.
+    ///
+    /// # Example:
+    ///
+    /// ```
+    /// use someip_parse::{TpHeader, ValueError};
+    /// 
+    /// // create a header with offset 32 (multiple of 16) and the more_segement flag set
+    /// let header = TpHeader::with_offset(32, true).unwrap();
+    ///
+    /// assert_eq!(32, header.offset());
+    /// assert_eq!(true, header.more_segment);
+    ///
+    /// // try to create a header with a bad offset (non multiple of 16)
+    /// let error = TpHeader::with_offset(31, false);
+    ///
+    /// assert_eq!(Err(ValueError::TpOffsetNotMultipleOf16(31)), error);
+    /// ```
+    pub fn with_offset(offset: u32, more_segment: bool) -> Result<TpHeader, ValueError> {
+        use ValueError::*;
+        if 0 != offset % 16 {
+            Err(TpOffsetNotMultipleOf16(offset))
+        } else {
+            Ok(TpHeader {
+                offset,
+                more_segment
+            })
+        }
+    }
+
+    /// Returns the offset field of the tp header. The offset defines 
+    #[inline]
+    pub fn offset(&self) -> u32 {
+        self.offset
+    }
+
+    /// Sets the field of the header and returns Ok(()) on success. Note: The value must be a multiple of 16.
+    ///
+    /// If the given value is not a multiple of 16, the value is not set and an error 
+    /// ValueError::TpOffsetNotMultipleOf16 is returned.
+    pub fn set_offset(&mut self, value: u32) -> Result<(), ValueError> {
+        use ValueError::*;
+        if 0 != value % 16 {
+            Err(TpOffsetNotMultipleOf16(value))
+        } else {
+            self.offset = value;
+            Ok(())
+        }
+    }
+
+    /// Read a header from a byte stream.
+    pub fn read<T: Read>(reader: &mut T) -> Result<TpHeader, ReadError> {
+        let mut buffer = [0u8;TP_HEADER_LENGTH];
+        reader.read_exact(&mut buffer)?;
+        let more_segment = 0 != (buffer[3] & 0b0001u8);
+
+        //check the reserved flags are zero
+        if 0 != (buffer[3] & 0b110u8) {
+            use ReadError::TpReservedNonZero;
+            Err(TpReservedNonZero(buffer[3] & 0b1110u8))
+        } else {
+            //mask out the flags
+            buffer[3] &= !0b1111u8;
+
+            Ok(TpHeader{
+                offset: BigEndian::read_u32(&buffer),
+                more_segment
+            })
+        }
+    }
+
+    fn read_from_slice_unchecked(slice: &[u8]) -> TpHeader {
+        let mut buffer = [0u8;TP_HEADER_LENGTH];
+        buffer.copy_from_slice(slice);
+
+        let more_segment = 0 != (buffer[3] & 0b0001u8);
+        //mask out the flags
+        buffer[3] &= !0b1111u8;
+        //return result
+        TpHeader{
+            offset: BigEndian::read_u32(&buffer),
+            more_segment
+        }
+    }
+    
+    ///Writes the header to the given writer.
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
+        let mut buffer = [0u8;TP_HEADER_LENGTH];
+        self.write_to_slice_unchecked(&mut buffer);
+        writer.write_all(&buffer)?;
+        Ok(())
+    }
+
+    ///Writes the header to a slice.
+    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), WriteError> {
+        if slice.len() < TP_HEADER_LENGTH {
+            use WriteError::*;
+            Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
+        } else {
+            self.write_to_slice_unchecked(slice);
+            Ok(())
+        }
+    }
+
+    ///Writes the header to a slice without checking the slice length.
+    fn write_to_slice_unchecked(&self, slice: &mut [u8]) {
+        BigEndian::write_u32(slice, self.offset);
+        if self.more_segment {
+            slice[3] |= 0x1u8; 
+        }
     }
 }
 
 ///A slice containing an some ip header & payload of that message.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SomeIpHeaderSlice<'a> {
+    ///If true a TP header is following the SOME/IP header.
+    tp: bool,
     slice: &'a [u8]
 }
 
@@ -221,12 +371,22 @@ impl<'a> SomeIpHeaderSlice<'a> {
             }
             //check message type
             let message_type = slice[4*3 + 2];
+
+            //check the length is still ok, in case of a tp flag
+            let tp = 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG;
+            if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + 4 {
+                return Err(LengthFieldTooSmall(len));
+            }
+
+            //make sure the message type is known
             match message_type & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
                 0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {},
                 _ => return Err(UnknownMessageType(message_type))
             }
+            
             //all good generate the slice
             Ok(SomeIpHeaderSlice {
+                tp,
                 slice: &slice[..total_length]
             })
         }
@@ -309,8 +469,8 @@ impl<'a> SomeIpHeaderSlice<'a> {
     }
 
     ///Returns true if the tp flag in the message type is set (Transporting large SOME/IP messages of UDP [SOME/IP-TP])
-    pub fn message_type_tp(&self) -> bool {
-        0 != self.slice[14] & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG
+    pub fn is_tp(&self) -> bool {
+        self.tp
     }
 
     ///Returns the return code of the message.
@@ -321,7 +481,24 @@ impl<'a> SomeIpHeaderSlice<'a> {
 
     ///Return a slice to the payload of the someip header.
     pub fn payload(&self) -> &'a [u8] {
-        &self.slice[SOMEIP_HEADER_LENGTH..]
+        if self.tp {
+            &self.slice[SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH ..]
+        } else {
+            &self.slice[SOMEIP_HEADER_LENGTH..]
+        }
+    }
+
+    ///Returns the tp header if there should be one present.
+    pub fn tp_header(&self) -> Option<TpHeader> {
+        if self.tp {
+            Some(
+                TpHeader::read_from_slice_unchecked(
+                    &self.slice[SOMEIP_HEADER_LENGTH .. SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH]
+                )
+            )
+        } else {
+            None
+        }
     }
 
     ///Decode all the fields and copy the results to a SomeIpHeader struct
@@ -332,8 +509,8 @@ impl<'a> SomeIpHeaderSlice<'a> {
             request_id: self.request_id(),
             interface_version: self.interface_version(),
             message_type: self.message_type(),
-            message_type_tp: self.message_type_tp(),
-            return_code: self.return_code()
+            return_code: self.return_code(),
+            tp_header: self.tp_header(),
         }
     }
 }
@@ -347,7 +524,7 @@ pub struct SliceIterator<'a> {
 impl<'a> SliceIterator<'a> {
     pub fn new(slice: &'a [u8]) -> SliceIterator<'a> {
         SliceIterator {
-            slice: slice
+            slice
         }
     }
 }
@@ -356,7 +533,7 @@ impl<'a> Iterator for SliceIterator<'a> {
     type Item = Result<SomeIpHeaderSlice<'a>, ReadError>;
 
     fn next(&mut self) -> Option<Result<SomeIpHeaderSlice<'a>, ReadError>> {
-        if self.slice.len() > 0 {
+        if !self.slice.is_empty() {
             //parse
             let result = SomeIpHeaderSlice::from_slice(self.slice);
 
@@ -389,8 +566,8 @@ impl Default for SomeIpHeader {
             request_id: 0,
             interface_version: 0,
             message_type: MessageType::Request,
-            message_type_tp: false,
-            return_code: 0
+            return_code: 0,
+            tp_header: None
         }
     }
 }
@@ -406,6 +583,8 @@ pub enum ReadError {
     LengthFieldTooSmall(u32),
     ///Error when the message type field contains an unknown value
     UnknownMessageType(u8),
+    ///Error when the tp header reserved fields contain bits.
+    TpReservedNonZero(u8)
 }
 
 impl From<std::io::Error> for ReadError {
@@ -414,10 +593,31 @@ impl From<std::io::Error> for ReadError {
     }
 }
 
+#[derive(Debug)]
+pub enum WriteError {
+    IoError(std::io::Error),
+    ///The slice length was not large enough to write the header.
+    UnexpectedEndOfSlice(usize)
+}
+
+impl From<std::io::Error> for WriteError {
+    fn from(err: std::io::Error) -> WriteError {
+        WriteError::IoError(err)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueError {
-    ///Payload length is too long as 8 bytes for the header have to be added.
-    LengthTooLarge(u32)
+    /// Payload length is too long as 8 bytes for the header have to be added.
+    LengthTooLarge(u32),
+
+    /// Offset of the tp header is not a multiple of 16.
+    ///
+    /// PRS_SOMEIP_00724: The Offset field shall transport the upper 28 bits of a 
+    /// uint32. The lower 4 bits shall be always interpreted as 0.
+    /// Note: This means that the offset field can only transport offset values 
+    /// that are multiples of 16 bytes.
+    TpOffsetNotMultipleOf16(u32)
 }
 
 #[cfg(test)]
@@ -458,27 +658,8 @@ mod tests_someip_header {
         assert_eq!(0, header.request_id);
         assert_eq!(0, header.interface_version);
         assert_eq!(MessageType::Request, header.message_type);
-        assert_eq!(false, header.message_type_tp);
+        assert_eq!(None, header.tp_header);
         assert_eq!(0, header.return_code);
-    }
-
-    #[test]
-    fn payload_len() {
-        //test valid values
-        for i in &[0,1,2,3, SOMEIP_MAX_PAYLOAD_LEN - 1, SOMEIP_MAX_PAYLOAD_LEN] {
-            let mut header = SomeIpHeader::default();
-            assert_eq!(Ok(()), header.set_payload_len(*i));
-            assert_eq!(i + SOMEIP_LEN_OFFSET_TO_PAYLOAD, header.length);
-            assert_eq!(*i, header.payload_len());
-        }
-
-        //test that not allowed payload lengths generate an error
-        for i in SOMEIP_MAX_PAYLOAD_LEN + 1..std::u32::MAX {
-            let mut header = SomeIpHeader::default();
-            assert_eq!(SOMEIP_LEN_OFFSET_TO_PAYLOAD, header.length);
-            assert_eq!(Err(ValueError::LengthTooLarge(i)), header.set_payload_len(i));
-            assert_eq!(SOMEIP_LEN_OFFSET_TO_PAYLOAD, header.length);
-        }
     }
 
     proptest! {
@@ -491,7 +672,7 @@ mod tests_someip_header {
                     value
                 };
                 let mut buffer = Vec::new();
-                input.write(&mut buffer).unwrap();
+                input.write_raw(&mut buffer).unwrap();
 
                 //read the header
                 let mut cursor = Cursor::new(&buffer);
@@ -513,6 +694,12 @@ mod tests_someip_header {
                       ref input_base in someip_header_any(),
                       add in 0usize..15) {
             for message_type in MESSAGE_TYPE_VALUES {
+                //calculate the length based on if there tp header is present
+                let length = if input_base.tp_header.is_some() {
+                    length + TP_HEADER_LENGTH as u32
+                } else {
+                    length
+                };
                 let input = {
                     let mut value = input_base.clone();
                     value.length = length;
@@ -521,10 +708,12 @@ mod tests_someip_header {
                 };
 
                 let mut buffer = Vec::new();
-                input.write(&mut buffer).unwrap();
+                input.write_raw(&mut buffer).unwrap();
 
                 //add some payload
-                let expected_length = length as usize + (SOMEIP_HEADER_LENGTH - SOMEIP_LEN_OFFSET_TO_PAYLOAD as usize);
+                let expected_length = 
+                    length as usize
+                    + (SOMEIP_HEADER_LENGTH - SOMEIP_LEN_OFFSET_TO_PAYLOAD as usize);
                 buffer.resize(expected_length + add, 0);
 
                 //from_slice
@@ -535,9 +724,15 @@ mod tests_someip_header {
                 assert_eq!(SOMEIP_PROTOCOL_VERSION, slice.protocol_version());
                 assert_eq!(input.interface_version, slice.interface_version());
                 assert_eq!(input.message_type, slice.message_type());
-                assert_eq!(input.message_type_tp, slice.message_type_tp());
+                assert_eq!(input.tp_header, slice.tp_header());
                 assert_eq!(input.return_code, slice.return_code());
-                assert_eq!(&buffer[SOMEIP_HEADER_LENGTH..expected_length], slice.payload());
+                assert_eq!(&buffer[(
+                    if input.tp_header.is_some() {
+                        SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH
+                    } else {
+                        SOMEIP_HEADER_LENGTH
+                    }
+                )..expected_length], slice.payload());
 
                 //internal slice checking
                 assert_eq!(&buffer[..expected_length], slice.slice());
@@ -559,8 +754,17 @@ mod tests_someip_header {
         fn unknown_message_type(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
                                 ref input_base in someip_header_any(),
                                 message_type in any::<u8>().prop_filter("message type must be unknown",
-                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| v == &x)))
+                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| (v == &x || 
+                                                                             (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | v) == x)))
+            )
         {
+            //add the tp header length in case the tp flag is set
+            let length = if 0 != (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | message_type) {
+                length + 4
+            } else {
+                length
+            };
+
             let input = {
                 let mut value = input_base.clone();
                 value.length = length;
@@ -569,7 +773,7 @@ mod tests_someip_header {
 
             //serialize to buffer
             let mut buffer = Vec::new();
-            input.write(&mut buffer).unwrap();
+            input.write_raw(&mut buffer).unwrap();
 
             //add some payload
             let expected_length = length as usize + (SOMEIP_HEADER_LENGTH - SOMEIP_LEN_OFFSET_TO_PAYLOAD as usize);
@@ -599,6 +803,7 @@ mod tests_someip_header {
 
             //create the type
             let slice = SomeIpHeaderSlice {
+                tp: false,
                 slice: &buffer
             };
 
@@ -610,7 +815,7 @@ mod tests_someip_header {
     #[test]
     fn read_unsupported_protocol_version() {
         let mut buffer = Vec::new();
-        SomeIpHeader::default().write(&mut buffer).unwrap();
+        SomeIpHeader::default().write_raw(&mut buffer).unwrap();
         //set the protocol to an unsupported version
         buffer[4*3] = 0;
         let mut cursor = Cursor::new(&buffer);
@@ -624,7 +829,7 @@ mod tests_someip_header {
         //0
         {
             let mut buffer = Vec::new();
-            SomeIpHeader::default().write(&mut buffer).unwrap();
+            SomeIpHeader::default().write_raw(&mut buffer).unwrap();
             //set the length to 0
             BigEndian::write_u32(&mut buffer[4..8], 0);
             let mut cursor = Cursor::new(&buffer);
@@ -636,7 +841,7 @@ mod tests_someip_header {
         //SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
         {
             let mut buffer = Vec::new();
-            SomeIpHeader::default().write(&mut buffer).unwrap();
+            SomeIpHeader::default().write_raw(&mut buffer).unwrap();
             //set the length to SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
             const TOO_SMALL: u32 = SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1;
             BigEndian::write_u32(&mut buffer[4..8], TOO_SMALL);
@@ -665,7 +870,7 @@ mod tests_someip_header {
         //SomeIpHeaderSlice
         {
             let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
-            println!("{:?}", SomeIpHeaderSlice{ slice: &buffer[..]});
+            println!("{:?}", SomeIpHeaderSlice{ tp:false, slice: &buffer[..]});
         }
     }
 
@@ -676,7 +881,7 @@ mod tests_someip_header {
             //serialize
             let mut buffer = Vec::new();
             for (message, payload) in expected.iter() {
-                message.write(&mut buffer).unwrap();
+                message.write_raw(&mut buffer).unwrap();
                 buffer.write(&payload[..]).unwrap();
             }
 
@@ -705,7 +910,7 @@ mod tests_someip_header {
         fn iterator_error(packet in someip_header_with_payload_any()) {
             //serialize
             let mut buffer = Vec::new();
-            packet.0.write(&mut buffer).unwrap();
+            packet.0.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
 
             //generate iterator
@@ -730,7 +935,7 @@ mod tests_someip_header {
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
-            header.write(&mut buffer).unwrap();
+            header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
@@ -751,7 +956,7 @@ mod tests_someip_header {
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
-            header.write(&mut buffer).unwrap();
+            header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
@@ -775,7 +980,7 @@ mod tests_someip_header {
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
-            header.write(&mut buffer).unwrap();
+            header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
@@ -797,7 +1002,7 @@ mod tests_someip_header {
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
-            header.write(&mut buffer).unwrap();
+            header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
@@ -822,7 +1027,7 @@ mod tests_someip_header {
             //some ip sd packet
             {
                 let mut buffer = Vec::new();
-                header.write(&mut buffer).unwrap();
+                header.write_raw(&mut buffer).unwrap();
                 buffer.write(&packet.1[..]).unwrap();
                 let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
@@ -831,7 +1036,7 @@ mod tests_someip_header {
             //random packet
             {
                 let mut buffer = Vec::new();
-                packet.0.write(&mut buffer).unwrap();
+                packet.0.write_raw(&mut buffer).unwrap();
                 buffer.write(&packet.1[..]).unwrap();
                 let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 

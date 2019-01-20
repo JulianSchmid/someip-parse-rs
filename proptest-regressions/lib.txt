@@ -5,3 +5,6 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 xs 1289169444 1186818204 2631287773 4282331790 # shrinks to message_type = 3
+xs 2054583661 1683952072 1079737848 3373291678 # shrinks to length = 8, ref input_base = SomeIpHeader { message_id: 0, length: 8, request_id: 0, interface_version: 0, message_type: Request, return_code: 0, tp_header: None }, message_type = 35
+xs 2524573849 85266791 3683769247 1280631438 # shrinks to length = 8, ref input_base = SomeIpHeader { message_id: 0, length: 8, request_id: 0, interface_version: 0, message_type: Request, return_code: 0, tp_header: Some(TpHeader { offset: 0, more_segment: false }) }, add = 0
+xs 2479883255 1162313211 4267322890 319778354 # shrinks to length = 8, ref input_base = SomeIpHeader { message_id: 0, length: 8, request_id: 0, interface_version: 0, message_type: Request, return_code: 0, tp_header: Some(TpHeader { offset: 0, more_segment: false }) }, add = 0

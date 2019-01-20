@@ -392,6 +392,58 @@ impl<'a> SomeIpHeaderSlice<'a> {
         }
     }
 
+    #[cfg(target_pointer_width = "32")] 
+    pub fn from_slice(slice: &'a[u8]) -> Result<SomeIpHeaderSlice, ReadError> {
+        use ReadError::*;
+        //first check the length
+        if slice.len() < SOMEIP_HEADER_LENGTH {
+            Err(UnexpectedEndOfSlice(slice.len()))
+        } else {
+            //check length
+            let len = BigEndian::read_u32(&slice[4..8]);
+            if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
+                return Err(LengthFieldTooSmall(len));
+            }
+
+            //NOTE: This additional check is needed for 32 bit systems, as otherwise an overflow could potentially be happening
+            const MAX_SUPPORTED_LEN: usize = std::usize::MAX - 4*2;
+            let len_usize = len as usize;
+            if len_usize > MAX_SUPPORTED_LEN {
+                return Err(UnexpectedEndOfSlice(slice.len()));
+            }
+
+            let total_length = len_usize + 4*2;
+            if slice.len() < total_length {
+                return Err(UnexpectedEndOfSlice(slice.len()))
+            }
+            //check protocol version
+            let protocol_version = slice[4*3];
+            if SOMEIP_PROTOCOL_VERSION != protocol_version {
+                return Err(UnsupportedProtocolVersion(protocol_version));
+            }
+            //check message type
+            let message_type = slice[4*3 + 2];
+
+            //check the length is still ok, in case of a tp flag
+            let tp = 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG;
+            if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + 4 {
+                return Err(LengthFieldTooSmall(len));
+            }
+
+            //make sure the message type is known
+            match message_type & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
+                0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {},
+                _ => return Err(UnknownMessageType(message_type))
+            }
+            
+            //all good generate the slice
+            Ok(SomeIpHeaderSlice {
+                tp,
+                slice: &slice[..total_length]
+            })
+        }
+    }
+
     ///Return the slice that contains the someip header
     #[inline]
     pub fn slice(&self) -> &'a [u8] {
@@ -700,6 +752,7 @@ mod tests_someip_header {
                 } else {
                     length
                 };
+
                 let input = {
                     let mut value = input_base.clone();
                     value.length = length;

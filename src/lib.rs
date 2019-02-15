@@ -192,7 +192,7 @@ impl SomeIpHeader {
 }
 
 ///Additional header when a packet contains a TP header (transporting large SOME/IP messages).
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TpHeader {
     ///Offset of the payload relativ the start of the completly assempled payload.
     offset: u32,
@@ -279,19 +279,13 @@ impl TpHeader {
         reader.read_exact(&mut buffer)?;
         let more_segment = 0 != (buffer[3] & 0b0001u8);
 
-        //check the reserved flags are zero
-        if 0 != (buffer[3] & 0b110u8) {
-            use ReadError::TpReservedNonZero;
-            Err(TpReservedNonZero(buffer[3] & 0b1110u8))
-        } else {
-            //mask out the flags
-            buffer[3] &= !0b1111u8;
+        //mask out the flags
+        buffer[3] &= !0b1111u8;
 
-            Ok(TpHeader{
-                offset: BigEndian::read_u32(&buffer),
-                more_segment
-            })
-        }
+        Ok(TpHeader{
+            offset: BigEndian::read_u32(&buffer),
+            more_segment
+        })
     }
 
     fn read_from_slice_unchecked(slice: &[u8]) -> TpHeader {
@@ -634,9 +628,7 @@ pub enum ReadError {
     ///Error returned when a someip header has a value in the length field that is smaller then the rest of someip header itself (8 bytes).
     LengthFieldTooSmall(u32),
     ///Error when the message type field contains an unknown value
-    UnknownMessageType(u8),
-    ///Error when the tp header reserved fields contain bits.
-    TpReservedNonZero(u8)
+    UnknownMessageType(u8)
 }
 
 impl From<std::io::Error> for ReadError {
@@ -778,6 +770,7 @@ mod tests_someip_header {
                 assert_eq!(input.interface_version, slice.interface_version());
                 assert_eq!(input.message_type, slice.message_type());
                 assert_eq!(input.tp_header, slice.tp_header());
+                assert_eq!(input.tp_header.is_some(), slice.is_tp());
                 assert_eq!(input.return_code, slice.return_code());
                 assert_eq!(&buffer[(
                     if input.tp_header.is_some() {
@@ -812,7 +805,7 @@ mod tests_someip_header {
             )
         {
             //add the tp header length in case the tp flag is set
-            let length = if 0 != (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | message_type) {
+            let length = if 0 != (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG & message_type) {
                 length + 4
             } else {
                 length
@@ -920,60 +913,30 @@ mod tests_someip_header {
                 println!("{:?}", value);
             }
         }
+        //WriteError
+        {
+            use WriteError::*;
+            for value in [
+                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+                UnexpectedEndOfSlice(0)
+            ].iter() {
+                println!("{:?}", value);
+            }
+        }
+        //ValueError
+        {
+            use ValueError::*;
+            for value in [
+                LengthTooLarge(0),
+                TpOffsetNotMultipleOf16(0)
+            ].iter() {
+                println!("{:?}", value);
+            }
+        }
         //SomeIpHeaderSlice
         {
             let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
             println!("{:?}", SomeIpHeaderSlice{ tp:false, slice: &buffer[..]});
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn iterator(expected in proptest::collection::vec(someip_header_with_payload_any(), 0..5))
-        {
-            //serialize
-            let mut buffer = Vec::new();
-            for (message, payload) in expected.iter() {
-                message.write_raw(&mut buffer).unwrap();
-                buffer.write(&payload[..]).unwrap();
-            }
-
-            //read message with iterator
-            let actual = SliceIterator::new(&buffer[..]).fold(
-                Vec::with_capacity(expected.len()), 
-                |mut acc, x| {
-                    let x_unwraped = x.unwrap();
-                    acc.push((
-                        x_unwraped.to_header(),
-                        {
-                            let mut vec = Vec::with_capacity(x_unwraped.payload().len());
-                            vec.extend_from_slice(x_unwraped.payload());
-                            vec
-                        })
-                    );
-                    acc
-                });
-            assert_eq!(expected, actual);
-        }
-
-    }
-
-    proptest! {
-        #[test]
-        fn iterator_error(packet in someip_header_with_payload_any()) {
-            //serialize
-            let mut buffer = Vec::new();
-            packet.0.write_raw(&mut buffer).unwrap();
-            buffer.write(&packet.1[..]).unwrap();
-
-            //generate iterator
-            let len = buffer.len();
-            let mut iterator = SliceIterator::new(&buffer[..len-1]);
-
-            //check that an error is generated
-            assert_matches!(iterator.next(), Some(Err(ReadError::UnexpectedEndOfSlice(_))));
-            assert_matches!(iterator.next(), None);
-            assert_matches!(iterator.next(), None);
         }
     }
 
@@ -1095,6 +1058,126 @@ mod tests_someip_header {
 
                 assert_eq!(packet.0.message_id == SD_MESSAGE_ID, slice.is_someip_sd());
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_tp_header {
+
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn new(more_segment in any::<bool>()) {
+            let result = TpHeader::new(more_segment);
+
+            assert_eq!(result.offset, 0);
+            assert_eq!(result.offset(), 0);
+            assert_eq!(result.more_segment, more_segment);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn with_offset(
+            offset in any::<u32>().prop_filter("must be multiple of 16", |v| 0 == v % 16),
+            more_segment in any::<bool>()
+        ) {
+            let result = TpHeader::with_offset(offset, more_segment).unwrap();
+
+            assert_eq!(result.offset, offset);
+            assert_eq!(result.more_segment, more_segment);
+        }
+    }
+    
+    proptest! {
+        #[test]
+        fn with_offset_error(
+            offset in any::<u32>().prop_filter("must not be multiple of 16", |v| 0 != v % 16),
+            more_segment in any::<bool>()
+        ) {
+            let result = TpHeader::with_offset(offset, more_segment);
+            assert_eq!(Err(ValueError::TpOffsetNotMultipleOf16(offset)), result);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn set_offset(
+            offset in any::<u32>().prop_filter("must be multiple of 16", |v| 0 == v % 16)
+        ) {
+            let mut header: TpHeader = Default::default();
+            assert_eq!(Ok(()), header.set_offset(offset));
+            assert_eq!(header.offset, offset);
+        }
+    }
+    
+    proptest! {
+        #[test]
+        fn set_offset_error(
+            offset in any::<u32>().prop_filter("must not be multiple of 16", |v| 0 != v % 16)
+        ) {
+            let mut header: TpHeader = Default::default();
+            assert_eq!(Err(ValueError::TpOffsetNotMultipleOf16(offset)), header.set_offset(offset));
+            assert_eq!(0, header.offset);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_iterator {
+    use super::*;
+    use super::proptest_generators::*;
+
+    proptest! {
+        #[test]
+        fn iterator(expected in proptest::collection::vec(someip_header_with_payload_any(), 0..5))
+        {
+            //serialize
+            let mut buffer = Vec::new();
+            for (message, payload) in expected.iter() {
+                message.write_raw(&mut buffer).unwrap();
+                buffer.write(&payload[..]).unwrap();
+            }
+
+            //read message with iterator
+            let actual = SliceIterator::new(&buffer[..]).fold(
+                Vec::with_capacity(expected.len()), 
+                |mut acc, x| {
+                    let x_unwraped = x.unwrap();
+                    acc.push((
+                        x_unwraped.to_header(),
+                        {
+                            let mut vec = Vec::with_capacity(x_unwraped.payload().len());
+                            vec.extend_from_slice(x_unwraped.payload());
+                            vec
+                        })
+                    );
+                    acc
+                });
+            assert_eq!(expected, actual);
+        }
+
+    }
+
+    proptest! {
+        #[test]
+        fn iterator_error(packet in someip_header_with_payload_any()) {
+            //serialize
+            let mut buffer = Vec::new();
+            packet.0.write_raw(&mut buffer).unwrap();
+            buffer.write(&packet.1[..]).unwrap();
+
+            //generate iterator
+            let len = buffer.len();
+            let mut iterator = SliceIterator::new(&buffer[..len-1]);
+
+            //check that an error is generated
+            assert_matches!(iterator.next(), Some(Err(ReadError::UnexpectedEndOfSlice(_))));
+            assert_matches!(iterator.next(), None);
+            assert_matches!(iterator.next(), None);
         }
     }
 }

@@ -1,3 +1,45 @@
+//! A Rust library for parsing the SOME/IP network protocol (without payload interpretation).
+//!
+//! # Usage
+//!
+//! Add the following to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! someip_parse = "0.1.1"
+//! ```
+//!
+//! # Example
+//! [examples/print_messages.rs](https://github.com/JulianSchmid/someip-parse-rs/blob/0.1.1/examples/print_messages.rs):
+//! ```
+//! //trying parsing some ip messages located in a udp payload
+//! for someip_message in SliceIterator::new(value.payload) {
+//!     match someip_message {
+//!         Ok(value) => {
+//!             if value.is_someip_sd() {
+//!                 println!("someip service discovery packet");
+//!             } else {
+//!                 println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})", 
+//!                          value.message_id(), 
+//!                          value.service_id(),
+//!                          value.event_or_method_id());
+//!             }
+//!             println!("  with payload {:?}", value.payload())
+//!         },
+//!         Err(_) => {} //error reading a someip packet (based on size, protocol version value or message type value)
+//!     }
+//! }
+//! ```
+//! 
+//! # Todo
+//! * Example how to serialize someip packets
+//! * SOMEIP Service Discovery Message Parsing
+//! 
+//! # References
+//! * (AUTOSAR Foundation 1.5.0)[https://www.autosar.org/standards/foundation/foundation-150/] \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\) 
+//! * (SOME/IP Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf]
+//! * (SOME/IP Service Discovery Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf]
+
 use std::io::{Read, Write};
 
 extern crate byteorder;

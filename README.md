@@ -1,28 +1,24 @@
-# SOMEIP Parse
-[![Build Status][build_badge]][build_status]
-[![Code Coverage][coverage_badge]][coverage_report]
-[![Pipeline Status][gitlab_badge]][gitlab_link]
+[![Crates.io](https://img.shields.io/crates/v/someip_parse.svg)](https://crates.io/crates/someip_parse)
+[![Build Status](https://gitlab.com/julian.schmid/etherparse/badges/master/build.svg)](https://gitlab.com/julian.schmid/etherparse/commits/master)
+[![Build Status](https://travis-ci.org/JulianSchmid/someip-parse-rs.svg?branch=master)](https://travis-ci.org/JulianSchmid/someip-parse-rs)
+[![Coverage Status](https://codecov.io/gh/JulianSchmid/someip-parse-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/JulianSchmid/someip-parse-rs)
+
+# someip_parse
 
 A Rust library for parsing the SOME/IP network protocol (without payload interpretation).
 
 ## Usage
 
-First, add the following to your `Cargo.toml`:
+Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 someip_parse = "0.1.1"
 ```
 
-Next, add this to your crate root:
-
-```rust
-extern crate someip_parse;
-```
-
 ## Example
 [examples/print_messages.rs](examples/print_messages.rs):
-```Rust
+```rust
 //trying parsing some ip messages located in a udp payload
 for someip_message in SliceIterator::new(value.payload) {
     match someip_message {
@@ -30,8 +26,8 @@ for someip_message in SliceIterator::new(value.payload) {
             if value.is_someip_sd() {
                 println!("someip service discovery packet");
             } else {
-                println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})", 
-                         value.message_id(), 
+                println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})",
+                         value.message_id(),
                          value.service_id(),
                          value.event_or_method_id());
             }
@@ -47,13 +43,12 @@ for someip_message in SliceIterator::new(value.payload) {
 * SOMEIP Service Discovery Message Parsing
 
 ## References
-* (AUTOSAR Foundation 1.5.0)[https://www.autosar.org/standards/foundation/foundation-150/] \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\) 
+* (AUTOSAR Foundation 1.5.0)[https://www.autosar.org/standards/foundation/foundation-150/] \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\)
 * (SOME/IP Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf]
 * (SOME/IP Service Discovery Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf]
 
-[build_badge]: https://travis-ci.org/JulianSchmid/someip-parse-rs.svg?branch=master
-[build_status]: https://travis-ci.org/JulianSchmid/someip-parse-rs
-[coverage_badge]: https://codecov.io/gh/JulianSchmid/someip-parse-rs/branch/master/graph/badge.svg
-[coverage_report]: https://codecov.io/gh/JulianSchmid/someip-parse-rs/branch/master
-[gitlab_badge]: https://gitlab.com/julian.schmid/someip-parse-rs/badges/master/pipeline.svg
-[gitlab_link]: https://gitlab.com/julian.schmid/someip-parse-rs/commits/master
+## License
+Licensed under the BSD 3-Clause license. Please see the LICENSE file for more information.
+
+### Contribution
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you shall be licensed as above, without any additional terms or conditions.

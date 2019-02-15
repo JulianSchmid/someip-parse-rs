@@ -1,5 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/someip_parse.svg)](https://crates.io/crates/someip_parse)
-[![Build Status](https://gitlab.com/julian.schmid/etherparse/badges/master/build.svg)](https://gitlab.com/julian.schmid/etherparse/commits/master)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/JulianSchmid/someip-parse-rs?branch=master&svg=true)](https://ci.appveyor.com/project/JulianSchmid/someip-parse-rs/branch/master)
+[![Build Status](https://gitlab.com/julian.schmid/someip-parse-rs/badges/master/build.svg)](https://gitlab.com/julian.schmid/someip-parse-rs/commits/master)
 [![Build Status](https://travis-ci.org/JulianSchmid/someip-parse-rs.svg?branch=master)](https://travis-ci.org/JulianSchmid/someip-parse-rs)
 [![Coverage Status](https://codecov.io/gh/JulianSchmid/someip-parse-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/JulianSchmid/someip-parse-rs)
 

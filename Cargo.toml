@@ -29,4 +29,5 @@ time = "0.1.41"
 [badges]
 travis-ci = { repository = "JulianSchmid/someip-parse-rs", branch = "master" }
 codecov = { repository = "JulianSchmid/someip-parse-rs", branch = "master", service = "github" }
-gitlab = { repository = "julian.schmid/etherparse", branch = "master" }
+gitlab = { repository = "julian.schmid/someip-parse-rs", branch = "master" }
+appveyor = { repository = "JulianSchmid/someip-parse-rs", branch = "master", service = "github" }

@@ -55,9 +55,9 @@
 //! * SOMEIP Service Discovery Message Parsing
 //! 
 //! # References
-//! * (AUTOSAR Foundation 1.5.0)[https://www.autosar.org/standards/foundation/foundation-150/] \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\) 
-//! * (SOME/IP Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf]
-//! * (SOME/IP Service Discovery Protocol Specification 1.3.0)[https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf]
+//! * [AUTOSAR Foundation 1.5.0](https://www.autosar.org/standards/foundation/foundation-150/) \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\) 
+//! * [SOME/IP Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf)
+//! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
 use std::io::{Read, Write};
 

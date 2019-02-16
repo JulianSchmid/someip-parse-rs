@@ -1027,48 +1027,6 @@ mod tests_someip_header {
         }
     }
 
-    #[test]
-    fn debug_write() {
-        //ReadError
-        {
-            use ReadError::*;
-            for value in [
-                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
-                UnexpectedEndOfSlice(0),
-                UnsupportedProtocolVersion(0),
-                LengthFieldTooSmall(0),
-                UnknownMessageType(0),
-            ].iter() {
-                println!("{:?}", value);
-            }
-        }
-        //WriteError
-        {
-            use WriteError::*;
-            for value in [
-                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
-                UnexpectedEndOfSlice(0)
-            ].iter() {
-                println!("{:?}", value);
-            }
-        }
-        //ValueError
-        {
-            use ValueError::*;
-            for value in [
-                LengthTooLarge(0),
-                TpOffsetNotMultipleOf16(0)
-            ].iter() {
-                println!("{:?}", value);
-            }
-        }
-        //SomeIpHeaderSlice
-        {
-            let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
-            println!("{:?}", SomeIpHeaderSlice{ tp:false, slice: &buffer[..]});
-        }
-    }
-
     proptest! {
         #[test]
         fn service_id(packet in someip_header_with_payload_any(),
@@ -1187,6 +1145,61 @@ mod tests_someip_header {
 
                 assert_eq!(packet.0.message_id == SD_MESSAGE_ID, slice.is_someip_sd());
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_enums {
+    use super::*;
+
+    #[test]
+    fn from_io_error() {
+        assert_matches!(
+            WriteError::from(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+            WriteError::IoError(_)
+        );
+    }
+
+    #[test]
+    fn debug_write() {
+        //ReadError
+        {
+            use ReadError::*;
+            for value in [
+                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+                UnexpectedEndOfSlice(0),
+                UnsupportedProtocolVersion(0),
+                LengthFieldTooSmall(0),
+                UnknownMessageType(0),
+            ].iter() {
+                println!("{:?}", value);
+            }
+        }
+        //WriteError
+        {
+            use WriteError::*;
+            for value in [
+                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+                UnexpectedEndOfSlice(0)
+            ].iter() {
+                println!("{:?}", value);
+            }
+        }
+        //ValueError
+        {
+            use ValueError::*;
+            for value in [
+                LengthTooLarge(0),
+                TpOffsetNotMultipleOf16(0)
+            ].iter() {
+                println!("{:?}", value);
+            }
+        }
+        //SomeIpHeaderSlice
+        {
+            let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
+            println!("{:?}", SomeIpHeaderSlice{ tp:false, slice: &buffer[..]});
         }
     }
 }

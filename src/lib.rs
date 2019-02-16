@@ -12,8 +12,27 @@
 //! # Example
 //! [examples/print_messages.rs](https://github.com/JulianSchmid/someip-parse-rs/blob/0.1.1/examples/print_messages.rs):
 //! ```
+//! use someip_parse;
+//! # let mut udp_payload = Vec::<u8>::new();
+//! # {
+//! #     use someip_parse::*;
+//! #     let header = SomeIpHeader{
+//! #         message_id: 0x1234_8234,
+//! #         length: SOMEIP_LEN_OFFSET_TO_PAYLOAD + 4,
+//! #         request_id: 1,
+//! #         interface_version: 1,
+//! #         message_type: MessageType::Notification,
+//! #         return_code: ReturnCode::Ok.into(),
+//! #         tp_header: None
+//! #     };/*
+//! #     header.write_raw(&mut udp_payload).unwrap();
+//! #     udp_payload.extend_from_slice(&[1,2,3,4]);*/
+//! # }
+//! 
+//! use someip_parse::SliceIterator;
+//! 
 //! //trying parsing some ip messages located in a udp payload
-//! for someip_message in SliceIterator::new(value.payload) {
+//! for someip_message in SliceIterator::new(&udp_payload) {
 //!     match someip_message {
 //!         Ok(value) => {
 //!             if value.is_someip_sd() {
@@ -103,12 +122,13 @@ pub enum MessageType {
 }
 
 ///Return code contained in a SOME/IP header.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReturnCode {
     Ok,// = 0x00,
     NotOk,// = 0x01,
     UnknownService,// = 0x02,
-    NotReady,// = 0x03,
+    UnknownMethod, //= 0x03
+    NotReady,// = 0x04,
     NotReachable,// = 0x05,
     Timeout,// = 0x06,
     WrongProtocolVersion,// = 0x07,
@@ -117,6 +137,27 @@ pub enum ReturnCode {
     WrongMessageType,// = 0x0a,
     Generic(u8),
     InterfaceError(u8),
+}
+
+impl Into<u8> for ReturnCode {
+    fn into(self) -> u8 {
+        use ReturnCode::*;
+        match self {
+            Ok => 0x00,
+            NotOk => 0x01,
+            UnknownService => 0x02,
+            UnknownMethod => 0x03,
+            NotReady=> 0x04,
+            NotReachable => 0x05,
+            Timeout => 0x06,
+            WrongProtocolVersion => 0x07,
+            WrongInterfaceVersion => 0x08,
+            MalformedMessage => 0x09,
+            WrongMessageType => 0x0a,
+            Generic(value) => value,
+            InterfaceError(value) => value,
+        }
+    }
 }
 
 impl SomeIpHeader {
@@ -704,6 +745,38 @@ pub enum ValueError {
     /// Note: This means that the offset field can only transport offset values 
     /// that are multiples of 16 bytes.
     TpOffsetNotMultipleOf16(u32)
+}
+
+#[cfg(test)]
+mod tests_return_code {
+
+    proptest! {
+        #[test]
+        fn into_u8(generic_error in 0x0bu8..0x20,
+                   interface_error in 0x20u8..0x5F)
+        {
+            use ReturnCode::*;
+            let values = [
+                (Ok, 0x00),
+                (NotOk, 0x01),
+                (UnknownService, 0x02),
+                (UnknownMethod, 0x03),
+                (NotReady, 0x04),
+                (NotReachable, 0x05),
+                (Timeout, 0x06),
+                (WrongProtocolVersion, 0x07),
+                (WrongInterfaceVersion, 0x08),
+                (MalformedMessage, 0x09),
+                (WrongMessageType, 0x0a),
+                (Generic(generic_error), generic_error),
+                (InterfaceError(interface_error), interface_error),
+            ];
+            for (ref input, ref expected) in values.iter() {
+                let result: u8 = (*input).into();
+                assert_eq!(*expected, result);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

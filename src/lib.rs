@@ -12,7 +12,6 @@
 //! # Example
 //! [examples/print_messages.rs](https://github.com/JulianSchmid/someip-parse-rs/blob/0.1.1/examples/print_messages.rs):
 //! ```
-//! use someip_parse;
 //! # let mut udp_payload = Vec::<u8>::new();
 //! # {
 //! #     use someip_parse::*;

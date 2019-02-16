@@ -21,7 +21,6 @@ someip_parse = "0.1.1"
 ## Example
 [examples/print_messages.rs](examples/print_messages.rs):
 ```rust
-use someip_parse;
 
 use someip_parse::SliceIterator;
 

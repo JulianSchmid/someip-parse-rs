@@ -14,7 +14,7 @@ fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
 }
 
 prop_compose! {
-    [pub] fn someip_tp_any()(
+    pub fn someip_tp_any()(
         offset in 0..(std::u32::MAX / 16),
         more_segments in any::<bool>())
     -> TpHeader
@@ -24,7 +24,7 @@ prop_compose! {
 }
 
 prop_compose! {
-    [pub] fn someip_header_any()(
+    pub fn someip_header_any()(
         message_id in any::<u32>(),
         length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..SOMEIP_MAX_PAYLOAD_LEN + 1,
         request_id in any::<u32>(),
@@ -47,7 +47,7 @@ prop_compose! {
 }
 
 prop_compose! {
-    [pub] fn someip_header_with_payload_any()(
+    pub fn someip_header_with_payload_any()(
         payload_length in 0u32..1234 //limit it a bit so that not too much memory is allocated during testing
     )(
         message_id in any::<u32>(),

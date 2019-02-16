@@ -372,6 +372,17 @@ impl TpHeader {
         })
     }
 
+    /// Reads a tp header from a slice.
+    pub fn read_from_slice(slice: &[u8]) -> Result<TpHeader, ReadError> {
+        if slice.len() < TP_HEADER_LENGTH {
+            use ReadError::*;
+            Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
+        } else {
+            Ok(TpHeader::read_from_slice_unchecked(slice))
+        }
+    }
+
+    /// Read the value from the slice without checking for the minimum length of the slice.
     fn read_from_slice_unchecked(slice: &[u8]) -> TpHeader {
         let mut buffer = [0u8;TP_HEADER_LENGTH];
         buffer.copy_from_slice(slice);
@@ -386,7 +397,7 @@ impl TpHeader {
         }
     }
     
-    ///Writes the header to the given writer.
+    /// Writes the header to the given writer.
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
         let mut buffer = [0u8;TP_HEADER_LENGTH];
         self.write_to_slice_unchecked(&mut buffer);
@@ -394,7 +405,7 @@ impl TpHeader {
         Ok(())
     }
 
-    ///Writes the header to a slice.
+    /// Writes the header to a slice.
     pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), WriteError> {
         if slice.len() < TP_HEADER_LENGTH {
             use WriteError::*;
@@ -1185,6 +1196,7 @@ mod tests_someip_header {
 mod tests_tp_header {
 
     use super::*;
+    use proptest_generators::*;
     use proptest::prelude::*;
 
     proptest! {
@@ -1241,6 +1253,34 @@ mod tests_tp_header {
             let mut header: TpHeader = Default::default();
             assert_eq!(Err(ValueError::TpOffsetNotMultipleOf16(offset)), header.set_offset(offset));
             assert_eq!(0, header.offset);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn write_and_read_to_slice(
+            header in someip_tp_any()
+        ) {
+            //non error case
+            {
+                //serialize
+                let mut buffer: [u8;TP_HEADER_LENGTH] = [0;TP_HEADER_LENGTH];
+                header.write_to_slice(&mut buffer).unwrap();
+
+                //deserialize
+                let result = TpHeader::read_from_slice(&buffer).unwrap();
+                assert_eq!(header, result);
+            }
+
+            //error
+            {
+                //write_to_slice
+                let mut buffer: [u8;TP_HEADER_LENGTH] = [0;TP_HEADER_LENGTH];
+                assert_matches!(header.write_to_slice(&mut buffer[..TP_HEADER_LENGTH-1]), Err(WriteError::UnexpectedEndOfSlice(_)));
+
+                //read_from_slice
+                assert_matches!(TpHeader::read_from_slice(&buffer[..TP_HEADER_LENGTH-1]), Err(ReadError::UnexpectedEndOfSlice(_)));
+            }
         }
     }
 }

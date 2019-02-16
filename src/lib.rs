@@ -645,7 +645,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
     }
 }
 
-///Allows iterating over the someip message in a udp or tcp payload.
+///Allows iterating over the someip messages in a udp or tcp payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SliceIterator<'a> {
     slice: &'a [u8]
@@ -722,6 +722,7 @@ impl From<std::io::Error> for ReadError {
     }
 }
 
+///Errors that can occur when serializing a someip & tp header.
 #[derive(Debug)]
 pub enum WriteError {
     IoError(std::io::Error),

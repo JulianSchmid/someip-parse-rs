@@ -15,7 +15,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-someip_parse = "0.1.1"
+someip_parse = "0.2.0"
 ```
 
 ## Example

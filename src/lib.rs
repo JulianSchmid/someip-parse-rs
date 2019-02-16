@@ -6,11 +6,11 @@
 //!
 //! ```toml
 //! [dependencies]
-//! someip_parse = "0.1.1"
+//! someip_parse = "0.2.0"
 //! ```
 //!
 //! # Example
-//! [examples/print_messages.rs](https://github.com/JulianSchmid/someip-parse-rs/blob/0.1.1/examples/print_messages.rs):
+//! [examples/print_messages.rs](https://github.com/JulianSchmid/someip-parse-rs/blob/0.2.0/examples/print_messages.rs):
 //! ```
 //! # let mut udp_payload = Vec::<u8>::new();
 //! # {

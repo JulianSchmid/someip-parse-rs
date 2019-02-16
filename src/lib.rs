@@ -27,7 +27,6 @@
 //! #     header.write_raw(&mut udp_payload).unwrap();
 //! #     udp_payload.extend_from_slice(&[1,2,3,4]);*/
 //! # }
-//! 
 //! use someip_parse::SliceIterator;
 //! 
 //! //trying parsing some ip messages located in a udp payload

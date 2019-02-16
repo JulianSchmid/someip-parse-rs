@@ -95,6 +95,7 @@ pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
 ///Message id of SOMEIP service discovery messages
 pub const SOMEIP_SD_MESSAGE_ID: u32 = 0xffff_8100;
 
+///SOMEIP header (including tp header if present).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SomeIpHeader {
     pub message_id: u32,
@@ -701,6 +702,7 @@ impl Default for SomeIpHeader {
     }
 }
 
+///Errors that can occur when reading someip headers.
 #[derive(Debug)]
 pub enum ReadError {
     IoError(std::io::Error),
@@ -733,6 +735,7 @@ impl From<std::io::Error> for WriteError {
     }
 }
 
+///Range errors in fields of the someip & tp header struct. These can occur when serializing or modifying an error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueError {
     /// Payload length is too long as 8 bytes for the header have to be added.

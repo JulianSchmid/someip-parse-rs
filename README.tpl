@@ -1,4 +1,5 @@
 [![Crates.io](https://img.shields.io/crates/v/someip_parse.svg)](https://crates.io/crates/someip_parse)
+[![docs.rs](https://docs.rs/someip_parse/badge.svg)](https://docs.rs/someip_parse)
 {{badges}}
 
 # {{crate}}

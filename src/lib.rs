@@ -136,10 +136,10 @@ pub enum ReturnCode {
     InterfaceError(u8),
 }
 
-impl Into<u8> for ReturnCode {
-    fn into(self) -> u8 {
+impl From<ReturnCode> for u8 {
+    fn from(r: ReturnCode) -> u8 {
         use ReturnCode::*;
-        match self {
+        match r {
             Ok => 0x00,
             NotOk => 0x01,
             UnknownService => 0x02,

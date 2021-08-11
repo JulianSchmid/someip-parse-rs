@@ -634,7 +634,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
 
             //check the length is still ok, in case of a tp flag
             let tp = 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG;
-            if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + TP_HEADER_LENGTH {
+            if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + 4 {
                 return Err(LengthFieldTooSmall(len));
             }
 

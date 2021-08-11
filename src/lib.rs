@@ -6,7 +6,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! someip_parse = "0.2.0"
+//! someip_parse = "0.3.0"
 //! ```
 //!
 //! # Example
@@ -58,9 +58,7 @@
 //! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
 use std::io::{Read, Write};
-
-extern crate byteorder;
-use byteorder::{BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
+use std::slice::from_raw_parts;
 
 #[cfg(test)]
 #[macro_use]
@@ -162,88 +160,124 @@ impl Into<u8> for ReturnCode {
 impl SomeIpHeader {
 
     ///Returns the service id (first 16 bits of the message id)
+    #[inline]
     pub fn service_id(&self) -> u16 {
         ((self.message_id & 0xffff_0000) >> 16) as u16
     }
 
     ///Set the servide id (first 16 bits of the message id)
+    #[inline]
     pub fn set_service_id(&mut self, service_id: u16) {
         self.message_id = (self.message_id & 0x0000_ffff) | (u32::from(service_id) << 16);
     }
 
     ///Set the event id + the event bit.
+    #[inline]
     pub fn set_event_id(&mut self, event_id : u16) {
         self.message_id = (self.message_id & 0xffff_0000) | u32::from(0x8000 | event_id);
     }
 
     ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
+    #[inline]
     pub fn set_method_id(&mut self, method_id : u16) {
         debug_assert!(method_id <= 0x7FFF);
         self.message_id = (self.message_id & 0xffff_0000) | u32::from(0x7fff & method_id);
     }
 
     ///Sets the event id or method id. This number mjust include the "event bit".
+    #[inline]
     pub fn set_method_or_event_id(&mut self, method_id : u16) {
         self.message_id = (self.message_id & 0xffff_0000) | u32::from(method_id);
     }
 
     ///Returns true if the message has the message id of a some ip service discovery message.
+    #[inline]
     pub fn is_someip_sd(&self) -> bool {
         SOMEIP_SD_MESSAGE_ID == self.message_id
     }
 
     ///Returns true if the event or notification bit in the message id is set
+    #[inline]
     pub fn is_event(&self) -> bool {
         0 != self.message_id & 0x8000
     }
 
     ///Return the event id or method id. This number includes the "event bit".
+    #[inline]
     pub fn event_or_method_id(&self) -> u16 {
         (self.message_id & 0x0000_ffff) as u16
     }
 
     ///Serialize the header.
     pub fn write_raw<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
-        writer.write_u32::<BigEndian>(self.message_id)?;
-        writer.write_u32::<BigEndian>(self.length)?;
-        writer.write_u32::<BigEndian>(self.request_id)?;
-        writer.write_u8(SOMEIP_PROTOCOL_VERSION)?;
-        writer.write_u8(self.interface_version)?;
-        writer.write_u8({
-            match self.tp_header {
-                Some(_) => (self.message_type.clone() as u8) | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
-                None => (self.message_type.clone() as u8)
-            }
-        })?;
-        writer.write_u8(self.return_code)?;
+        writer.write_all(&self.base_to_bytes())?;
         if let Some(ref tp) = self.tp_header {
             tp.write(writer)?;
         }
         Ok(())
     }
 
+    /// Returns the encoded SOMEIP header (without the TP header).
+    #[inline]
+    pub fn base_to_bytes(&self) -> [u8;SOMEIP_HEADER_LENGTH] {
+        let message_id_be = self.message_id.to_be_bytes();
+        let length_be = self.length.to_be_bytes();
+        let request_id_be = self.request_id.to_be_bytes();
+        [
+            message_id_be[0],
+            message_id_be[1],
+            message_id_be[2],
+            message_id_be[3],
+
+            length_be[0],
+            length_be[1],
+            length_be[2],
+            length_be[3],
+
+            request_id_be[0],
+            request_id_be[1],
+            request_id_be[2],
+            request_id_be[3],
+
+            SOMEIP_PROTOCOL_VERSION,
+            self.interface_version,
+            match self.tp_header {
+                Some(_) => (self.message_type.clone() as u8) | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
+                None => (self.message_type.clone() as u8)
+            },
+            self.return_code,
+        ]
+    }
+
     ///Read a header from a byte stream.
     pub fn read<T: Read>(reader: &mut T) -> Result<SomeIpHeader, ReadError> {
         use ReadError::*;
-        let message_id = reader.read_u32::<BigEndian>()?;
-        let length = {
-            let len = reader.read_u32::<BigEndian>()?;
-            if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
-                return Err(LengthFieldTooSmall(len));
-            }
-            len
-        };
-        let request_id = reader.read_u32::<BigEndian>()?;
-        let interface_version = {
-            //read the protocol version and generate an error if the version is non matching
-            let protocol_version = reader.read_u8()?;
-            if SOMEIP_PROTOCOL_VERSION != protocol_version {
-                return Err(UnsupportedProtocolVersion(protocol_version));
-            }
-            //now read the interface version
-            reader.read_u8()?
-        };
-        let message_type_raw = reader.read_u8()?;
+
+        // read the header
+        let mut header_bytes : [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
+        reader.read_exact(&mut header_bytes)?;
+
+        // validate length
+        let length = u32::from_be_bytes(
+            [
+                header_bytes[4],
+                header_bytes[5],
+                header_bytes[6],
+                header_bytes[7]
+            ]
+        );
+        if length < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
+            return Err(LengthFieldTooSmall(length));
+        }
+
+        // validate protocol version
+        let protocol_version = header_bytes[12];
+        if SOMEIP_PROTOCOL_VERSION != protocol_version {
+            return Err(UnsupportedProtocolVersion(protocol_version));
+        }
+
+        // validate message type
+        let message_type_raw = header_bytes[14];
         let message_type = {
             use MessageType::*;
             //check that message type is valid
@@ -256,13 +290,28 @@ impl SomeIpHeader {
                 _ => return Err(UnknownMessageType(message_type_raw))
             }
         };
+
         Ok(SomeIpHeader {
-            message_id,
+            message_id: u32::from_be_bytes(
+                [
+                    header_bytes[0],
+                    header_bytes[1],
+                    header_bytes[2],
+                    header_bytes[3],
+                ]
+            ),
             length,
-            request_id,
-            interface_version,
+            request_id: u32::from_be_bytes(
+                [
+                    header_bytes[8],
+                    header_bytes[9],
+                    header_bytes[10],
+                    header_bytes[11],
+                ]
+            ),
+            interface_version: header_bytes[13],
             message_type,
-            return_code: reader.read_u8()?,
+            return_code: header_bytes[15],
             //read the tp header if the flag is set
             tp_header: if 0 != message_type_raw & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG {
                 Some(TpHeader::read(reader)?)
@@ -297,6 +346,7 @@ impl TpHeader {
     /// assert_eq!(0, header.offset());
     /// assert_eq!(true, header.more_segment);
     /// ```
+    #[inline]
     pub fn new(more_segment: bool) -> TpHeader {
         TpHeader {
             offset: 0,
@@ -365,7 +415,7 @@ impl TpHeader {
         buffer[3] &= !0b1111u8;
 
         Ok(TpHeader{
-            offset: BigEndian::read_u32(&buffer),
+            offset: u32::from_be_bytes(buffer),
             more_segment
         })
     }
@@ -376,50 +426,70 @@ impl TpHeader {
             use ReadError::*;
             Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
         } else {
-            Ok(TpHeader::read_from_slice_unchecked(slice))
+            Ok(
+                // SAFETY:
+                // Safe as a length check is preformed that the slice has
+                // the minimum size of TP_HEADER_LENGTH.
+                unsafe {
+                    TpHeader::from_slice_unchecked(slice.as_ptr())
+                }
+            )
         }
     }
 
     /// Read the value from the slice without checking for the minimum length of the slice.
-    fn read_from_slice_unchecked(slice: &[u8]) -> TpHeader {
-        let mut buffer = [0u8;TP_HEADER_LENGTH];
-        buffer.copy_from_slice(slice);
-
-        let more_segment = 0 != (buffer[3] & 0b0001u8);
-        //mask out the flags
-        buffer[3] &= !0b1111u8;
+    ///
+    /// Safety:
+    ///
+    /// It is required that the slice has at least the length of TP_HEADER_LENGTH (4 octets/bytes).
+    /// If this is not the case undefined behavior will occur.
+    #[inline]
+    unsafe fn from_slice_unchecked(ptr: *const u8) -> TpHeader {
         //return result
         TpHeader{
-            offset: BigEndian::read_u32(&buffer),
-            more_segment
+            offset: u32::from_be_bytes(
+                [
+                    *ptr,
+                    *ptr.add(1),
+                    *ptr.add(2),
+                    *ptr.add(3) & 0b1111_0000u8,
+                ]
+            ),
+            more_segment: 0 != (*ptr.add(3) & 0b0001u8),
         }
     }
     
     /// Writes the header to the given writer.
+    #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
-        let mut buffer = [0u8;TP_HEADER_LENGTH];
-        self.write_to_slice_unchecked(&mut buffer);
-        writer.write_all(&buffer)?;
+        writer.write_all(&self.to_bytes())?;
         Ok(())
     }
 
     /// Writes the header to a slice.
+    #[inline]
     pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), WriteError> {
         if slice.len() < TP_HEADER_LENGTH {
             use WriteError::*;
             Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
         } else {
-            self.write_to_slice_unchecked(slice);
+            let buffer = self.to_bytes();
+            slice[0] = buffer[0];
+            slice[1] = buffer[1];
+            slice[2] = buffer[2];
+            slice[3] = buffer[3];
             Ok(())
         }
     }
 
     ///Writes the header to a slice without checking the slice length.
-    fn write_to_slice_unchecked(&self, slice: &mut [u8]) {
-        BigEndian::write_u32(slice, self.offset);
+    #[inline]
+    pub fn to_bytes(&self) -> [u8;4] {
+        let mut result = self.offset.to_be_bytes();
         if self.more_segment {
-            slice[3] |= 0x1u8; 
+            result[3] |= 0x1u8; 
         }
+        result
     }
 }
 
@@ -441,7 +511,14 @@ impl<'a> SomeIpHeaderSlice<'a> {
             Err(UnexpectedEndOfSlice(slice.len()))
         } else {
             //check length
-            let len = BigEndian::read_u32(&slice[4..8]);
+            let len = {
+                // SAFETY:
+                // Read is save as it is checked before that the slice has at least
+                // SOMEIP_HEADER_LENGTH 16 bytes.
+                unsafe {
+                    get_unchecked_be_u32(slice.as_ptr().add(4))
+                }
+            };
             if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
                 return Err(LengthFieldTooSmall(len));
             }
@@ -452,12 +529,27 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 return Err(UnexpectedEndOfSlice(slice.len()))
             }
             //check protocol version
-            let protocol_version = slice[4*3];
+            let protocol_version = {
+                // SAFETY:
+                // Read is save as it is checked before that the slice has at least
+                // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
+                unsafe {
+                    *slice.get_unchecked(4*3)
+                }
+            };
             if SOMEIP_PROTOCOL_VERSION != protocol_version {
                 return Err(UnsupportedProtocolVersion(protocol_version));
             }
+
             //check message type
-            let message_type = slice[4*3 + 2];
+            let message_type = {
+                // SAFETY:
+                // Read is save as it is checked before that the slice has at least
+                // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
+                unsafe {
+                    *slice.get_unchecked(4*3 + 2)
+                }
+            };
 
             //check the length is still ok, in case of a tp flag
             let tp = 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG;
@@ -474,7 +566,13 @@ impl<'a> SomeIpHeaderSlice<'a> {
             //all good generate the slice
             Ok(SomeIpHeaderSlice {
                 tp,
-                slice: &slice[..total_length]
+                // SAFETY: Check is preformed above to ensure slice has at least total length
+                slice: unsafe {
+                    from_raw_parts(
+                        slice.as_ptr(),
+                        total_length
+                    )
+                }
             })
         }
     }
@@ -487,7 +585,14 @@ impl<'a> SomeIpHeaderSlice<'a> {
             Err(UnexpectedEndOfSlice(slice.len()))
         } else {
             //check length
-            let len = BigEndian::read_u32(&slice[4..8]);
+            let len = {
+                // SAFETY:
+                // Read is save as it is checked before that the slice has at least
+                // SOMEIP_HEADER_LENGTH 16 bytes.
+                unsafe {
+                    get_unchecked_be_u32(slice.as_ptr().add(4))
+                }
+            };
             if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
                 return Err(LengthFieldTooSmall(len));
             }
@@ -504,16 +609,31 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 return Err(UnexpectedEndOfSlice(slice.len()))
             }
             //check protocol version
-            let protocol_version = slice[4*3];
+            let protocol_version = {
+                // SAFETY:
+                // Read is save as it is checked before that the slice has at least
+                // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
+                unsafe {
+                    *slice.get_unchecked(4*3)
+                }
+            };
             if SOMEIP_PROTOCOL_VERSION != protocol_version {
                 return Err(UnsupportedProtocolVersion(protocol_version));
             }
+
             //check message type
-            let message_type = slice[4*3 + 2];
+            let message_type = {
+                // SAFETY:
+                // Read is save as it is checked before that the slice has at least
+                // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
+                unsafe {
+                    *slice.get_unchecked(4*3 + 2)
+                }
+            };
 
             //check the length is still ok, in case of a tp flag
             let tp = 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG;
-            if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + 4 {
+            if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + TP_HEADER_LENGTH {
                 return Err(LengthFieldTooSmall(len));
             }
 
@@ -526,7 +646,13 @@ impl<'a> SomeIpHeaderSlice<'a> {
             //all good generate the slice
             Ok(SomeIpHeaderSlice {
                 tp,
-                slice: &slice[..total_length]
+                // SAFETY: Check is preformed above to ensure slice has at least total length
+                slice: unsafe {
+                    from_raw_parts(
+                        slice.as_ptr(),
+                        total_length
+                    )
+                }
             })
         }
     }
@@ -538,53 +664,100 @@ impl<'a> SomeIpHeaderSlice<'a> {
     }
 
     ///Returns the message id of the message.
+    #[inline]
     pub fn message_id(&self) -> u32 {
-        BigEndian::read_u32(&self.slice[..4])
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            get_unchecked_be_u32(self.slice.as_ptr())
+        }
     }
 
     ///Returns the service id (first 16 bits of the message id)
+    #[inline]
     pub fn service_id(&self) -> u16 {
-        BigEndian::read_u16(&self.slice[..2])
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            get_unchecked_be_u16(self.slice.as_ptr())
+        }
     }
 
     ///Returns true if the event or notification bit in the message id is set
+    #[inline]
     pub fn is_event(&self) -> bool {
-        0 != self.slice[2] & 0x80
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        0 != unsafe {
+            self.slice.get_unchecked(2)
+        } & 0x80
     }
 
     ///Return the event id or method id. This number includes the "event bit".
+    #[inline]
     pub fn event_or_method_id(&self) -> u16 {
-        BigEndian::read_u16(&self.slice[2..4])
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            get_unchecked_be_u16(self.slice.as_ptr().add(2))
+        }
     }
 
     ///Returns true if the message has the message id of a some ip service discovery message.
+    #[inline]
     pub fn is_someip_sd(&self) -> bool {
         SOMEIP_SD_MESSAGE_ID == self.message_id()
     }
 
-    ///Returns the length contained in the header. WARNING: the length paritally 
-    ///contains the header and partially the payload, use the payload() method 
-    ///instead if you want to access the payload slice).
+    /// Returns the length contained in the header. WARNING: the length paritally 
+    /// contains the header and partially the payload, use the payload() method 
+    /// instead if you want to access the payload slice).
+    #[inline]
     pub fn length(&self) -> u32 {
-        BigEndian::read_u32(&self.slice[4..8])
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            get_unchecked_be_u32(self.slice.as_ptr().add(4))
+        }
     }
 
     ///Returns the request id of the message.
+    #[inline]
     pub fn request_id(&self) -> u32 {
-        BigEndian::read_u32(&self.slice[8..12])
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            get_unchecked_be_u32(self.slice.as_ptr().add(8))
+        }
     }
 
     ///Return the value of the protocol version field of the message (must match SOMEIP_PROTOCOL_VERSION, unless something dark and unsafe is beeing done).
     #[inline]
     pub fn protocol_version(&self) -> u8 {
         debug_assert!(SOMEIP_PROTOCOL_VERSION == self.slice[12]);
-        self.slice[12]
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            *self.slice.get_unchecked(12)
+        }
     }
 
     ///Returns the interface version field of the message.
     #[inline]
     pub fn interface_version(&self) -> u8 {
-        self.slice[13]
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            *self.slice.get_unchecked(13)
+        }
     }
 
     ///Return the message type (does not contain the tp flag, use the message_type_tp method for 
@@ -604,10 +777,16 @@ impl<'a> SomeIpHeaderSlice<'a> {
     ///Returns the raw message type value (contains the tp flag).
     #[inline]
     pub fn message_type_raw(&self) -> u8 {
-        self.slice[14]
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            *self.slice.get_unchecked(14)
+        }
     }
 
     ///Returns true if the tp flag in the message type is set (Transporting large SOME/IP messages of UDP [SOME/IP-TP])
+    #[inline]
     pub fn is_tp(&self) -> bool {
         self.tp
     }
@@ -615,25 +794,59 @@ impl<'a> SomeIpHeaderSlice<'a> {
     ///Returns the return code of the message.
     #[inline]
     pub fn return_code(&self) -> u8 {
-        self.slice[15]
+        // SAFETY:
+        // Safe as the slice length is checked to have at least a length of
+        // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
+        unsafe {
+            *self.slice.get_unchecked(15)
+        }
     }
 
-    ///Return a slice to the payload of the someip header.
+    /// Return a slice to the payload of the someip header.
+    ///
+    /// If the there is tp header present the memory after the tp
+    /// header is returned.
+    #[inline]
     pub fn payload(&self) -> &'a [u8] {
         if self.tp {
-            &self.slice[SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH ..]
+            const OFFSET: usize = SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH;
+            debug_assert!(OFFSET <= self.slice.len());
+            // SAFETY:
+            // Safe as it is checked in SomeipHeaderSlice::from_slice that the
+            // slice has at least SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH len
+            // if the tp flag is set.
+            unsafe {
+                from_raw_parts(
+                    self.slice.as_ptr().add(OFFSET),
+                    self.slice.len() - OFFSET
+                )
+            }
         } else {
-            &self.slice[SOMEIP_HEADER_LENGTH..]
+            // SAFETY:
+            // Safe as it is checked in SomeipHeaderSlice::from_slice that the
+            // slice has at least SOMEIP_HEADER_LENGTH len.
+            unsafe {
+                from_raw_parts(
+                    self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH),
+                    self.slice.len() - SOMEIP_HEADER_LENGTH
+                )
+            }
         }
     }
 
     ///Returns the tp header if there should be one present.
+    #[inline]
     pub fn tp_header(&self) -> Option<TpHeader> {
         if self.tp {
             Some(
-                TpHeader::read_from_slice_unchecked(
-                    &self.slice[SOMEIP_HEADER_LENGTH .. SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH]
-                )
+                // SAFETY
+                // Safe as the slice len is checked to have SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH
+                // length during SomeIpHeaderSlice::from_slice.
+                unsafe {
+                    TpHeader::from_slice_unchecked(
+                        self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH)
+                    )
+                }
             )
         } else {
             None
@@ -758,6 +971,42 @@ pub enum ValueError {
     /// Note: This means that the offset field can only transport offset values 
     /// that are multiples of 16 bytes.
     TpOffsetNotMultipleOf16(u32)
+}
+
+/// Helper function for reading big endian u32 values from a ptr unchecked.
+///
+/// # Safety
+///
+/// It is in the responsibility of the caller to ensure there are at least 4
+/// bytes accessable via the ptr. If this is not the case undefined behavior
+/// will be triggered.
+#[inline]
+unsafe fn get_unchecked_be_u32(ptr: *const u8) -> u32 {
+    u32::from_be_bytes(
+        [
+            *ptr,
+            *ptr.add(1),
+            *ptr.add(2),
+            *ptr.add(3)
+        ]
+    )
+}
+
+/// Helper function for reading big endian u16 values from a ptr unchecked.
+///
+/// # Safety
+///
+/// It is in the responsibility of the caller to ensure there are at least 2
+/// bytes accessable via the ptr. If this is not the case undefined behavior
+/// will be triggered.
+#[inline]
+unsafe fn get_unchecked_be_u16(ptr: *const u8) -> u16 {
+    u16::from_be_bytes(
+        [
+            *ptr,
+            *ptr.add(1),
+        ]
+    )
 }
 
 #[cfg(test)]
@@ -982,7 +1231,7 @@ mod tests_someip_header {
             };
 
             //trigger the panic
-            slice.message_type()
+            slice.message_type();
         }
     }
 
@@ -1005,7 +1254,12 @@ mod tests_someip_header {
             let mut buffer = Vec::new();
             SomeIpHeader::default().write_raw(&mut buffer).unwrap();
             //set the length to 0
-            BigEndian::write_u32(&mut buffer[4..8], 0);
+            {
+                buffer[4] = 0;
+                buffer[5] = 0;
+                buffer[6] = 0;
+                buffer[7] = 0;
+            }
             let mut cursor = Cursor::new(&buffer);
             let result = SomeIpHeader::read(&mut cursor);
             assert_matches!(result, Err(ReadError::LengthFieldTooSmall(0)));
@@ -1018,7 +1272,13 @@ mod tests_someip_header {
             SomeIpHeader::default().write_raw(&mut buffer).unwrap();
             //set the length to SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
             const TOO_SMALL: u32 = SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1;
-            BigEndian::write_u32(&mut buffer[4..8], TOO_SMALL);
+            {
+                let length_be = TOO_SMALL.to_be_bytes();
+                buffer[4] = length_be[0];
+                buffer[5] = length_be[1];
+                buffer[6] = length_be[2];
+                buffer[7] = length_be[3];
+            }
             let mut cursor = Cursor::new(&buffer);
             let result = SomeIpHeader::read(&mut cursor);
             assert_matches!(result, Err(ReadError::LengthFieldTooSmall(TOO_SMALL)));

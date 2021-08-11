@@ -15,7 +15,7 @@ extern crate someip_parse;
 use someip_parse::*;
 
 extern crate time;
-use time::PreciseTime;
+use time::Instant;
 
 fn main() {
 
@@ -72,7 +72,7 @@ fn read(in_file_path: &str) -> Result<(),Error> {
     let in_file_metadata = std::fs::metadata(&in_file_path).unwrap();
     let mut stats: Stats = Default::default();
 
-    let start = PreciseTime::now();
+    let start = Instant::now();
     let mut reader = PcapReader::new(BufReader::new(File::open(in_file_path)?))?;
 
     while let Some(packet) = reader.next()? {
@@ -123,8 +123,8 @@ fn read(in_file_path: &str) -> Result<(),Error> {
         }
     }
 
-    let duration = start.to(PreciseTime::now()).to_std().unwrap();
-    let duration_secs = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+    let duration = start.elapsed();
+    let duration_secs = duration.as_seconds_f64();
     //let gigabits_per_sec = in_file_metadata.len() as f64 / duration_secs / 125_000_000.0;
     let gigabytes_per_sec_file = in_file_metadata.len() as f64 / duration_secs /  1_000_000_000.0;
     //let gigabits_per_sec_payload = stats.total_payload_size as f64 / duration_secs / 125_000_000.0;

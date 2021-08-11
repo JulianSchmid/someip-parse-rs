@@ -474,10 +474,11 @@ impl TpHeader {
             Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
         } else {
             let buffer = self.to_bytes();
-            slice[0] = buffer[0];
-            slice[1] = buffer[1];
-            slice[2] = buffer[2];
-            slice[3] = buffer[3];
+            let target = &mut slice[0..4];
+            target[0] = buffer[0];
+            target[1] = buffer[1];
+            target[2] = buffer[2];
+            target[3] = buffer[3];
             Ok(())
         }
     }

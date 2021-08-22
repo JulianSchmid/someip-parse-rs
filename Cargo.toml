@@ -26,9 +26,3 @@ proptest = "1.0.0"
 clap = "2.33.3"
 rpcap = "0.3.0"
 time = "0.3.1"
-
-[badges]
-travis-ci = { repository = "JulianSchmid/someip-parse-rs", branch = "master" }
-codecov = { repository = "JulianSchmid/someip-parse-rs", branch = "master", service = "github" }
-gitlab = { repository = "julian.schmid/someip-parse-rs", branch = "master" }
-appveyor = { repository = "JulianSchmid/someip-parse-rs", branch = "master", service = "github" }

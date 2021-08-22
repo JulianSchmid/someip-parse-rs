@@ -6,7 +6,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! someip_parse = "0.3.0"
+//! someip_parse = "0.3.1"
 //! ```
 //!
 //! # Example

@@ -1,6 +1,6 @@
 [package]
 name = "someip_parse"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Julian Schmid <info@julianschmid.name>"]
 description = "A library for parsing the SOME/IP network protocol (without payload interpretation)."
 repository = "https://github.com/JulianSchmid/someip-parse-rs"

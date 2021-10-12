@@ -208,6 +208,26 @@ impl SomeIpHeader {
         (self.message_id & 0x0000_ffff) as u16
     }
 
+    ///Return the event id. `None` if event bit is not set.
+    #[inline]
+    pub fn event_id(&self) -> Option<u16> {
+        if self.is_event() {
+            Some(self.event_or_method_id() & 0x7fff)
+        } else {
+            None
+        }
+    }
+
+    ///Return the method id. `None` if event bit is set.
+    #[inline]
+    pub fn method_id(&self) -> Option<u16> {
+        if !self.is_event() {
+            Some(self.event_or_method_id() & 0x7fff)
+        } else {
+            None
+        }
+    }
+
     ///Serialize the header.
     pub fn write_raw<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
         writer.write_all(&self.base_to_bytes())?;
@@ -705,6 +725,26 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
         unsafe {
             get_unchecked_be_u16(self.slice.as_ptr().add(2))
+        }
+    }
+
+    ///Return the event id. `None` if event bit is not set.
+    #[inline]
+    pub fn event_id(&self) -> Option<u16> {
+        if self.is_event() {
+            Some(self.event_or_method_id() & 0x7fff)
+        } else {
+            None
+        }
+    }
+
+    ///Return the method id. `None` if event bit is set.
+    #[inline]
+    pub fn method_id(&self) -> Option<u16> {
+        if !self.is_event() {
+            Some(self.event_or_method_id() & 0x7fff)
+        } else {
+            None
         }
     }
 
@@ -1315,7 +1355,9 @@ mod tests_someip_header {
             header.set_method_id(method_id);
 
             assert_eq!(method_id, header.event_or_method_id());
+            assert_eq!(Some(method_id), header.method_id());
             assert_eq!(false, header.is_event());
+            assert_eq!(None, header.event_id());
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
@@ -1324,14 +1366,16 @@ mod tests_someip_header {
             let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(false, slice.is_event());
+            assert_eq!(Some(method_id), slice.method_id());
             assert_eq!(method_id, slice.event_or_method_id());
+            assert_eq!(None, slice.event_id());
         }
     }
 
     proptest! {
         #[test]
         fn set_get_event_id(packet in someip_header_with_payload_any(),
-                            event_id in 0x8000u16..std::u16::MAX)
+                            event_id in 0u16..0x7fff)
         {
             let mut header = packet.0.clone();
             header.set_event_id(event_id);
@@ -1339,7 +1383,9 @@ mod tests_someip_header {
             let id_with_bit = event_id | 0x8000;
 
             assert_eq!(id_with_bit, header.event_or_method_id());
+            assert_eq!(Some(event_id), header.event_id());
             assert_eq!(true, header.is_event());
+            assert_eq!(None, header.method_id());
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
@@ -1349,6 +1395,8 @@ mod tests_someip_header {
 
             assert_eq!(true, slice.is_event());
             assert_eq!(id_with_bit, slice.event_or_method_id());
+            assert_eq!(Some(event_id), slice.event_id());
+            assert_eq!(None, slice.method_id());
         }
     }
 

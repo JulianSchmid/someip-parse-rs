@@ -59,6 +59,7 @@
 
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
+pub use sd::{SomeIpSdEntry, SdEventGroupEntryType, SdServiceEntryType, SomeIpSdHeader, SomeIpSdOption};
 
 #[cfg(test)]
 #[macro_use]
@@ -68,6 +69,8 @@ extern crate assert_matches;
 extern crate proptest;
 #[cfg(test)]
 mod proptest_generators;
+
+mod sd;
 
 ///The currently supported protocol version.
 pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
@@ -158,6 +161,19 @@ impl From<ReturnCode> for u8 {
 }
 
 impl SomeIpHeader {
+
+    ///Create a service discovery message header.
+    pub fn new_sd_header(length: u32, session_id: u16, tp_header: Option<TpHeader>) -> Self {
+        Self {
+            message_id: SOMEIP_SD_MESSAGE_ID, // defined in spec
+            length,
+            request_id: session_id as u32, // client-id is 0x00
+            interface_version: 0x01, // defined in spec
+            message_type: MessageType::Notification, // defined in spec
+            return_code: 0x00, // defined in spec
+            tp_header
+        }
+    }
 
     ///Returns the service id (first 16 bits of the message id)
     #[inline]
@@ -976,7 +992,13 @@ pub enum ReadError {
     ///Error returned when a someip header has a value in the length field that is smaller then the rest of someip header itself (8 bytes).
     LengthFieldTooSmall(u32),
     ///Error when the message type field contains an unknown value
-    UnknownMessageType(u8)
+    UnknownMessageType(u8),
+    ///Error when the sd event entry type field contains an unknown value
+    UnknownSdEventGroupEntryType(u8),
+    ///Error when the sd service entry type field contains an unknown value
+    UnknownSdServiceEntryType(u8),
+    ///Error when the option type contains an unknown value
+    UnknownSdOptionType(u8),
 }
 
 impl From<std::io::Error> for ReadError {
@@ -1011,7 +1033,22 @@ pub enum ValueError {
     /// uint32. The lower 4 bits shall be always interpreted as 0.
     /// Note: This means that the offset field can only transport offset values 
     /// that are multiples of 16 bytes.
-    TpOffsetNotMultipleOf16(u32)
+    TpOffsetNotMultipleOf16(u32),
+
+    /// Counter value exceeds 4 bit
+    CounterTooLarge(u8),
+
+    /// TTL exceeds 24 bit
+    TtlTooLarge(u32),
+
+    /// A TTL of zero indicates stop offering of service entry.
+    TtlZeroIndicatesStopOffering,
+
+    /// Number of options 1 exceeds 4 bit
+    NumberOfOption1TooLarge(u8),
+
+    /// Number of options 2 exceeds 4 bit
+    NumberOfOption2TooLarge(u8)
 }
 
 /// Helper function for reading big endian u32 values from a ptr unchecked.

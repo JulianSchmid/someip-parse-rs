@@ -21,7 +21,7 @@ pub const SD_HEADER_EXPLICIT_INITIAL_DATA_CONTROL_FLAG: u8 = 0b0010_0000;
 pub const EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG: u8 = 0b1000_0000;
 
 ///SOMEIP service discovery header
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SomeIpSdHeader {
     pub reboot: bool,
     pub unicast: bool,
@@ -995,12 +995,6 @@ mod tests_sd_header {
                 assert_eq!(header, result);
             }
         }
-
-        #[test]
-        fn write_unexpected_end_of_slice(header in someip_sd_header_any()) {
-            let result = header.write_to_slice(&mut []);
-            assert_matches!(result, Err(WriteError::UnexpectedEndOfSlice(_)));
-        }
     }
 }
 
@@ -1051,6 +1045,22 @@ mod tests_sd_option {
             assert_eq!(option, result);
         }
     }
+}
+
+#[test]
+fn sd_header_write_unexpected_end_of_slice() {
+    let header = SomeIpSdHeader::default();
+    let result = header.write_to_slice(&mut []);
+    assert_matches!(result, Err(WriteError::UnexpectedEndOfSlice(_)));
+}
+
+#[test]
+fn service_entry_read_unknown_service_entry_type() {
+    let mut buffer = [0x00; EVENTGROUP_ENTRY_LENGTH];
+    buffer[0] = 0xFF; // Unknown Type
+    let mut cursor = std::io::Cursor::new(buffer);
+    let result = SomeIpSdEntry::read(&mut cursor);
+    assert_matches!(result, Err(ReadError::UnknownSdServiceEntryType(_)));
 }
 
 #[test]

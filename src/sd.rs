@@ -1060,7 +1060,16 @@ fn service_entry_read_unknown_service_entry_type() {
     buffer[0] = 0xFF; // Unknown Type
     let mut cursor = std::io::Cursor::new(buffer);
     let result = SomeIpSdEntry::read(&mut cursor);
-    assert_matches!(result, Err(ReadError::UnknownSdServiceEntryType(_)));
+    assert_matches!(result, Err(ReadError::UnknownSdServiceEntryType(0xFF)));
+}
+
+#[test]
+fn option_read_unknown_type() {
+    let mut buffer = [0x00; 4];
+    buffer[2] = 0xFF; // Unknown Type
+    let mut cursor = std::io::Cursor::new(buffer);
+    let result = SomeIpSdOption::read(&mut cursor);
+    assert_matches!(result, Err(ReadError::UnknownSdOptionType(0xFF)));
 }
 
 #[test]

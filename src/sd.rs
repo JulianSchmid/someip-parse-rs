@@ -995,6 +995,12 @@ mod tests_sd_header {
                 assert_eq!(header, result);
             }
         }
+
+        #[test]
+        fn write_unexpected_end_of_slice(header in someip_sd_header_any()) {
+            let result = header.write_to_slice(&mut []);
+            assert_matches!(result, Err(WriteError::UnexpectedEndOfSlice(_)));
+        }
     }
 }
 

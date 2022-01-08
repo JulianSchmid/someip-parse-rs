@@ -73,16 +73,16 @@ prop_compose! {
 }
 
 prop_compose! {
-    pub fn someip_sd_header_any()(
+    pub fn sd_header_any()(
         reboot in any::<bool>(),
         unicast in any::<bool>(),
         explicit_initial_data_control in any::<bool>(),
         entries in prop::collection::vec(someip_sd_entry_any(), 0..100),
         options in prop::collection::vec(someip_sd_option_any(), 0..100),
         )
-    -> SomeIpSdHeader
+    -> sd::SdHeader
     {
-        let mut header = SomeIpSdHeader::new(reboot, entries, options);
+        let mut header = sd::SdHeader::new(reboot, entries, options);
         header.flags.unicast = unicast;
         header.flags.explicit_initial_data_control = explicit_initial_data_control;
         header

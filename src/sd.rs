@@ -141,7 +141,7 @@ impl SdHeaderFlags {
 
 /// SOMEIP service discovery header
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct SomeIpSdHeader {
+pub struct SdHeader {
     pub flags: SdHeaderFlags,
     // reserved: [u8;3],
     // Length of entries array in bytes
@@ -152,7 +152,7 @@ pub struct SomeIpSdHeader {
     pub options: Vec<SdOption>,
 }
 
-impl SomeIpSdHeader {
+impl SdHeader {
     #[inline]
     pub fn new(reboot: bool, entries: Vec<SdEntry>, options: Vec<SdOption>) -> Self {
         Self {
@@ -1390,7 +1390,7 @@ mod tests_sd_header {
 
     proptest! {
         #[test]
-        fn write_read(header in someip_sd_header_any()) {
+        fn write_read(header in sd_header_any()) {
 
             //non error case
             {
@@ -1400,7 +1400,7 @@ mod tests_sd_header {
 
                 //deserialize
                 let mut cursor = Cursor::new(&buffer);
-                let result = SomeIpSdHeader::read(&mut cursor).unwrap();
+                let result = SdHeader::read(&mut cursor).unwrap();
                 assert_eq!(header, result);
             }
         }
@@ -1524,7 +1524,7 @@ mod tests_sd_option {
 
 #[test]
 fn sd_header_write_unexpected_end_of_slice() {
-    let header = SomeIpSdHeader::default();
+    let header = SdHeader::default();
     let result = header.write_to_slice(&mut []);
     assert_matches!(result, Err(WriteError::UnexpectedEndOfSlice(_)));
 }

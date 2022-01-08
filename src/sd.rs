@@ -45,19 +45,20 @@ pub mod entries {
     /// To prevent attacks like these the length gets checked against
     /// this constant before any allocation gets triggered.
     ///
-    /// The maximum entry length is calculated from the fact that
-    /// the maximum length of an ipv4 and ipv6 packet payload is u16::MAX.
-    /// Additionally according to the someip SD spec the SD is only allwoed
-    /// to be sent via UDP.
+    /// The maximum entry length is calculated from the fact that SOMEIP SD is
+    /// only allowed via UDP and that the SOMEIP specification states the following
+    /// conceirning the maximum payload size:
+    ///
+    /// > The size of the SOME/IP payload field depends on the transport protocol used.
+    /// > With UDP the SOME/IP payload shall be between 0 and 1400 Bytes.
     ///
     /// With these facts we can calculcuate the maximum length of bytes
     /// the following way:
     ///
-    /// `u16::MAX - UdpHeaderSize(8) - SomeipHeaderSize(16) - sd reserved & flags (4)
-    /// - entries length(4) - options length(4)`
+    /// `1400 - sd reserved & flags (4) - entries length(4) - options length(4)`
     ///
     /// For sd options array we assume an empty array.
-    pub const MAX_ENTRIES_LEN: u32 = (u16::MAX as u32) - 8 - (crate::SOMEIP_HEADER_LENGTH as u32) - 4 - 4 - 4;
+    pub const MAX_ENTRIES_LEN: u32 = crate::SOMEIP_MAX_PAYLOAD_LEN_UDP - 4 - 4 - 4;
 
     /// Length of an sd entry (note that all entry types currently have
     /// the same length).
@@ -77,19 +78,20 @@ pub mod options {
     /// To prevent attacks like these the length gets checked against
     /// this constant before any allocation gets triggered.
     ///
-    /// The maximum entry length is calculated from the fact that
-    /// the maximum length of an ipv4 and ipv6 packet payload is u16::MAX.
-    /// Additionally according to the someip SD spec the SD is only allowed
-    /// to be sent via UDP.
+    /// The maximum entry length is calculated from the fact that SOMEIP SD is
+    /// only allowed via UDP and that the SOMEIP specification states the following
+    /// conceirning the maximum payload size:
+    ///
+    /// > The size of the SOME/IP payload field depends on the transport protocol used.
+    /// > With UDP the SOME/IP payload shall be between 0 and 1400 Bytes.
     ///
     /// With these facts we can calculcuate the maximum length of bytes
     /// the following way:
     ///
-    /// `u16::MAX - UdpHeaderSize(8) - SomeipHeaderSize(16) - sd reserved & flags (4)
-    /// - entries length(4) - options length(4)`
+    /// `1400 - sd reserved & flags (4) - entries length(4) - options length(4)`
     ///
     /// For the sd entries we assume an empty array.
-    pub const MAX_OPTIONS_LEN: u32 = (u16::MAX as u32) - 8 - (crate::SOMEIP_HEADER_LENGTH as u32) - 4 - 4 - 4;
+    pub const MAX_OPTIONS_LEN: u32 = crate::SOMEIP_MAX_PAYLOAD_LEN_UDP - 4 - 4 - 4;
 
     /// Flag in the 4th byte (reserved) indicating that the option is allowed 
     /// to be discarded by the receiver if not supported.

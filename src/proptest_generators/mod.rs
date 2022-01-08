@@ -77,8 +77,8 @@ prop_compose! {
         reboot in any::<bool>(),
         unicast in any::<bool>(),
         explicit_initial_data_control in any::<bool>(),
-        entries in prop::collection::vec(someip_sd_entry_any(), 0..100),
-        options in prop::collection::vec(someip_sd_option_any(), 0..100),
+        entries in prop::collection::vec(someip_sd_entry_any(), 0..10),
+        options in prop::collection::vec(someip_sd_option_any(), 0..10),
         )
     -> sd::SdHeader
     {

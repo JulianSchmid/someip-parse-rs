@@ -83,8 +83,8 @@ prop_compose! {
     -> SomeIpSdHeader
     {
         let mut header = SomeIpSdHeader::new(reboot, entries, options);
-        header.unicast = unicast;
-        header.explicit_initial_data_control = explicit_initial_data_control;
+        header.flags.unicast = unicast;
+        header.flags.explicit_initial_data_control = explicit_initial_data_control;
         header
     }
 }
@@ -111,9 +111,9 @@ prop_compose! {
             counter in 0..0x0Fu8,
             eventgroup_id in any::<u16>(),
         )
-    -> SomeIpSdEntry
+    -> sd::SdEntry
     {
-        SomeIpSdEntry::new_eventgroup(
+        sd::SdEntry::new_eventgroup(
             _type,
             index_first_option_run,
             index_second_option_run,
@@ -150,9 +150,9 @@ prop_compose! {
             ttl in 0..0x00FF_FFFFu32,
             minor_version in any::<u32>(),
         )
-    -> SomeIpSdEntry
+    -> sd::SdEntry
     {
-        SomeIpSdEntry::new_service_entry(
+        sd::SdEntry::new_service_entry(
             _type,
             index_first_option_run,
             index_second_option_run,
@@ -167,7 +167,7 @@ prop_compose! {
     }
 }
 
-pub fn someip_sd_entry_any() -> impl Strategy<Value = SomeIpSdEntry> {
+pub fn someip_sd_entry_any() -> impl Strategy<Value = sd::SdEntry> {
     prop_oneof![
         someip_sd_eventgroup_entry_any(),
         someip_sd_service_entry_any(),
@@ -194,98 +194,96 @@ pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = TransportProt
 
 prop_compose! {
     pub fn someip_sd_option_configuration_any()(
-            configuration_string in any::<Vec<u8>>(),
-        )
-    -> SomeIpSdOption
-    {
-        SomeIpSdOption::Configuration { configuration_string }
+        discardable in any::<bool>(),
+        configuration_string in any::<Vec<u8>>(),
+    ) -> sd::SdOption {
+        sd::SdOption::Configuration { discardable, configuration_string }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_load_balancing_any()(
-            priority in any::<u16>(),
-            weight in any::<u16>(),
-        )
-    -> SomeIpSdOption
-    {
-        SomeIpSdOption::LoadBalancing { priority, weight }
+        discardable in any::<bool>(),
+        priority in any::<u16>(),
+        weight in any::<u16>(),
+    ) -> sd::SdOption {
+        sd::SdOption::LoadBalancing { discardable, priority, weight }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_ipv4_endpoint_any()(
-            ipv4_address in any::<u32>(),
+            ipv4_address in any::<[u8;4]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> SomeIpSdOption
+    -> sd::SdOption
     {
-        SomeIpSdOption::Ipv4Endpoint { ipv4_address, transport_protocol, transport_protocol_number }
+        sd::SdOption::Ipv4Endpoint { ipv4_address, transport_protocol, transport_protocol_number }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_ipv6_endpoint_any()(
-            ipv6_address in any::<u128>(),
+            ipv6_address in any::<[u8;16]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> SomeIpSdOption
+    -> sd::SdOption
     {
-        SomeIpSdOption::Ipv6Endpoint { ipv6_address, transport_protocol, transport_protocol_number }
+        sd::SdOption::Ipv6Endpoint { ipv6_address, transport_protocol, transport_protocol_number }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_ipv4_multicast_any()(
-            ipv4_address in any::<u32>(),
+            ipv4_address in any::<[u8;4]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> SomeIpSdOption
+    -> sd::SdOption
     {
-        SomeIpSdOption::Ipv4Multicast { ipv4_address, transport_protocol, transport_protocol_number }
+        sd::SdOption::Ipv4Multicast { ipv4_address, transport_protocol, transport_protocol_number }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_ipv6_multicast_any()(
-            ipv6_address in any::<u128>(),
+            ipv6_address in any::<[u8;16]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> SomeIpSdOption
+    -> sd::SdOption
     {
-        SomeIpSdOption::Ipv6Multicast { ipv6_address, transport_protocol, transport_protocol_number }
+        sd::SdOption::Ipv6Multicast { ipv6_address, transport_protocol, transport_protocol_number }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_ipv4_sd_endpoint_any()(
-            ipv4_address in any::<u32>(),
+            ipv4_address in any::<[u8;4]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> SomeIpSdOption
+    -> sd::SdOption
     {
-        SomeIpSdOption::Ipv4SdEndpoint { ipv4_address, transport_protocol, transport_protocol_number }
+        sd::SdOption::Ipv4SdEndpoint { ipv4_address, transport_protocol, transport_protocol_number }
     }
 }
 
 prop_compose! {
     pub fn someip_sd_option_ipv6_sd_endpoint_any()(
-            ipv6_address in any::<u128>(),
+            ipv6_address in any::<[u8;16]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> SomeIpSdOption
+    -> sd::SdOption
     {
-        SomeIpSdOption::Ipv6SdEndpoint { ipv6_address, transport_protocol, transport_protocol_number }
+        sd::SdOption::Ipv6SdEndpoint { ipv6_address, transport_protocol, transport_protocol_number }
     }
 }
 
-pub fn someip_sd_option_any() -> impl Strategy<Value = SomeIpSdOption> {
+pub fn someip_sd_option_any() -> impl Strategy<Value = sd::SdOption> {
     prop_oneof![
         someip_sd_option_configuration_any(),
         someip_sd_option_load_balancing_any(),

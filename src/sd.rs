@@ -5,7 +5,6 @@ use std::io::{Read, Write, Seek};
 ///excluding entries and options arrays
 pub const MIN_SD_HEADER_LENGTH: usize = 1 + 3 + 4 + 4;
 
-
 pub const EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG: u8 = 0b1000_0000;
 
 /// Constants related to the flags in the sd header
@@ -35,6 +34,31 @@ pub mod flags {
 
 /// Constants related to sd entries.
 pub mod entries {
+    /// Maximum entry length that is supported by the read & from slice functions.
+    ///
+    /// This constant is used to make sure no attacks with too large length
+    /// values can trigger large allocations. E.g. if a some ip sd header
+    /// with an entries length of 4 gigabytes gets passed to the `read` function
+    /// it could triggering an allocation of 4 gigabytes. This allocation would then
+    /// take a very long time or lead to a failure and potential crash.
+    ///
+    /// To prevent attacks like these the length gets checked against
+    /// this constant before any allocation gets triggered.
+    ///
+    /// The maximum entry length is calculated from the fact that
+    /// the maximum length of an ipv4 and ipv6 packet payload is u16::MAX.
+    /// Additionally according to the someip SD spec the SD is only allwoed
+    /// to be sent via UDP.
+    ///
+    /// With these facts we can calculcuate the maximum length of bytes
+    /// the following way:
+    ///
+    /// `u16::MAX - UdpHeaderSize(8) - SomeipHeaderSize(16) - sd reserved & flags (4)
+    /// - entries length(4) - options length(4)`
+    ///
+    /// For sd options array we assume an empty array.
+    pub const MAX_ENTRIES_LEN: u32 = (u16::MAX as u32) - 8 - (crate::SOMEIP_HEADER_LENGTH as u32) - 4 - 4 - 4;
+
     /// Length of an sd entry (note that all entry types currently have
     /// the same length).
     pub const ENTRY_LEN: usize = 16;
@@ -42,6 +66,31 @@ pub mod entries {
 
 /// Constants related to sd options.
 pub mod options {
+    /// Maximum length of options array that is supported by the read & from slice functions.
+    ///
+    /// This constant is used to make sure no attacks with large length
+    /// values can trigger large allocations. E.g. if a some ip sd header
+    /// with an options array length of 4 gigabytes gets passed to the `read` function
+    /// it could triggering an allocation of 4 gigabytes. This allocation would then
+    /// take a very long time or lead to a failure and potential crash.
+    ///
+    /// To prevent attacks like these the length gets checked against
+    /// this constant before any allocation gets triggered.
+    ///
+    /// The maximum entry length is calculated from the fact that
+    /// the maximum length of an ipv4 and ipv6 packet payload is u16::MAX.
+    /// Additionally according to the someip SD spec the SD is only allowed
+    /// to be sent via UDP.
+    ///
+    /// With these facts we can calculcuate the maximum length of bytes
+    /// the following way:
+    ///
+    /// `u16::MAX - UdpHeaderSize(8) - SomeipHeaderSize(16) - sd reserved & flags (4)
+    /// - entries length(4) - options length(4)`
+    ///
+    /// For the sd entries we assume an empty array.
+    pub const MAX_OPTIONS_LEN: u32 = (u16::MAX as u32) - 8 - (crate::SOMEIP_HEADER_LENGTH as u32) - 4 - 4 - 4;
+
     /// Flag in the 4th byte (reserved) indicating that the option is allowed 
     /// to be discarded by the receiver if not supported.
     pub const DISCARDABLE_FLAG: u8 = 0b1000_0000;
@@ -170,6 +219,7 @@ impl SdHeader {
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, ReadError> {
         use sd::entries::*;
+        use sd::options::*;
         
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
@@ -182,6 +232,13 @@ impl SdHeader {
                 header_bytes[6],
                 header_bytes[7],
             ]);
+
+            if length_entries > MAX_ENTRIES_LEN {
+                return Err(
+                    ReadError::SdEntriesArrayLengthTooLarge(length_entries)
+                );
+            }
+
             // Note this function only supports 32 & 64 bit systems.
             // `read` has been disabled for 16 bit systems to
             // make this explicit.
@@ -201,6 +258,12 @@ impl SdHeader {
             reader.read_exact(&mut options_length_bytes)?;
             u32::from_be_bytes(options_length_bytes)
         };
+
+        if options_length > MAX_OPTIONS_LEN {
+            return Err(
+                ReadError::SdOptionsArrayLengthTooLarge(options_length)
+            );
+        }
 
         let mut options = Vec::new();
         // pessimistically reserve memory so if we trigger an
@@ -1403,6 +1466,40 @@ mod tests_sd_header {
                 let result = SdHeader::read(&mut cursor).unwrap();
                 assert_eq!(header, result);
             }
+        }
+    }
+
+    #[test]
+    fn read() {
+        // entries array length too large error
+        for len in [entries::MAX_ENTRIES_LEN + 1, u32::MAX] {
+            let len_be = len.to_be_bytes();
+            let buffer = [
+                0,0,0,0, // flags
+                len_be[0], len_be[1], len_be[2], len_be[3],
+                0,0,0,0,
+            ];
+            let mut cursor = Cursor::new(&buffer);
+            assert_matches!(
+                SdHeader::read(&mut cursor),
+                Err(ReadError::SdEntriesArrayLengthTooLarge(_))
+            );
+        }
+
+        // options array length too large error
+        for len in [options::MAX_OPTIONS_LEN + 1, u32::MAX] {
+            let len_be = len.to_be_bytes();
+            let buffer = [
+                0,0,0,0, // flags
+                0,0,0,0, // entries array length
+                len_be[0], len_be[1], len_be[2], len_be[3],
+                0,0,0,0,
+            ];
+            let mut cursor = Cursor::new(&buffer);
+            assert_matches!(
+                SdHeader::read(&mut cursor),
+                Err(ReadError::SdOptionsArrayLengthTooLarge(_))
+            );
         }
     }
 }

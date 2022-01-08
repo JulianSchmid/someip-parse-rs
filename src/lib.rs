@@ -936,7 +936,11 @@ pub enum ReadError {
     UnknownSdServiceEntryType(u8),
     /// Error when the option type contains an unknown value
     UnknownSdOptionType(u8),
-    /// Error if the length in an option
+    /// Error when the entries array length is greater then [`sd::entries::MAX_ENTRIES_LEN`].
+    SdEntriesArrayLengthTooLarge(u32),
+    /// Error when the options array length is greater then [`sd::options::MAX_OPTIONS_LEN`].
+    SdOptionsArrayLengthTooLarge(u32),
+    /// Error if the length in an option is zero (minimum valid size is 1).
     SdOptionLengthZero,
     /// Error if the `length` of an option was different then expected.
     SdOptionUnexpectedLen {

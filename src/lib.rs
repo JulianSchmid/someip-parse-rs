@@ -84,6 +84,19 @@ pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4 * 2; // 2x 32bits
 ///sending packets over UDP. This constant is based on the limitation of the length field data type (uint32).
 pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
 
+/// The maximum payload size of an SOMEIP UDP message.
+///
+/// This value comes directly from the SOMEIP specification,
+/// which states the following:
+///
+/// > The size of the SOME/IP payload field depends on the transport
+/// > protocol used. With UDP the SOME/IP payload shall be between 0
+/// > and 1400 Bytes. The limitation to 1400 Bytes is needed in order
+/// > to allow for future changes to protocol stack (e.g. changing to
+/// > IPv6 or adding security means). Since TCP supports segmentation
+/// > of payloads, larger sizes are automatically supported.
+pub const SOMEIP_MAX_PAYLOAD_LEN_UDP: u32 = 1400;
+
 ///Length of a someip header.
 pub const SOMEIP_HEADER_LENGTH: usize = 4 * 4;
 

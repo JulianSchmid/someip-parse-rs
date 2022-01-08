@@ -58,7 +58,7 @@
 //! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
 pub use sd::{
-    SdEventGroupEntryType, SdServiceEntryType, SomeIpSdEntry, SomeIpSdHeader, SomeIpSdOption,
+    SdEventGroupEntryType, SdServiceEntryType,
 };
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
@@ -72,7 +72,7 @@ extern crate proptest;
 #[cfg(test)]
 mod proptest_generators;
 
-mod sd;
+pub mod sd;
 
 ///The currently supported protocol version.
 pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
@@ -920,25 +920,41 @@ impl Default for SomeIpHeader {
 #[derive(Debug)]
 pub enum ReadError {
     IoError(std::io::Error),
-    ///The slice length was not large enough to contain the header.
+    /// Allocation error when trying to reserving memory.
+    AllocationError(std::collections::TryReserveError),
+    /// The slice length was not large enough to contain the header.
     UnexpectedEndOfSlice(usize),
-    ///Error when the protocol version field contains a version that is not supported by this library (aka != SOMEIP_PROTOCOL_VERSION)
+    /// Error when the protocol version field contains a version that is not supported by this library (aka != SOMEIP_PROTOCOL_VERSION)
     UnsupportedProtocolVersion(u8),
-    ///Error returned when a someip header has a value in the length field that is smaller then the rest of someip header itself (8 bytes).
+    /// Error returned when a someip header has a value in the length field that is smaller then the rest of someip header itself (8 bytes).
     LengthFieldTooSmall(u32),
-    ///Error when the message type field contains an unknown value
+    /// Error when the message type field contains an unknown value
     UnknownMessageType(u8),
-    ///Error when the sd event entry type field contains an unknown value
+    /// Error when the sd event entry type field contains an unknown value
     UnknownSdEventGroupEntryType(u8),
-    ///Error when the sd service entry type field contains an unknown value
+    /// Error when the sd service entry type field contains an unknown value
     UnknownSdServiceEntryType(u8),
-    ///Error when the option type contains an unknown value
+    /// Error when the option type contains an unknown value
     UnknownSdOptionType(u8),
+    /// Error if the length in an option
+    SdOptionLengthZero,
+    /// Error if the `length` of an option was different then expected.
+    SdOptionUnexpectedLen {
+        expected_len: u16,
+        actual_len: u16,
+        option_type: u8,
+    }
 }
 
 impl From<std::io::Error> for ReadError {
     fn from(err: std::io::Error) -> ReadError {
         ReadError::IoError(err)
+    }
+}
+
+impl From<std::collections::TryReserveError> for ReadError {
+    fn from(err: std::collections::TryReserveError) -> ReadError {
+        ReadError::AllocationError(err)
     }
 }
 
@@ -948,11 +964,19 @@ pub enum WriteError {
     IoError(std::io::Error),
     ///The slice length was not large enough to write the header.
     UnexpectedEndOfSlice(usize),
+    /// Error in the data that was attempted to be written
+    ValueError(ValueError),
 }
 
 impl From<std::io::Error> for WriteError {
     fn from(err: std::io::Error) -> WriteError {
         WriteError::IoError(err)
+    }
+}
+
+impl From<ValueError> for WriteError {
+    fn from(err: ValueError) -> WriteError {
+        WriteError::ValueError(err)
     }
 }
 
@@ -984,6 +1008,13 @@ pub enum ValueError {
 
     /// Number of options 2 exceeds 4 bit
     NumberOfOption2TooLarge(u8),
+
+    /// An [`SomeIpSdOption::UnknownDiscardable`] option has been passed
+    /// to the write function.
+    ///
+    /// [`SomeIpSdOption::UnknownDiscardable`] are only intended to be used
+    /// in read and from_slice functions.
+    SdUnknownDiscardableOption(u8),
 }
 
 /// Helper function for reading big endian u32 values from a ptr unchecked.

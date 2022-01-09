@@ -67,6 +67,8 @@ pub mod entries {
 
 /// Constants related to sd options.
 pub mod options {
+    use super::TransportProtocol;
+
     /// Maximum length of options array that is supported by the read & from slice functions.
     ///
     /// This constant is used to make sure no attacks with large length
@@ -141,7 +143,80 @@ pub mod options {
 
     /// Value of the `type` field of an ipv6 sd endpoint sd option.
     pub const IPV6_SD_ENDPOINT_TYPE: u8 = 0x26;
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct ConfigurationOption {
+        /// Shall be set to `true` if the option can be discarded by the receiver.
+        pub discardable: bool,
+        // TODO DNS TXT / DNS-SD format
+        pub configuration_string: Vec<u8>,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct LoadBalancingOption {
+        /// Shall be set to `true` if the option can be discarded by the receiver.
+        pub discardable: bool,
+        pub priority: u16,
+        pub weight: u16,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Ipv4EndpointOption {
+        pub ipv4_address: [u8;4],
+        pub transport_protocol: TransportProtocol,
+        pub transport_protocol_number: u16,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Ipv6EndpointOption {
+        pub ipv6_address: [u8;16],
+        pub transport_protocol: TransportProtocol,
+        pub transport_protocol_number: u16,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Ipv4MulticastOption {
+        pub ipv4_address: [u8;4],
+        pub transport_protocol: TransportProtocol,
+        pub transport_protocol_number: u16,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Ipv6MulticastOption {
+        pub ipv6_address: [u8;16],
+        pub transport_protocol: TransportProtocol,
+        pub transport_protocol_number: u16,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Ipv4SdEndpointOption {
+        pub ipv4_address: [u8;4],
+        pub transport_protocol: TransportProtocol,
+        pub transport_protocol_number: u16,
+    }
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Ipv6SdEndpointOption {
+        pub ipv6_address: [u8;16],
+        pub transport_protocol: TransportProtocol,
+        pub transport_protocol_number: u16,
+    }
+
+    /// An unknown option that is flagged as "discardable" and
+    /// should be ignored by the receiver if not supported.
+    ///
+    /// This option is only intended to be used for reading,
+    /// to ensure the option indices are still matching. In case
+    /// this option is passed to a write function an error will be
+    /// triggered.
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct UnknownDiscardableOption {
+        pub length: u16,
+        pub option_type: u8,
+    }
 }
+
+use self::options::*;
 
 /// Flags at the start of a SOMEIP service discovery
 /// header.
@@ -792,48 +867,14 @@ impl From<TransportProtocol> for u8 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SdOption {
     ///Arbitrary configuration strings.
-    Configuration {
-        /// Shall be set to `true` if the option can be discarded by the receiver.
-        discardable: bool,
-        // TODO DNS TXT / DNS-SD format
-        configuration_string: Vec<u8>,
-    },
-    LoadBalancing {
-        /// Shall be set to `true` if the option can be discarded by the receiver.
-        discardable: bool,
-        priority: u16,
-        weight: u16,
-    },
-    Ipv4Endpoint {
-        ipv4_address: [u8;4],
-        transport_protocol: TransportProtocol,
-        transport_protocol_number: u16,
-    },
-    Ipv6Endpoint {
-        ipv6_address: [u8;16],
-        transport_protocol: TransportProtocol,
-        transport_protocol_number: u16,
-    },
-    Ipv4Multicast {
-        ipv4_address: [u8;4],
-        transport_protocol: TransportProtocol,
-        transport_protocol_number: u16,
-    },
-    Ipv6Multicast {
-        ipv6_address: [u8;16],
-        transport_protocol: TransportProtocol,
-        transport_protocol_number: u16,
-    },
-    Ipv4SdEndpoint {
-        ipv4_address: [u8;4],
-        transport_protocol: TransportProtocol,
-        transport_protocol_number: u16,
-    },
-    Ipv6SdEndpoint {
-        ipv6_address: [u8;16],
-        transport_protocol: TransportProtocol,
-        transport_protocol_number: u16,
-    },
+    Configuration(ConfigurationOption),
+    LoadBalancing(LoadBalancingOption),
+    Ipv4Endpoint(Ipv4EndpointOption),
+    Ipv6Endpoint(Ipv6EndpointOption),
+    Ipv4Multicast(Ipv4MulticastOption),
+    Ipv6Multicast(Ipv6MulticastOption),
+    Ipv4SdEndpoint(Ipv4SdEndpointOption),
+    Ipv6SdEndpoint(Ipv6SdEndpointOption),
     /// An unknown option that is flagged as "discardable" and
     /// should be ignored by the receiver if not supported.
     ///
@@ -841,10 +882,52 @@ pub enum SdOption {
     /// to ensure the option indices are still matching. In case
     /// this option is passed to a write function an error will be
     /// triggered.
-    UnknownDiscardable {
-        length: u16,
-        option_type: u8,
-    },
+    UnknownDiscardable(UnknownDiscardableOption),
+}
+
+impl From<ConfigurationOption> for SdOption {
+    #[inline]
+    fn from(o: ConfigurationOption) -> Self { SdOption::Configuration(o) }
+}
+
+impl From<LoadBalancingOption> for SdOption {
+    #[inline]
+    fn from(o: LoadBalancingOption) -> Self { SdOption::LoadBalancing(o) }
+}
+
+impl From<Ipv4EndpointOption> for SdOption {
+    #[inline]
+    fn from(o: Ipv4EndpointOption) -> Self { SdOption::Ipv4Endpoint(o) }
+}
+
+impl From<Ipv6EndpointOption> for SdOption {
+    #[inline]
+    fn from(o: Ipv6EndpointOption) -> Self { SdOption::Ipv6Endpoint(o) }
+}
+
+impl From<Ipv4MulticastOption> for SdOption {
+    #[inline]
+    fn from(o: Ipv4MulticastOption) -> Self { SdOption::Ipv4Multicast(o) }
+}
+
+impl From<Ipv6MulticastOption> for SdOption {
+    #[inline]
+    fn from(o: Ipv6MulticastOption) -> Self { SdOption::Ipv6Multicast(o) }
+}
+
+impl From<Ipv4SdEndpointOption> for SdOption {
+    #[inline]
+    fn from(o: Ipv4SdEndpointOption) -> Self { SdOption::Ipv4SdEndpoint(o) }
+}
+
+impl From<Ipv6SdEndpointOption> for SdOption {
+    #[inline]
+    fn from(o: Ipv6SdEndpointOption) -> Self { SdOption::Ipv6SdEndpoint(o) }
+}
+
+impl From<UnknownDiscardableOption> for SdOption {
+    #[inline]
+    fn from(o: UnknownDiscardableOption) -> Self { SdOption::UnknownDiscardable(o) }
 }
 
 impl SdOption {
@@ -891,90 +974,106 @@ impl SdOption {
                 reader
                     .take(length_array as u64)
                     .read_to_end(&mut configuration_string)?;
-                Configuration {
-                    discardable,
-                    configuration_string,
-                }
+                Configuration(
+                    ConfigurationOption {
+                        discardable,
+                        configuration_string,
+                    }
+                )
             },
             LOAD_BALANCING_TYPE => {
                 expect_len(LOAD_BALANCING_LEN)?;
 
                 let mut load_balancing_bytes: [u8; 4] = [0; 4];
                 reader.read_exact(&mut load_balancing_bytes)?;
-                LoadBalancing {
-                    discardable,
-                    priority: u16::from_be_bytes([
-                        load_balancing_bytes[0],
-                        load_balancing_bytes[1],
-                    ]),
-                    weight: u16::from_be_bytes([load_balancing_bytes[2], load_balancing_bytes[3]]),
-                }
+                LoadBalancing(
+                    LoadBalancingOption {
+                        discardable,
+                        priority: u16::from_be_bytes([
+                            load_balancing_bytes[0],
+                            load_balancing_bytes[1],
+                        ]),
+                        weight: u16::from_be_bytes([load_balancing_bytes[2], load_balancing_bytes[3]]),
+                    }
+                )
             },
             IPV4_ENDPOINT_TYPE => {
                 expect_len(IPV4_ENDPOINT_LEN)?;
 
                 let (ipv4_address, transport_protocol, transport_protocol_number) =
                     Self::read_ip4_option(reader)?;
-                Ipv4Endpoint {
-                    ipv4_address,
-                    transport_protocol,
-                    transport_protocol_number,
-                }
+                Ipv4Endpoint(
+                    Ipv4EndpointOption {
+                        ipv4_address,
+                        transport_protocol,
+                        transport_protocol_number,
+                    }
+                )
             },
             IPV6_ENDPOINT_TYPE => {
                 expect_len(IPV6_ENDPOINT_LEN)?;
 
                 let (ipv6_address, transport_protocol, transport_protocol_number) =
                     Self::read_ip6_option(reader)?;
-                Ipv6Endpoint {
-                    ipv6_address,
-                    transport_protocol,
-                    transport_protocol_number,
-                }
+                Ipv6Endpoint(
+                    Ipv6EndpointOption {
+                        ipv6_address,
+                        transport_protocol,
+                        transport_protocol_number,
+                    }
+                )
             },
             IPV4_MULTICAST_TYPE => {
                 expect_len(IPV4_MULTICAST_LEN)?;
 
                 let (ipv4_address, transport_protocol, transport_protocol_number) =
                     Self::read_ip4_option(reader)?;
-                Ipv4Multicast {
-                    ipv4_address,
-                    transport_protocol,
-                    transport_protocol_number,
-                }
+                Ipv4Multicast(
+                    Ipv4MulticastOption {
+                        ipv4_address,
+                        transport_protocol,
+                        transport_protocol_number,
+                    }
+                )
             },
             IPV6_MULTICAST_TYPE => {
                 expect_len(IPV6_MULTICAST_LEN)?;
 
                 let (ipv6_address, transport_protocol, transport_protocol_number) =
                     Self::read_ip6_option(reader)?;
-                Ipv6Multicast {
-                    ipv6_address,
-                    transport_protocol,
-                    transport_protocol_number,
-                }
+                Ipv6Multicast(
+                    Ipv6MulticastOption {
+                        ipv6_address,
+                        transport_protocol,
+                        transport_protocol_number,
+                    }
+                )
             },
             IPV4_SD_ENDPOINT_TYPE => {
                 expect_len(IPV4_SD_ENDPOINT_LEN)?;
 
                 let (ipv4_address, transport_protocol, transport_protocol_number) =
                     Self::read_ip4_option(reader)?;
-                Ipv4SdEndpoint {
-                    ipv4_address,
-                    transport_protocol,
-                    transport_protocol_number,
-                }
+                Ipv4SdEndpoint(
+                    Ipv4SdEndpointOption {
+                        ipv4_address,
+                        transport_protocol,
+                        transport_protocol_number,
+                    }
+                )
             },
             IPV6_SD_ENDPOINT_TYPE => {
                 expect_len(IPV6_SD_ENDPOINT_LEN)?;
 
                 let (ipv6_address, transport_protocol, transport_protocol_number) =
                     Self::read_ip6_option(reader)?;
-                Ipv6SdEndpoint {
-                    ipv6_address,
-                    transport_protocol,
-                    transport_protocol_number,
-                }
+                Ipv6SdEndpoint(
+                    Ipv6SdEndpointOption {
+                        ipv6_address,
+                        transport_protocol,
+                        transport_protocol_number,
+                    }
+                )
             },
             option_type => if discardable {
                 // skip unknown options payload if "discardable"
@@ -997,10 +1096,12 @@ impl SdOption {
                 }
 
                 // return a dummy entry so the option indices are not shifted
-                UnknownDiscardable {
-                    length,
-                    option_type,
-                }
+                UnknownDiscardable(
+                    UnknownDiscardableOption {
+                        length,
+                        option_type,
+                    }
+                )
             } else {
                 return Err(UnknownSdOptionType(option_type))
             },
@@ -1122,34 +1223,31 @@ impl SdOption {
         }
 
         match self {
-            Configuration {
-                discardable,
-                configuration_string,
-            } => {
-                let len_be = (1u16 + configuration_string.len() as u16).to_be_bytes();
+            Configuration(c) => {
+                let len_be = (1u16 + c.configuration_string.len() as u16).to_be_bytes();
                 writer.write_all(
                     &[
                         len_be[0],
                         len_be[1],
                         CONFIGURATION_TYPE,
-                        if *discardable { DISCARDABLE_FLAG } else { 0 },
+                        if c.discardable { DISCARDABLE_FLAG } else { 0 },
                     ]
                 )?;
-                writer.write_all(&configuration_string)?;
+                writer.write_all(&c.configuration_string)?;
                 Ok(())
             },
-            LoadBalancing { discardable, priority, weight } => {
+            LoadBalancing(o) => {
                 
                 let len_be = LOAD_BALANCING_LEN.to_be_bytes();
-                let prio_be = priority.to_be_bytes();
-                let weight_be = weight.to_be_bytes();
+                let prio_be = o.priority.to_be_bytes();
+                let weight_be = o.weight.to_be_bytes();
 
                 writer.write_all(
                     &[
                         len_be[0],
                         len_be[1],
                         LOAD_BALANCING_TYPE,
-                        if *discardable { DISCARDABLE_FLAG } else { 0 },
+                        if o.discardable { DISCARDABLE_FLAG } else { 0 },
                         prio_be[0],
                         prio_be[1],
                         weight_be[0],
@@ -1158,85 +1256,58 @@ impl SdOption {
                 )?;
                 Ok(())
             },
-            Ipv4Endpoint {
-                ipv4_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => write_ipv4(
+            Ipv4Endpoint(o) => write_ipv4(
                 writer,
                 IPV4_ENDPOINT_LEN,
                 IPV4_ENDPOINT_TYPE,
-                *ipv4_address,
-                *transport_protocol,
-                *transport_protocol_number,
+                o.ipv4_address,
+                o.transport_protocol,
+                o.transport_protocol_number,
             ),
-            Ipv6Endpoint {
-                ipv6_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => write_ipv6(
+            Ipv6Endpoint(o) => write_ipv6(
                 writer,
                 IPV6_ENDPOINT_LEN,
                 IPV6_ENDPOINT_TYPE,
-                *ipv6_address,
-                *transport_protocol,
-                *transport_protocol_number,
+                o.ipv6_address,
+                o.transport_protocol,
+                o.transport_protocol_number,
             ),
-            Ipv4Multicast {
-                ipv4_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => write_ipv4(
+            Ipv4Multicast(o) => write_ipv4(
                 writer,
                 IPV4_MULTICAST_LEN,
                 IPV4_MULTICAST_TYPE,
-                *ipv4_address,
-                *transport_protocol,
-                *transport_protocol_number,
+                o.ipv4_address,
+                o.transport_protocol,
+                o.transport_protocol_number,
             ),
-            Ipv6Multicast {
-                ipv6_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => write_ipv6(
+            Ipv6Multicast(o) => write_ipv6(
                 writer,
                 IPV6_MULTICAST_LEN,
                 IPV6_MULTICAST_TYPE,
-                *ipv6_address,
-                *transport_protocol,
-                *transport_protocol_number,
+                o.ipv6_address,
+                o.transport_protocol,
+                o.transport_protocol_number,
             ),
-            Ipv4SdEndpoint {
-                ipv4_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => write_ipv4(
+            Ipv4SdEndpoint(o) => write_ipv4(
                 writer,
                 IPV4_SD_ENDPOINT_LEN,
                 IPV4_SD_ENDPOINT_TYPE,
-                *ipv4_address,
-                *transport_protocol,
-                *transport_protocol_number,
+                o.ipv4_address,
+                o.transport_protocol,
+                o.transport_protocol_number,
             ),
-            Ipv6SdEndpoint {
-                ipv6_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => write_ipv6(
+            Ipv6SdEndpoint(o) => write_ipv6(
                 writer,
                 IPV6_SD_ENDPOINT_LEN,
                 IPV6_SD_ENDPOINT_TYPE,
-                *ipv6_address,
-                *transport_protocol,
-                *transport_protocol_number,
+                o.ipv6_address,
+                o.transport_protocol,
+                o.transport_protocol_number,
             ),
-            UnknownDiscardable {
-                length: _,
-                option_type,
-            } => {
+            UnknownDiscardable(o) => {
                 Err(
                     WriteError::ValueError(
-                        ValueError::SdUnknownDiscardableOption(*option_type)
+                        ValueError::SdUnknownDiscardableOption(o.option_type)
                     )
                 )
             },
@@ -1273,119 +1344,89 @@ impl SdOption {
         }
 
         match self {
-            Configuration {
-                discardable,
-                configuration_string,
-            } => {
+            Configuration(o) => {
                 // + 1 for reserved byte
-                let length_bytes = (1u16 + configuration_string.len() as u16).to_be_bytes();
+                let length_bytes = (1u16 + o.configuration_string.len() as u16).to_be_bytes();
                 buffer.extend_from_slice(&length_bytes);
                 buffer.push(CONFIGURATION_TYPE);
-                buffer.push(if *discardable { DISCARDABLE_FLAG } else { 0 });
-                buffer.extend_from_slice(&configuration_string);
-            }
-            LoadBalancing { discardable, priority, weight } => {
+                buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
+                buffer.extend_from_slice(&o.configuration_string);
+            },
+            LoadBalancing(o) => {
                 buffer.extend_from_slice(&LOAD_BALANCING_LEN.to_be_bytes());
                 buffer.push(LOAD_BALANCING_TYPE);
-                buffer.push(if *discardable { DISCARDABLE_FLAG } else { 0 });
-                buffer.extend_from_slice(&priority.to_be_bytes());
-                buffer.extend_from_slice(&weight.to_be_bytes());
-            }
-            Ipv4Endpoint {
-                ipv4_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => {
+                buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
+                buffer.extend_from_slice(&o.priority.to_be_bytes());
+                buffer.extend_from_slice(&o.weight.to_be_bytes());
+            },
+            Ipv4Endpoint(o) => {
                 buffer.extend_from_slice(&IPV4_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV4_ENDPOINT_TYPE);
                 buffer.push(0x00u8); // Reserved byte
                 append_ip4(
                     buffer,
-                    *ipv4_address,
-                    *transport_protocol,
-                    *transport_protocol_number,
+                    o.ipv4_address,
+                    o.transport_protocol,
+                    o.transport_protocol_number,
                 );
-            }
-            Ipv6Endpoint {
-                ipv6_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => {
+            },
+            Ipv6Endpoint(o) => {
                 buffer.extend_from_slice(&IPV6_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV6_ENDPOINT_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip6(
                     buffer,
-                    *ipv6_address,
-                    *transport_protocol,
-                    *transport_protocol_number,
+                    o.ipv6_address,
+                    o.transport_protocol,
+                    o.transport_protocol_number,
                 );
-            }
-            Ipv4Multicast {
-                ipv4_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => {
+            },
+            Ipv4Multicast(o) => {
                 buffer.extend_from_slice(&IPV4_MULTICAST_LEN.to_be_bytes());
                 buffer.push(IPV4_MULTICAST_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip4(
                     buffer,
-                    *ipv4_address,
-                    *transport_protocol,
-                    *transport_protocol_number,
+                    o.ipv4_address,
+                    o.transport_protocol,
+                    o.transport_protocol_number,
                 );
-            }
-            Ipv6Multicast {
-                ipv6_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => {
+            },
+            Ipv6Multicast(o) => {
                 buffer.extend_from_slice(&IPV6_MULTICAST_LEN.to_be_bytes());
                 buffer.push(IPV6_MULTICAST_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip6(
                     buffer,
-                    *ipv6_address,
-                    *transport_protocol,
-                    *transport_protocol_number,
+                    o.ipv6_address,
+                    o.transport_protocol,
+                    o.transport_protocol_number,
                 );
-            }
-            Ipv4SdEndpoint {
-                ipv4_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => {
+            },
+            Ipv4SdEndpoint(o) => {
                 buffer.extend_from_slice(&IPV4_SD_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV4_SD_ENDPOINT_TYPE);
                 buffer.push(0x00u8); // Reserved byte
                 append_ip4(
                     buffer,
-                    *ipv4_address,
-                    *transport_protocol,
-                    *transport_protocol_number,
+                    o.ipv4_address,
+                    o.transport_protocol,
+                    o.transport_protocol_number,
                 );
-            }
-            Ipv6SdEndpoint {
-                ipv6_address,
-                transport_protocol,
-                transport_protocol_number,
-            } => {
+            },
+            Ipv6SdEndpoint(o) => {
                 buffer.extend_from_slice(&IPV6_SD_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV6_SD_ENDPOINT_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip6(
                     buffer,
-                    *ipv6_address,
-                    *transport_protocol,
-                    *transport_protocol_number,
+                    o.ipv6_address,
+                    o.transport_protocol,
+                    o.transport_protocol_number,
                 );
             },
-            UnknownDiscardable {
-                length: _,
-                option_type,
-            } => {
-                return Err(ValueError::SdUnknownDiscardableOption(*option_type));
+            UnknownDiscardable(o) => {
+                return Err(ValueError::SdUnknownDiscardableOption(o.option_type));
             },
         }
         Ok(())
@@ -1398,49 +1439,15 @@ impl SdOption {
         use self::options::*;
 
         3 + match self {
-            Configuration {
-                discardable: _,
-                configuration_string,
-            } => 1 + configuration_string.len(),
-            LoadBalancing {
-                discardable: _,
-                priority: _,
-                weight: _
-            } => usize::from(LOAD_BALANCING_LEN),
-            Ipv4Endpoint {
-                ipv4_address: _,
-                transport_protocol: _,
-                transport_protocol_number: _,
-            } => usize::from(IPV4_ENDPOINT_LEN),
-            Ipv6Endpoint {
-                ipv6_address: _,
-                transport_protocol: _,
-                transport_protocol_number: _,
-            } => usize::from(IPV6_ENDPOINT_LEN),
-            Ipv4Multicast {
-                ipv4_address: _,
-                transport_protocol: _,
-                transport_protocol_number: _,
-            } => usize::from(IPV4_MULTICAST_LEN),
-            Ipv6Multicast {
-                ipv6_address: _,
-                transport_protocol: _,
-                transport_protocol_number: _,
-            } => usize::from(IPV6_MULTICAST_LEN),
-            Ipv4SdEndpoint {
-                ipv4_address: _,
-                transport_protocol: _,
-                transport_protocol_number: _,
-            } => usize::from(IPV4_SD_ENDPOINT_LEN),
-            Ipv6SdEndpoint {
-                ipv6_address: _,
-                transport_protocol: _,
-                transport_protocol_number: _,
-            } => usize::from(IPV6_SD_ENDPOINT_LEN),
-            UnknownDiscardable {
-                length,
-                option_type: _,
-            } => usize::from(*length),
+            Configuration(o) => 1 + o.configuration_string.len(),
+            LoadBalancing(_) => usize::from(LOAD_BALANCING_LEN),
+            Ipv4Endpoint(_) => usize::from(IPV4_ENDPOINT_LEN),
+            Ipv6Endpoint(_) => usize::from(IPV6_ENDPOINT_LEN),
+            Ipv4Multicast(_) => usize::from(IPV4_MULTICAST_LEN),
+            Ipv6Multicast(_) => usize::from(IPV6_MULTICAST_LEN),
+            Ipv4SdEndpoint(_) => usize::from(IPV4_SD_ENDPOINT_LEN),
+            Ipv6SdEndpoint(_) => usize::from(IPV6_SD_ENDPOINT_LEN),
+            UnknownDiscardable(o) => usize::from(o.length),
         }
     }
 }
@@ -1556,7 +1563,6 @@ mod tests_sd_option {
 
     #[test]
     fn read() {
-        use self::SdOption::*;
         use self::options::*;
         // too small length error
         {
@@ -1611,10 +1617,10 @@ mod tests_sd_option {
             let (len, header) = SdOption::read(&mut cursor).unwrap();
             assert_eq!(
                 header,
-                UnknownDiscardable {
+                UnknownDiscardableOption {
                     length: 1,
                     option_type: 0xff,
-                }
+                }.into()
             );
             assert_eq!(4, len);
         }

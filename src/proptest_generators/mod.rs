@@ -196,8 +196,11 @@ prop_compose! {
     pub fn someip_sd_option_configuration_any()(
         discardable in any::<bool>(),
         configuration_string in any::<Vec<u8>>(),
-    ) -> sd::SdOption {
-        sd::SdOption::Configuration { discardable, configuration_string }
+    ) -> sd::options::ConfigurationOption {
+        sd::options::ConfigurationOption {
+            discardable,
+            configuration_string
+        }
     }
 }
 
@@ -206,8 +209,8 @@ prop_compose! {
         discardable in any::<bool>(),
         priority in any::<u16>(),
         weight in any::<u16>(),
-    ) -> sd::SdOption {
-        sd::SdOption::LoadBalancing { discardable, priority, weight }
+    ) -> sd::options::LoadBalancingOption {
+        sd::options::LoadBalancingOption { discardable, priority, weight }
     }
 }
 
@@ -217,9 +220,13 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> sd::SdOption
+    -> sd::options::Ipv4EndpointOption
     {
-        sd::SdOption::Ipv4Endpoint { ipv4_address, transport_protocol, transport_protocol_number }
+        sd::options::Ipv4EndpointOption {
+            ipv4_address,
+            transport_protocol,
+            transport_protocol_number
+        }
     }
 }
 
@@ -229,9 +236,13 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> sd::SdOption
+    -> sd::options::Ipv6EndpointOption
     {
-        sd::SdOption::Ipv6Endpoint { ipv6_address, transport_protocol, transport_protocol_number }
+        sd::options::Ipv6EndpointOption {
+            ipv6_address,
+            transport_protocol,
+            transport_protocol_number
+        }
     }
 }
 
@@ -241,9 +252,13 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> sd::SdOption
+    -> sd::options::Ipv4MulticastOption
     {
-        sd::SdOption::Ipv4Multicast { ipv4_address, transport_protocol, transport_protocol_number }
+        sd::options::Ipv4MulticastOption {
+            ipv4_address,
+            transport_protocol,
+            transport_protocol_number
+        }
     }
 }
 
@@ -253,9 +268,13 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> sd::SdOption
+    -> sd::options::Ipv6MulticastOption
     {
-        sd::SdOption::Ipv6Multicast { ipv6_address, transport_protocol, transport_protocol_number }
+        sd::options::Ipv6MulticastOption {
+            ipv6_address,
+            transport_protocol,
+            transport_protocol_number
+        }
     }
 }
 
@@ -265,9 +284,13 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> sd::SdOption
+    -> sd::options::Ipv4SdEndpointOption
     {
-        sd::SdOption::Ipv4SdEndpoint { ipv4_address, transport_protocol, transport_protocol_number }
+        sd::options::Ipv4SdEndpointOption {
+            ipv4_address,
+            transport_protocol,
+            transport_protocol_number
+        }
     }
 }
 
@@ -277,21 +300,25 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
-    -> sd::SdOption
+    -> sd::options::Ipv6SdEndpointOption
     {
-        sd::SdOption::Ipv6SdEndpoint { ipv6_address, transport_protocol, transport_protocol_number }
+        sd::options::Ipv6SdEndpointOption {
+            ipv6_address,
+            transport_protocol,
+            transport_protocol_number
+        }
     }
 }
 
 pub fn someip_sd_option_any() -> impl Strategy<Value = sd::SdOption> {
     prop_oneof![
-        someip_sd_option_configuration_any(),
-        someip_sd_option_load_balancing_any(),
-        someip_sd_option_ipv4_endpoint_any(),
-        someip_sd_option_ipv6_endpoint_any(),
-        someip_sd_option_ipv4_multicast_any(),
-        someip_sd_option_ipv6_multicast_any(),
-        someip_sd_option_ipv4_sd_endpoint_any(),
-        someip_sd_option_ipv6_sd_endpoint_any(),
+        someip_sd_option_configuration_any().prop_map(|o| o.into()),
+        someip_sd_option_load_balancing_any().prop_map(|o| o.into()),
+        someip_sd_option_ipv4_endpoint_any().prop_map(|o| o.into()),
+        someip_sd_option_ipv6_endpoint_any().prop_map(|o| o.into()),
+        someip_sd_option_ipv4_multicast_any().prop_map(|o| o.into()),
+        someip_sd_option_ipv6_multicast_any().prop_map(|o| o.into()),
+        someip_sd_option_ipv4_sd_endpoint_any().prop_map(|o| o.into()),
+        someip_sd_option_ipv6_sd_endpoint_any().prop_map(|o| o.into()),
     ]
 }

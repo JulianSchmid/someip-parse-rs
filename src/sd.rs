@@ -164,42 +164,42 @@ pub mod options {
     pub struct Ipv4EndpointOption {
         pub ipv4_address: [u8;4],
         pub transport_protocol: TransportProtocol,
-        pub transport_protocol_number: u16,
+        pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv6EndpointOption {
         pub ipv6_address: [u8;16],
         pub transport_protocol: TransportProtocol,
-        pub transport_protocol_number: u16,
+        pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv4MulticastOption {
         pub ipv4_address: [u8;4],
         pub transport_protocol: TransportProtocol,
-        pub transport_protocol_number: u16,
+        pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv6MulticastOption {
         pub ipv6_address: [u8;16],
         pub transport_protocol: TransportProtocol,
-        pub transport_protocol_number: u16,
+        pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv4SdEndpointOption {
         pub ipv4_address: [u8;4],
         pub transport_protocol: TransportProtocol,
-        pub transport_protocol_number: u16,
+        pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv6SdEndpointOption {
         pub ipv6_address: [u8;16],
         pub transport_protocol: TransportProtocol,
-        pub transport_protocol_number: u16,
+        pub port: u16,
     }
 
     /// An unknown option that is flagged as "discardable" and
@@ -1000,78 +1000,78 @@ impl SdOption {
             IPV4_ENDPOINT_TYPE => {
                 expect_len(IPV4_ENDPOINT_LEN)?;
 
-                let (ipv4_address, transport_protocol, transport_protocol_number) =
+                let (ipv4_address, transport_protocol, port) =
                     Self::read_ip4_option(reader)?;
                 Ipv4Endpoint(
                     Ipv4EndpointOption {
                         ipv4_address,
                         transport_protocol,
-                        transport_protocol_number,
+                        port,
                     }
                 )
             },
             IPV6_ENDPOINT_TYPE => {
                 expect_len(IPV6_ENDPOINT_LEN)?;
 
-                let (ipv6_address, transport_protocol, transport_protocol_number) =
+                let (ipv6_address, transport_protocol, port) =
                     Self::read_ip6_option(reader)?;
                 Ipv6Endpoint(
                     Ipv6EndpointOption {
                         ipv6_address,
                         transport_protocol,
-                        transport_protocol_number,
+                        port,
                     }
                 )
             },
             IPV4_MULTICAST_TYPE => {
                 expect_len(IPV4_MULTICAST_LEN)?;
 
-                let (ipv4_address, transport_protocol, transport_protocol_number) =
+                let (ipv4_address, transport_protocol, port) =
                     Self::read_ip4_option(reader)?;
                 Ipv4Multicast(
                     Ipv4MulticastOption {
                         ipv4_address,
                         transport_protocol,
-                        transport_protocol_number,
+                        port,
                     }
                 )
             },
             IPV6_MULTICAST_TYPE => {
                 expect_len(IPV6_MULTICAST_LEN)?;
 
-                let (ipv6_address, transport_protocol, transport_protocol_number) =
+                let (ipv6_address, transport_protocol, port) =
                     Self::read_ip6_option(reader)?;
                 Ipv6Multicast(
                     Ipv6MulticastOption {
                         ipv6_address,
                         transport_protocol,
-                        transport_protocol_number,
+                        port,
                     }
                 )
             },
             IPV4_SD_ENDPOINT_TYPE => {
                 expect_len(IPV4_SD_ENDPOINT_LEN)?;
 
-                let (ipv4_address, transport_protocol, transport_protocol_number) =
+                let (ipv4_address, transport_protocol, port) =
                     Self::read_ip4_option(reader)?;
                 Ipv4SdEndpoint(
                     Ipv4SdEndpointOption {
                         ipv4_address,
                         transport_protocol,
-                        transport_protocol_number,
+                        port,
                     }
                 )
             },
             IPV6_SD_ENDPOINT_TYPE => {
                 expect_len(IPV6_SD_ENDPOINT_LEN)?;
 
-                let (ipv6_address, transport_protocol, transport_protocol_number) =
+                let (ipv6_address, transport_protocol, port) =
                     Self::read_ip6_option(reader)?;
                 Ipv6SdEndpoint(
                     Ipv6SdEndpointOption {
                         ipv6_address,
                         transport_protocol,
-                        transport_protocol_number,
+                        port,
                     }
                 )
             },
@@ -1262,7 +1262,7 @@ impl SdOption {
                 IPV4_ENDPOINT_TYPE,
                 o.ipv4_address,
                 o.transport_protocol,
-                o.transport_protocol_number,
+                o.port,
             ),
             Ipv6Endpoint(o) => write_ipv6(
                 writer,
@@ -1270,7 +1270,7 @@ impl SdOption {
                 IPV6_ENDPOINT_TYPE,
                 o.ipv6_address,
                 o.transport_protocol,
-                o.transport_protocol_number,
+                o.port,
             ),
             Ipv4Multicast(o) => write_ipv4(
                 writer,
@@ -1278,7 +1278,7 @@ impl SdOption {
                 IPV4_MULTICAST_TYPE,
                 o.ipv4_address,
                 o.transport_protocol,
-                o.transport_protocol_number,
+                o.port,
             ),
             Ipv6Multicast(o) => write_ipv6(
                 writer,
@@ -1286,7 +1286,7 @@ impl SdOption {
                 IPV6_MULTICAST_TYPE,
                 o.ipv6_address,
                 o.transport_protocol,
-                o.transport_protocol_number,
+                o.port,
             ),
             Ipv4SdEndpoint(o) => write_ipv4(
                 writer,
@@ -1294,7 +1294,7 @@ impl SdOption {
                 IPV4_SD_ENDPOINT_TYPE,
                 o.ipv4_address,
                 o.transport_protocol,
-                o.transport_protocol_number,
+                o.port,
             ),
             Ipv6SdEndpoint(o) => write_ipv6(
                 writer,
@@ -1302,7 +1302,7 @@ impl SdOption {
                 IPV6_SD_ENDPOINT_TYPE,
                 o.ipv6_address,
                 o.transport_protocol,
-                o.transport_protocol_number,
+                o.port,
             ),
             UnknownDiscardable(o) => {
                 Err(
@@ -1323,24 +1323,24 @@ impl SdOption {
             buffer: &mut Vec<u8>,
             ipv4_address: [u8;4],
             transport_protocol: TransportProtocol,
-            transport_protocol_number: u16,
+            port: u16,
         ) {
             buffer.extend_from_slice(&ipv4_address);
             buffer.push(0x00); // reserved
             buffer.push(transport_protocol.into());
-            buffer.extend_from_slice(&transport_protocol_number.to_be_bytes());
+            buffer.extend_from_slice(&port.to_be_bytes());
         }
 
         fn append_ip6(
             buffer: &mut Vec<u8>,
             ipv6_address: [u8;16],
             transport_protocol: TransportProtocol,
-            transport_protocol_number: u16,
+            port: u16,
         ) {
             buffer.extend_from_slice(&ipv6_address);
             buffer.push(0x00); // reserved
             buffer.push(transport_protocol.into());
-            buffer.extend_from_slice(&transport_protocol_number.to_be_bytes());
+            buffer.extend_from_slice(&port.to_be_bytes());
         }
 
         match self {
@@ -1367,7 +1367,7 @@ impl SdOption {
                     buffer,
                     o.ipv4_address,
                     o.transport_protocol,
-                    o.transport_protocol_number,
+                    o.port,
                 );
             },
             Ipv6Endpoint(o) => {
@@ -1378,7 +1378,7 @@ impl SdOption {
                     buffer,
                     o.ipv6_address,
                     o.transport_protocol,
-                    o.transport_protocol_number,
+                    o.port,
                 );
             },
             Ipv4Multicast(o) => {
@@ -1389,7 +1389,7 @@ impl SdOption {
                     buffer,
                     o.ipv4_address,
                     o.transport_protocol,
-                    o.transport_protocol_number,
+                    o.port,
                 );
             },
             Ipv6Multicast(o) => {
@@ -1400,7 +1400,7 @@ impl SdOption {
                     buffer,
                     o.ipv6_address,
                     o.transport_protocol,
-                    o.transport_protocol_number,
+                    o.port,
                 );
             },
             Ipv4SdEndpoint(o) => {
@@ -1411,7 +1411,7 @@ impl SdOption {
                     buffer,
                     o.ipv4_address,
                     o.transport_protocol,
-                    o.transport_protocol_number,
+                    o.port,
                 );
             },
             Ipv6SdEndpoint(o) => {
@@ -1422,7 +1422,7 @@ impl SdOption {
                     buffer,
                     o.ipv6_address,
                     o.transport_protocol,
-                    o.transport_protocol_number,
+                    o.port,
                 );
             },
             UnknownDiscardable(o) => {

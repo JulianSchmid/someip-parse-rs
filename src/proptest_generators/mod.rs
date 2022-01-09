@@ -218,14 +218,14 @@ prop_compose! {
     pub fn someip_sd_option_ipv4_endpoint_any()(
             ipv4_address in any::<[u8;4]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
-            transport_protocol_number in any::<u16>(),
+            port in any::<u16>(),
         )
     -> sd::options::Ipv4EndpointOption
     {
         sd::options::Ipv4EndpointOption {
             ipv4_address,
             transport_protocol,
-            transport_protocol_number
+            port
         }
     }
 }
@@ -234,14 +234,14 @@ prop_compose! {
     pub fn someip_sd_option_ipv6_endpoint_any()(
             ipv6_address in any::<[u8;16]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
-            transport_protocol_number in any::<u16>(),
+            port in any::<u16>(),
         )
     -> sd::options::Ipv6EndpointOption
     {
         sd::options::Ipv6EndpointOption {
             ipv6_address,
             transport_protocol,
-            transport_protocol_number
+            port
         }
     }
 }
@@ -250,14 +250,14 @@ prop_compose! {
     pub fn someip_sd_option_ipv4_multicast_any()(
             ipv4_address in any::<[u8;4]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
-            transport_protocol_number in any::<u16>(),
+            port in any::<u16>(),
         )
     -> sd::options::Ipv4MulticastOption
     {
         sd::options::Ipv4MulticastOption {
             ipv4_address,
             transport_protocol,
-            transport_protocol_number
+            port
         }
     }
 }
@@ -266,14 +266,14 @@ prop_compose! {
     pub fn someip_sd_option_ipv6_multicast_any()(
             ipv6_address in any::<[u8;16]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
-            transport_protocol_number in any::<u16>(),
+            port in any::<u16>(),
         )
     -> sd::options::Ipv6MulticastOption
     {
         sd::options::Ipv6MulticastOption {
             ipv6_address,
             transport_protocol,
-            transport_protocol_number
+            port
         }
     }
 }
@@ -282,14 +282,14 @@ prop_compose! {
     pub fn someip_sd_option_ipv4_sd_endpoint_any()(
             ipv4_address in any::<[u8;4]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
-            transport_protocol_number in any::<u16>(),
+            port in any::<u16>(),
         )
     -> sd::options::Ipv4SdEndpointOption
     {
         sd::options::Ipv4SdEndpointOption {
             ipv4_address,
             transport_protocol,
-            transport_protocol_number
+            port
         }
     }
 }
@@ -298,14 +298,14 @@ prop_compose! {
     pub fn someip_sd_option_ipv6_sd_endpoint_any()(
             ipv6_address in any::<[u8;16]>(),
             transport_protocol in someip_sd_transport_protocol_any(),
-            transport_protocol_number in any::<u16>(),
+            port in any::<u16>(),
         )
     -> sd::options::Ipv6SdEndpointOption
     {
         sd::options::Ipv6SdEndpointOption {
             ipv6_address,
             transport_protocol,
-            transport_protocol_number
+            port
         }
     }
 }

@@ -57,7 +57,7 @@
 //! * [SOME/IP Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf)
 //! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
-pub use sd::{SdEventGroupEntryType, SdServiceEntryType};
+pub use sd::*;
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
 
@@ -70,7 +70,7 @@ extern crate proptest;
 #[cfg(test)]
 mod proptest_generators;
 
-pub mod sd;
+mod sd;
 
 ///The currently supported protocol version.
 pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
@@ -137,17 +137,17 @@ pub enum MessageType {
 ///Return code contained in a SOME/IP header.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReturnCode {
-    Ok,                    // = 0x00,
-    NotOk,                 // = 0x01,
-    UnknownService,        // = 0x02,
-    UnknownMethod,         //= 0x03
-    NotReady,              // = 0x04,
-    NotReachable,          // = 0x05,
-    Timeout,               // = 0x06,
-    WrongProtocolVersion,  // = 0x07,
-    WrongInterfaceVersion, // = 0x08,
-    MalformedMessage,      // = 0x09,
-    WrongMessageType,      // = 0x0a,
+    Ok,                    // 0x00
+    NotOk,                 // 0x01
+    UnknownService,        // 0x02
+    UnknownMethod,         // 0x03
+    NotReady,              // 0x04
+    NotReachable,          // 0x05
+    Timeout,               // 0x06
+    WrongProtocolVersion,  // 0x07
+    WrongInterfaceVersion, // 0x08
+    MalformedMessage,      // 0x09
+    WrongMessageType,      // 0x0a
     Generic(u8),
     InterfaceError(u8),
 }
@@ -947,9 +947,9 @@ pub enum ReadError {
     UnknownSdServiceEntryType(u8),
     /// Error when the option type contains an unknown value
     UnknownSdOptionType(u8),
-    /// Error when the entries array length is greater then [`sd::entries::MAX_ENTRIES_LEN`].
+    /// Error when the entries array length is greater then [`sd_entries::MAX_ENTRIES_LEN`].
     SdEntriesArrayLengthTooLarge(u32),
-    /// Error when the options array length is greater then [`sd::options::MAX_OPTIONS_LEN`].
+    /// Error when the options array length is greater then [`sd_options::MAX_OPTIONS_LEN`].
     SdOptionsArrayLengthTooLarge(u32),
     /// Error if the length in an option is zero (minimum valid size is 1).
     SdOptionLengthZero,

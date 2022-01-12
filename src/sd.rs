@@ -8,7 +8,7 @@ pub const MIN_SD_HEADER_LENGTH: usize = 1 + 3 + 4 + 4;
 pub const EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG: u8 = 0b1000_0000;
 
 /// Constants related to the flags in the sd header
-pub mod flags {
+pub mod sd_flags {
     /// Reboot flag in the first byte of the sd header indicating
     /// that the session ids have not yet wrapped around since startup.
     pub const REBOOT_FLAG: u8 = 0b1000_0000;
@@ -33,7 +33,7 @@ pub mod flags {
 }
 
 /// Constants related to sd entries.
-pub mod entries {
+pub mod sd_entries {
     use super::{SdEventGroupEntryType, SdServiceEntryType};
 
     /// Maximum entry length that is supported by the read & from slice functions.
@@ -103,7 +103,7 @@ pub mod entries {
 }
 
 /// Constants related to sd options.
-pub mod options {
+pub mod sd_options {
     use super::TransportProtocol;
 
     /// Maximum length of options array that is supported by the read & from slice functions.
@@ -253,8 +253,8 @@ pub mod options {
     }
 }
 
-use self::entries::*;
-use self::options::*;
+use self::sd_entries::*;
+use self::sd_options::*;
 
 /// Flags at the start of a SOMEIP service discovery header.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -280,7 +280,7 @@ impl Default for SdHeaderFlags {
 impl SdHeaderFlags {
     /// Returns the first 4 bytes of an SOMEIP SD header.
     pub fn to_bytes(&self) -> [u8; 4] {
-        use sd::flags::*;
+        use sd_flags::*;
         [
             if self.reboot { REBOOT_FLAG } else { 0 }
                 | if self.unicast { UNICAST_FLAG } else { 0 }
@@ -379,7 +379,7 @@ impl SdHeader {
         }
 
         //return result
-        use sd::flags::*;
+        use sd_flags::*;
         Ok(Self {
             flags: SdHeaderFlags {
                 reboot: 0 != header_bytes[0] & REBOOT_FLAG,
@@ -654,7 +654,7 @@ impl SdEntry {
 
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, ReadError> {
-        let mut entry_bytes: [u8; entries::ENTRY_LEN] = [0; entries::ENTRY_LEN];
+        let mut entry_bytes: [u8; sd_entries::ENTRY_LEN] = [0; sd_entries::ENTRY_LEN];
         reader.read_exact(&mut entry_bytes)?;
 
         let _type_raw = entry_bytes[0];
@@ -671,7 +671,7 @@ impl SdEntry {
     #[inline]
     pub fn read_service(
         _type: SdServiceEntryType,
-        entry_bytes: [u8; entries::ENTRY_LEN],
+        entry_bytes: [u8; sd_entries::ENTRY_LEN],
     ) -> Result<Self, ReadError> {
         //return result
         Ok(Self::Service(ServiceEntry {
@@ -697,7 +697,7 @@ impl SdEntry {
     #[inline]
     pub fn read_entry_group(
         _type: SdEventGroupEntryType,
-        entry_bytes: [u8; entries::ENTRY_LEN],
+        entry_bytes: [u8; sd_entries::ENTRY_LEN],
     ) -> Result<Self, ReadError> {
         Ok(Self::Eventgroup(EventgroupEntry {
             _type,
@@ -726,10 +726,10 @@ impl SdEntry {
 
     ///Writes the eventgroup entry to a slice without checking the slice length.
     #[inline]
-    pub fn to_bytes(&self) -> [u8; entries::ENTRY_LEN] {
+    pub fn to_bytes(&self) -> [u8; sd_entries::ENTRY_LEN] {
         match self {
             SdEntry::Eventgroup(e) => {
-                let mut result = [0x00; entries::ENTRY_LEN];
+                let mut result = [0x00; sd_entries::ENTRY_LEN];
 
                 result[0] = e._type.clone() as u8;
                 result[1] = e.index_first_option_run;
@@ -764,7 +764,7 @@ impl SdEntry {
                 result
             }
             SdEntry::Service(e) => {
-                let mut result = [0x00; entries::ENTRY_LEN];
+                let mut result = [0x00; sd_entries::ENTRY_LEN];
 
                 result[0] = e._type.clone() as u8;
                 result[1] = e.index_first_option_run;
@@ -947,7 +947,7 @@ impl SdOption {
     /// Read the value from a [`std::io::Read`] source.
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), ReadError> {
-        use self::options::*;
+        use self::sd_options::*;
         use self::SdOption::*;
         use ReadError::*;
 
@@ -1168,7 +1168,7 @@ impl SdOption {
     /// Writes the eventgroup entry to the given writer.
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
-        use self::options::*;
+        use self::sd_options::*;
         use self::SdOption::*;
 
         fn write_ipv4<R: Write>(
@@ -1322,7 +1322,7 @@ impl SdOption {
 
     /// Serializes option and append data to a vec
     pub fn append_bytes_to_vec(&self, buffer: &mut Vec<u8>) -> Result<(), ValueError> {
-        use self::options::*;
+        use self::sd_options::*;
         use self::SdOption::*;
 
         fn append_ip4(
@@ -1411,7 +1411,7 @@ impl SdOption {
     /// Length of the serialized header in bytes.
     #[inline]
     pub fn header_len(&self) -> usize {
-        use self::options::*;
+        use self::sd_options::*;
         use self::SdOption::*;
 
         3 + match self {
@@ -1457,7 +1457,7 @@ mod tests_sd_header {
     #[test]
     fn read() {
         // entries array length too large error
-        for len in [entries::MAX_ENTRIES_LEN + 1, u32::MAX] {
+        for len in [sd_entries::MAX_ENTRIES_LEN + 1, u32::MAX] {
             let len_be = len.to_be_bytes();
             let buffer = [
                 0, 0, 0, 0, // flags
@@ -1471,7 +1471,7 @@ mod tests_sd_header {
         }
 
         // options array length too large error
-        for len in [options::MAX_OPTIONS_LEN + 1, u32::MAX] {
+        for len in [sd_options::MAX_OPTIONS_LEN + 1, u32::MAX] {
             let len_be = len.to_be_bytes();
             let buffer = [
                 0, 0, 0, 0, // flags
@@ -1537,7 +1537,7 @@ mod tests_sd_option {
 
     #[test]
     fn read() {
-        use self::options::*;
+        use sd_options::*;
         // too small length error
         {
             let buffer = [0x00, 0x00, IPV4_ENDPOINT_TYPE, 0x00];
@@ -1615,7 +1615,7 @@ fn sd_header_write_unexpected_end_of_slice() {
 
 #[test]
 fn service_entry_read_unknown_service_entry_type() {
-    let mut buffer = [0x00; entries::ENTRY_LEN];
+    let mut buffer = [0x00; sd_entries::ENTRY_LEN];
     buffer[0] = 0xFF; // Unknown Type
     let mut cursor = std::io::Cursor::new(buffer);
     let result = SdEntry::read(&mut cursor);

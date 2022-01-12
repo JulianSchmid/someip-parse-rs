@@ -1,5 +1,8 @@
 use crate::{ReadError, ValueError, WriteError};
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    net::{Ipv4Addr, Ipv6Addr},
+};
 
 ///Length of someip sd header, flags + reserved + entries length + options length
 ///excluding entries and options arrays
@@ -370,7 +373,7 @@ impl SomeIpSdEntry {
             0x01 => Self::read_service(SdServiceEntryType::OfferService, entry_bytes),
             0x06 => Self::read_entry_group(SdEventGroupEntryType::Subscribe, entry_bytes),
             0x07 => Self::read_entry_group(SdEventGroupEntryType::SubscribeAck, entry_bytes),
-            _ => return Err(ReadError::UnknownSdServiceEntryType(_type_raw)),
+            _ => Err(ReadError::UnknownSdServiceEntryType(_type_raw)),
         }
     }
 
@@ -602,32 +605,32 @@ pub enum SomeIpSdOption {
         weight: u16,
     },
     Ipv4Endpoint {
-        ipv4_address: u32,
+        ipv4_address: Ipv4Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     },
     Ipv6Endpoint {
-        ipv6_address: u128,
+        ipv6_address: Ipv6Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     },
     Ipv4Multicast {
-        ipv4_address: u32,
+        ipv4_address: Ipv4Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     },
     Ipv6Multicast {
-        ipv6_address: u128,
+        ipv6_address: Ipv6Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     },
     Ipv4SdEndpoint {
-        ipv4_address: u32,
+        ipv4_address: Ipv4Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     },
     Ipv6SdEndpoint {
-        ipv6_address: u128,
+        ipv6_address: Ipv6Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     },
@@ -744,17 +747,17 @@ impl SomeIpSdOption {
     #[inline]
     fn read_ip4_option<T: Read>(
         reader: &mut T,
-    ) -> Result<(u32, TransportProtocol, u16), ReadError> {
+    ) -> Result<(Ipv4Addr, TransportProtocol, u16), ReadError> {
         let mut ipv4endpoint_bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut ipv4endpoint_bytes)?;
 
         // ignore reserved byte
-        let ipv4_address = u32::from_be_bytes([
+        let ipv4_address = Ipv4Addr::new(
             ipv4endpoint_bytes[0],
             ipv4endpoint_bytes[1],
             ipv4endpoint_bytes[2],
             ipv4endpoint_bytes[3],
-        ]);
+        );
         // ignore reserved byte
         let transport_protocol_raw = ipv4endpoint_bytes[5];
         let transport_protocol = match transport_protocol_raw {
@@ -772,12 +775,12 @@ impl SomeIpSdOption {
     #[inline]
     fn read_ip6_option<T: Read>(
         reader: &mut T,
-    ) -> Result<(u128, TransportProtocol, u16), ReadError> {
+    ) -> Result<(Ipv6Addr, TransportProtocol, u16), ReadError> {
         let mut ipv6endpoint_bytes: [u8; 20] = [0; 20];
         reader.read_exact(&mut ipv6endpoint_bytes)?;
 
         // ignore reserved byte
-        let ipv6_address = u128::from_be_bytes([
+        let ipv6_address = Ipv6Addr::from([
             ipv6endpoint_bytes[0],
             ipv6endpoint_bytes[1],
             ipv6endpoint_bytes[2],
@@ -947,11 +950,11 @@ impl SomeIpSdOption {
     pub fn to_bytes_ip4(
         &self,
         buffer: &mut Vec<u8>,
-        ipv4_address: u32,
+        ipv4_address: Ipv4Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     ) {
-        buffer.extend_from_slice(&ipv4_address.to_be_bytes());
+        buffer.extend_from_slice(&ipv4_address.octets());
         buffer.push(0x00); // reserved
         buffer.push(transport_protocol.into());
         buffer.extend_from_slice(&transport_protocol_number.to_be_bytes());
@@ -960,11 +963,11 @@ impl SomeIpSdOption {
     pub fn to_bytes_ip6(
         &self,
         buffer: &mut Vec<u8>,
-        ipv6_address: u128,
+        ipv6_address: Ipv6Addr,
         transport_protocol: TransportProtocol,
         transport_protocol_number: u16,
     ) {
-        buffer.extend_from_slice(&ipv6_address.to_be_bytes());
+        buffer.extend_from_slice(&ipv6_address.octets());
         buffer.push(0x00); // reserved
         buffer.push(transport_protocol.into());
         buffer.extend_from_slice(&transport_protocol_number.to_be_bytes());

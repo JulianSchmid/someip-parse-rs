@@ -1,9 +1,10 @@
+use std::net::{Ipv4Addr, Ipv6Addr};
 
-use super::*;
 use super::sd::*;
+use super::*;
 
-use proptest::prelude::*;
 use proptest::option;
+use proptest::prelude::*;
 
 fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
     prop_oneof![
@@ -217,7 +218,7 @@ prop_compose! {
 
 prop_compose! {
     pub fn someip_sd_option_ipv4_endpoint_any()(
-            ipv4_address in any::<u32>(),
+            ipv4_address in any::<Ipv4Addr>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
@@ -229,7 +230,7 @@ prop_compose! {
 
 prop_compose! {
     pub fn someip_sd_option_ipv6_endpoint_any()(
-            ipv6_address in any::<u128>(),
+            ipv6_address in any::<Ipv6Addr>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
@@ -241,7 +242,7 @@ prop_compose! {
 
 prop_compose! {
     pub fn someip_sd_option_ipv4_multicast_any()(
-            ipv4_address in any::<u32>(),
+            ipv4_address in any::<Ipv4Addr>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
@@ -253,7 +254,7 @@ prop_compose! {
 
 prop_compose! {
     pub fn someip_sd_option_ipv6_multicast_any()(
-            ipv6_address in any::<u128>(),
+            ipv6_address in any::<Ipv6Addr>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
@@ -265,7 +266,7 @@ prop_compose! {
 
 prop_compose! {
     pub fn someip_sd_option_ipv4_sd_endpoint_any()(
-            ipv4_address in any::<u32>(),
+            ipv4_address in any::<Ipv4Addr>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )
@@ -277,7 +278,7 @@ prop_compose! {
 
 prop_compose! {
     pub fn someip_sd_option_ipv6_sd_endpoint_any()(
-            ipv6_address in any::<u128>(),
+            ipv6_address in any::<Ipv6Addr>(),
             transport_protocol in someip_sd_transport_protocol_any(),
             transport_protocol_number in any::<u16>(),
         )

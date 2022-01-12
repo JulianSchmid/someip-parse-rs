@@ -1,5 +1,5 @@
 extern crate clap;
-use clap::{Arg, App};
+use clap::{App, Arg};
 
 extern crate etherparse;
 use self::etherparse::*;
@@ -7,9 +7,9 @@ use self::etherparse::*;
 extern crate rpcap;
 use self::rpcap::read::PcapReader;
 
-use std::io::BufReader;
-use std::fs::File;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
 
 extern crate someip_parse;
 use someip_parse::*;
@@ -18,18 +18,19 @@ extern crate time;
 use time::Instant;
 
 fn main() {
-
     let matches = App::new("count the some ip messages by message id")
-                      .author("Julian Schmid")
-                      .about("")
-                          .arg(Arg::with_name("INPUT")
-                               .help("input pcap file")
-                               .required(true)
-                               .index(1))
-                      .get_matches();
+        .author("Julian Schmid")
+        .about("")
+        .arg(
+            Arg::with_name("INPUT")
+                .help("input pcap file")
+                .required(true)
+                .index(1),
+        )
+        .get_matches();
 
     match read(matches.value_of("INPUT").unwrap()) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(err) => {
             println!("Error: {:?}", err);
         }
@@ -43,7 +44,7 @@ struct Stats {
     ipv6: usize,
     udp: usize,
     tcp: usize,
-    someip_message_count: HashMap<u32,usize>,
+    someip_message_count: HashMap<u32, usize>,
     someip_message_ok: usize,
     someip_message_err: usize,
 }
@@ -52,7 +53,6 @@ struct Stats {
 enum Error {
     IoError(std::io::Error),
     PcapError(rpcap::PcapError),
-
 }
 
 impl From<std::io::Error> for Error {
@@ -67,8 +67,7 @@ impl From<rpcap::PcapError> for Error {
     }
 }
 
-fn read(in_file_path: &str) -> Result<(),Error> {
-
+fn read(in_file_path: &str) -> Result<(), Error> {
     let in_file_metadata = std::fs::metadata(&in_file_path).unwrap();
     let mut stats: Stats = Default::default();
 
@@ -81,18 +80,18 @@ fn read(in_file_path: &str) -> Result<(),Error> {
         let sliced = SlicedPacket::from_ethernet(packet.data);
 
         match sliced {
-            Err(_) => {},
+            Err(_) => {}
             Ok(value) => {
-                use TransportSlice::*;
                 use InternetSlice::*;
+                use TransportSlice::*;
 
                 match &value.ip {
                     Some(Ipv4(_)) => {
                         stats.ipv4 += 1;
-                    },
-                    Some(Ipv6(_,_)) => {
+                    }
+                    Some(Ipv6(_, _)) => {
                         stats.ipv6 += 1;
-                    },
+                    }
                     None => {}
                 }
 
@@ -105,18 +104,21 @@ fn read(in_file_path: &str) -> Result<(),Error> {
                             match someip_message {
                                 Ok(value) => {
                                     stats.someip_message_ok += 1;
-                                    let count = stats.someip_message_count.entry(value.message_id()).or_insert(0);
+                                    let count = stats
+                                        .someip_message_count
+                                        .entry(value.message_id())
+                                        .or_insert(0);
                                     *count += 1;
-                                },
+                                }
                                 Err(_) => {
                                     stats.someip_message_err += 1;
                                 }
                             }
                         }
-                    },
+                    }
                     Some(Tcp(_)) => {
                         stats.tcp += 1;
-                    },
+                    }
                     None => {}
                 }
             }
@@ -126,9 +128,10 @@ fn read(in_file_path: &str) -> Result<(),Error> {
     let duration = start.elapsed();
     let duration_secs = duration.as_seconds_f64();
     //let gigabits_per_sec = in_file_metadata.len() as f64 / duration_secs / 125_000_000.0;
-    let gigabytes_per_sec_file = in_file_metadata.len() as f64 / duration_secs /  1_000_000_000.0;
+    let gigabytes_per_sec_file = in_file_metadata.len() as f64 / duration_secs / 1_000_000_000.0;
     //let gigabits_per_sec_payload = stats.total_payload_size as f64 / duration_secs / 125_000_000.0;
-    let gigabytes_per_sec_packets = stats.total_payload_size as f64 / duration_secs / 1_000_000_000.0;
+    let gigabytes_per_sec_packets =
+        stats.total_payload_size as f64 / duration_secs / 1_000_000_000.0;
 
     println!("{}", in_file_path);
     println!("{:?}", stats);

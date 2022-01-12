@@ -28,7 +28,7 @@
 //! #     udp_payload.extend_from_slice(&[1,2,3,4]);*/
 //! # }
 //! use someip_parse::SliceIterator;
-//! 
+//!
 //! //trying parsing some ip messages located in a udp payload
 //! for someip_message in SliceIterator::new(&udp_payload) {
 //!     match someip_message {
@@ -36,8 +36,8 @@
 //!             if value.is_someip_sd() {
 //!                 println!("someip service discovery packet");
 //!             } else {
-//!                 println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})", 
-//!                          value.message_id(), 
+//!                 println!("0x{:x} (service id: 0x{:x}, method/event id: 0x{:x})",
+//!                          value.message_id(),
 //!                          value.service_id(),
 //!                          value.event_or_method_id());
 //!             }
@@ -47,19 +47,21 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! # Todo
 //! * Example how to serialize someip packets
 //! * SOMEIP Service Discovery Message Parsing
-//! 
+//!
 //! # References
-//! * [AUTOSAR Foundation 1.5.0](https://www.autosar.org/standards/foundation/foundation-150/) \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\) 
+//! * [AUTOSAR Foundation 1.5.0](https://www.autosar.org/standards/foundation/foundation-150/) \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\)
 //! * [SOME/IP Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf)
 //! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
+pub use sd::{
+    SdEventGroupEntryType, SdServiceEntryType, SomeIpSdEntry, SomeIpSdHeader, SomeIpSdOption,
+};
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
-pub use sd::{SomeIpSdEntry, SdEventGroupEntryType, SdServiceEntryType, SomeIpSdHeader, SomeIpSdOption};
 
 #[cfg(test)]
 #[macro_use]
@@ -76,14 +78,14 @@ mod sd;
 pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
 
 ///Offset that must be substracted from the length field to determine the length of the actual payload.
-pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4*2; // 2x 32bits
+pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4 * 2; // 2x 32bits
 
 ///Maximum payload length supported by some ip. This is NOT the maximum length that is supported when
 ///sending packets over UDP. This constant is based on the limitation of the length field data type (uint32).
 pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
 
 ///Length of a someip header.
-pub const SOMEIP_HEADER_LENGTH: usize = 4*4;
+pub const SOMEIP_HEADER_LENGTH: usize = 4 * 4;
 
 ///Length of the tp header that follows a someip header if a someip packet has been flaged as tp.
 pub const TP_HEADER_LENGTH: usize = 4;
@@ -106,9 +108,9 @@ pub struct SomeIpHeader {
     pub return_code: u8, //TODO replace with enum?
     ///Contains a tp header (Transporting large SOME/IP messages of UDP [SOME/IP-TP]).
     ///
-    ///If there is a tp header a someip payload is split over multiple messages and the tp header contains the 
+    ///If there is a tp header a someip payload is split over multiple messages and the tp header contains the
     ///start offset of the payload of this message relative to the completly assembled payload.
-    pub tp_header: Option<TpHeader>
+    pub tp_header: Option<TpHeader>,
 }
 
 ///Message types of a SOME/IP message.
@@ -118,23 +120,23 @@ pub enum MessageType {
     RequestNoReturn = 0x1,
     Notification = 0x2,
     Response = 0x80,
-    Error = 0x81
+    Error = 0x81,
 }
 
 ///Return code contained in a SOME/IP header.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReturnCode {
-    Ok,// = 0x00,
-    NotOk,// = 0x01,
-    UnknownService,// = 0x02,
-    UnknownMethod, //= 0x03
-    NotReady,// = 0x04,
-    NotReachable,// = 0x05,
-    Timeout,// = 0x06,
-    WrongProtocolVersion,// = 0x07,
-    WrongInterfaceVersion,// = 0x08,
-    MalformedMessage,// = 0x09,
-    WrongMessageType,// = 0x0a,
+    Ok,                    // = 0x00,
+    NotOk,                 // = 0x01,
+    UnknownService,        // = 0x02,
+    UnknownMethod,         //= 0x03
+    NotReady,              // = 0x04,
+    NotReachable,          // = 0x05,
+    Timeout,               // = 0x06,
+    WrongProtocolVersion,  // = 0x07,
+    WrongInterfaceVersion, // = 0x08,
+    MalformedMessage,      // = 0x09,
+    WrongMessageType,      // = 0x0a,
     Generic(u8),
     InterfaceError(u8),
 }
@@ -147,7 +149,7 @@ impl From<ReturnCode> for u8 {
             NotOk => 0x01,
             UnknownService => 0x02,
             UnknownMethod => 0x03,
-            NotReady=> 0x04,
+            NotReady => 0x04,
             NotReachable => 0x05,
             Timeout => 0x06,
             WrongProtocolVersion => 0x07,
@@ -161,17 +163,16 @@ impl From<ReturnCode> for u8 {
 }
 
 impl SomeIpHeader {
-
     ///Create a service discovery message header.
     pub fn new_sd_header(length: u32, session_id: u16, tp_header: Option<TpHeader>) -> Self {
         Self {
             message_id: SOMEIP_SD_MESSAGE_ID, // defined in spec
             length,
             request_id: session_id as u32, // client-id is 0x00
-            interface_version: 0x01, // defined in spec
+            interface_version: 0x01,       // defined in spec
             message_type: MessageType::Notification, // defined in spec
-            return_code: 0x00, // defined in spec
-            tp_header
+            return_code: 0x00,             // defined in spec
+            tp_header,
         }
     }
 
@@ -189,20 +190,20 @@ impl SomeIpHeader {
 
     ///Set the event id + the event bit.
     #[inline]
-    pub fn set_event_id(&mut self, event_id : u16) {
+    pub fn set_event_id(&mut self, event_id: u16) {
         self.message_id = (self.message_id & 0xffff_0000) | u32::from(0x8000 | event_id);
     }
 
     ///Set the event id + the event bit to 0. Asserting method_id <= 0x7FFF (otherwise the )
     #[inline]
-    pub fn set_method_id(&mut self, method_id : u16) {
+    pub fn set_method_id(&mut self, method_id: u16) {
         debug_assert!(method_id <= 0x7FFF);
         self.message_id = (self.message_id & 0xffff_0000) | u32::from(0x7fff & method_id);
     }
 
     ///Sets the event id or method id. This number mjust include the "event bit".
     #[inline]
-    pub fn set_method_or_event_id(&mut self, method_id : u16) {
+    pub fn set_method_or_event_id(&mut self, method_id: u16) {
         self.message_id = (self.message_id & 0xffff_0000) | u32::from(method_id);
     }
 
@@ -255,7 +256,7 @@ impl SomeIpHeader {
 
     /// Returns the encoded SOMEIP header (without the TP header).
     #[inline]
-    pub fn base_to_bytes(&self) -> [u8;SOMEIP_HEADER_LENGTH] {
+    pub fn base_to_bytes(&self) -> [u8; SOMEIP_HEADER_LENGTH] {
         let message_id_be = self.message_id.to_be_bytes();
         let length_be = self.length.to_be_bytes();
         let request_id_be = self.request_id.to_be_bytes();
@@ -264,22 +265,19 @@ impl SomeIpHeader {
             message_id_be[1],
             message_id_be[2],
             message_id_be[3],
-
             length_be[0],
             length_be[1],
             length_be[2],
             length_be[3],
-
             request_id_be[0],
             request_id_be[1],
             request_id_be[2],
             request_id_be[3],
-
             SOMEIP_PROTOCOL_VERSION,
             self.interface_version,
             match self.tp_header {
                 Some(_) => (self.message_type.clone() as u8) | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
-                None => (self.message_type.clone() as u8)
+                None => (self.message_type.clone() as u8),
             },
             self.return_code,
         ]
@@ -290,18 +288,16 @@ impl SomeIpHeader {
         use ReadError::*;
 
         // read the header
-        let mut header_bytes : [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
+        let mut header_bytes: [u8; SOMEIP_HEADER_LENGTH] = [0; SOMEIP_HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
 
         // validate length
-        let length = u32::from_be_bytes(
-            [
-                header_bytes[4],
-                header_bytes[5],
-                header_bytes[6],
-                header_bytes[7]
-            ]
-        );
+        let length = u32::from_be_bytes([
+            header_bytes[4],
+            header_bytes[5],
+            header_bytes[6],
+            header_bytes[7],
+        ]);
         if length < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
             return Err(LengthFieldTooSmall(length));
         }
@@ -323,28 +319,24 @@ impl SomeIpHeader {
                 0x2 => Notification,
                 0x80 => Response,
                 0x81 => Error,
-                _ => return Err(UnknownMessageType(message_type_raw))
+                _ => return Err(UnknownMessageType(message_type_raw)),
             }
         };
 
         Ok(SomeIpHeader {
-            message_id: u32::from_be_bytes(
-                [
-                    header_bytes[0],
-                    header_bytes[1],
-                    header_bytes[2],
-                    header_bytes[3],
-                ]
-            ),
+            message_id: u32::from_be_bytes([
+                header_bytes[0],
+                header_bytes[1],
+                header_bytes[2],
+                header_bytes[3],
+            ]),
             length,
-            request_id: u32::from_be_bytes(
-                [
-                    header_bytes[8],
-                    header_bytes[9],
-                    header_bytes[10],
-                    header_bytes[11],
-                ]
-            ),
+            request_id: u32::from_be_bytes([
+                header_bytes[8],
+                header_bytes[9],
+                header_bytes[10],
+                header_bytes[11],
+            ]),
             interface_version: header_bytes[13],
             message_type,
             return_code: header_bytes[15],
@@ -353,7 +345,7 @@ impl SomeIpHeader {
                 Some(TpHeader::read(reader)?)
             } else {
                 None
-            }
+            },
         })
     }
 }
@@ -364,18 +356,17 @@ pub struct TpHeader {
     ///Offset of the payload relativ the start of the completly assempled payload.
     offset: u32,
     ///Flag signaling that more packets should follow
-    pub more_segment: bool
+    pub more_segment: bool,
 }
 
 impl TpHeader {
-
     ///Creates a tp header with offset 0 and the given "move_segment" flag.
     ///
     /// # Example:
     ///
     /// ```
     /// use someip_parse::TpHeader;
-    /// 
+    ///
     /// // create a header with the more_segement flag set
     /// let header = TpHeader::new(true);
     ///
@@ -386,7 +377,7 @@ impl TpHeader {
     pub fn new(more_segment: bool) -> TpHeader {
         TpHeader {
             offset: 0,
-            more_segment
+            more_segment,
         }
     }
 
@@ -397,7 +388,7 @@ impl TpHeader {
     ///
     /// ```
     /// use someip_parse::{TpHeader, ValueError};
-    /// 
+    ///
     /// // create a header with offset 32 (multiple of 16) and the more_segement flag set
     /// let header = TpHeader::with_offset(32, true).unwrap();
     ///
@@ -416,12 +407,12 @@ impl TpHeader {
         } else {
             Ok(TpHeader {
                 offset,
-                more_segment
+                more_segment,
             })
         }
     }
 
-    /// Returns the offset field of the tp header. The offset defines 
+    /// Returns the offset field of the tp header. The offset defines
     #[inline]
     pub fn offset(&self) -> u32 {
         self.offset
@@ -429,7 +420,7 @@ impl TpHeader {
 
     /// Sets the field of the header and returns Ok(()) on success. Note: The value must be a multiple of 16.
     ///
-    /// If the given value is not a multiple of 16, the value is not set and an error 
+    /// If the given value is not a multiple of 16, the value is not set and an error
     /// ValueError::TpOffsetNotMultipleOf16 is returned.
     pub fn set_offset(&mut self, value: u32) -> Result<(), ValueError> {
         use ValueError::*;
@@ -443,16 +434,16 @@ impl TpHeader {
 
     /// Read a header from a byte stream.
     pub fn read<T: Read>(reader: &mut T) -> Result<TpHeader, ReadError> {
-        let mut buffer = [0u8;TP_HEADER_LENGTH];
+        let mut buffer = [0u8; TP_HEADER_LENGTH];
         reader.read_exact(&mut buffer)?;
         let more_segment = 0 != (buffer[3] & 0b0001u8);
 
         //mask out the flags
         buffer[3] &= !0b1111u8;
 
-        Ok(TpHeader{
+        Ok(TpHeader {
             offset: u32::from_be_bytes(buffer),
-            more_segment
+            more_segment,
         })
     }
 
@@ -466,9 +457,7 @@ impl TpHeader {
                 // SAFETY:
                 // Safe as a length check is preformed that the slice has
                 // the minimum size of TP_HEADER_LENGTH.
-                unsafe {
-                    TpHeader::from_slice_unchecked(slice.as_ptr())
-                }
+                unsafe { TpHeader::from_slice_unchecked(slice.as_ptr()) },
             )
         }
     }
@@ -482,19 +471,17 @@ impl TpHeader {
     #[inline]
     unsafe fn from_slice_unchecked(ptr: *const u8) -> TpHeader {
         //return result
-        TpHeader{
-            offset: u32::from_be_bytes(
-                [
-                    *ptr,
-                    *ptr.add(1),
-                    *ptr.add(2),
-                    *ptr.add(3) & 0b1111_0000u8,
-                ]
-            ),
+        TpHeader {
+            offset: u32::from_be_bytes([
+                *ptr,
+                *ptr.add(1),
+                *ptr.add(2),
+                *ptr.add(3) & 0b1111_0000u8,
+            ]),
             more_segment: 0 != (*ptr.add(3) & 0b0001u8),
         }
     }
-    
+
     /// Writes the header to the given writer.
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
@@ -521,10 +508,10 @@ impl TpHeader {
 
     ///Writes the header to a slice without checking the slice length.
     #[inline]
-    pub fn to_bytes(&self) -> [u8;4] {
+    pub fn to_bytes(&self) -> [u8; 4] {
         let mut result = self.offset.to_be_bytes();
         if self.more_segment {
-            result[3] |= 0x1u8; 
+            result[3] |= 0x1u8;
         }
         result
     }
@@ -535,13 +522,12 @@ impl TpHeader {
 pub struct SomeIpHeaderSlice<'a> {
     ///If true a TP header is following the SOME/IP header.
     tp: bool,
-    slice: &'a [u8]
+    slice: &'a [u8],
 }
 
 impl<'a> SomeIpHeaderSlice<'a> {
-
-    #[cfg(target_pointer_width = "64")] 
-    pub fn from_slice(slice: &'a[u8]) -> Result<SomeIpHeaderSlice, ReadError> {
+    #[cfg(target_pointer_width = "64")]
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeIpHeaderSlice, ReadError> {
         use ReadError::*;
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
@@ -552,27 +538,23 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 // SAFETY:
                 // Read is save as it is checked before that the slice has at least
                 // SOMEIP_HEADER_LENGTH 16 bytes.
-                unsafe {
-                    get_unchecked_be_u32(slice.as_ptr().add(4))
-                }
+                unsafe { get_unchecked_be_u32(slice.as_ptr().add(4)) }
             };
             if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
                 return Err(LengthFieldTooSmall(len));
             }
             //NOTE: In case you want to write a 32 bit version, a check needs to be added, so that
             //      no accidental overflow when adding the 4*2 bytes happens.
-            let total_length = (len as usize) + 4*2;
+            let total_length = (len as usize) + 4 * 2;
             if slice.len() < total_length {
-                return Err(UnexpectedEndOfSlice(slice.len()))
+                return Err(UnexpectedEndOfSlice(slice.len()));
             }
             //check protocol version
             let protocol_version = {
                 // SAFETY:
                 // Read is save as it is checked before that the slice has at least
                 // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
-                unsafe {
-                    *slice.get_unchecked(4*3)
-                }
+                unsafe { *slice.get_unchecked(4 * 3) }
             };
             if SOMEIP_PROTOCOL_VERSION != protocol_version {
                 return Err(UnsupportedProtocolVersion(protocol_version));
@@ -583,9 +565,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 // SAFETY:
                 // Read is save as it is checked before that the slice has at least
                 // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
-                unsafe {
-                    *slice.get_unchecked(4*3 + 2)
-                }
+                unsafe { *slice.get_unchecked(4 * 3 + 2) }
             };
 
             //check the length is still ok, in case of a tp flag
@@ -596,26 +576,21 @@ impl<'a> SomeIpHeaderSlice<'a> {
 
             //make sure the message type is known
             match message_type & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
-                0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {},
-                _ => return Err(UnknownMessageType(message_type))
+                0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {}
+                _ => return Err(UnknownMessageType(message_type)),
             }
-            
+
             //all good generate the slice
             Ok(SomeIpHeaderSlice {
                 tp,
                 // SAFETY: Check is preformed above to ensure slice has at least total length
-                slice: unsafe {
-                    from_raw_parts(
-                        slice.as_ptr(),
-                        total_length
-                    )
-                }
+                slice: unsafe { from_raw_parts(slice.as_ptr(), total_length) },
             })
         }
     }
 
-    #[cfg(target_pointer_width = "32")] 
-    pub fn from_slice(slice: &'a[u8]) -> Result<SomeIpHeaderSlice, ReadError> {
+    #[cfg(target_pointer_width = "32")]
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeIpHeaderSlice, ReadError> {
         use ReadError::*;
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
@@ -626,33 +601,29 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 // SAFETY:
                 // Read is save as it is checked before that the slice has at least
                 // SOMEIP_HEADER_LENGTH 16 bytes.
-                unsafe {
-                    get_unchecked_be_u32(slice.as_ptr().add(4))
-                }
+                unsafe { get_unchecked_be_u32(slice.as_ptr().add(4)) }
             };
             if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
                 return Err(LengthFieldTooSmall(len));
             }
 
             //NOTE: This additional check is needed for 32 bit systems, as otherwise an overflow could potentially be happening
-            const MAX_SUPPORTED_LEN: usize = std::usize::MAX - 4*2;
+            const MAX_SUPPORTED_LEN: usize = std::usize::MAX - 4 * 2;
             let len_usize = len as usize;
             if len_usize > MAX_SUPPORTED_LEN {
                 return Err(UnexpectedEndOfSlice(slice.len()));
             }
 
-            let total_length = len_usize + 4*2;
+            let total_length = len_usize + 4 * 2;
             if slice.len() < total_length {
-                return Err(UnexpectedEndOfSlice(slice.len()))
+                return Err(UnexpectedEndOfSlice(slice.len()));
             }
             //check protocol version
             let protocol_version = {
                 // SAFETY:
                 // Read is save as it is checked before that the slice has at least
                 // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
-                unsafe {
-                    *slice.get_unchecked(4*3)
-                }
+                unsafe { *slice.get_unchecked(4 * 3) }
             };
             if SOMEIP_PROTOCOL_VERSION != protocol_version {
                 return Err(UnsupportedProtocolVersion(protocol_version));
@@ -663,9 +634,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 // SAFETY:
                 // Read is save as it is checked before that the slice has at least
                 // SOMEIP_HEADER_LENGTH 16 (4*4) bytes.
-                unsafe {
-                    *slice.get_unchecked(4*3 + 2)
-                }
+                unsafe { *slice.get_unchecked(4 * 3 + 2) }
             };
 
             //check the length is still ok, in case of a tp flag
@@ -676,20 +645,15 @@ impl<'a> SomeIpHeaderSlice<'a> {
 
             //make sure the message type is known
             match message_type & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
-                0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {},
-                _ => return Err(UnknownMessageType(message_type))
+                0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {}
+                _ => return Err(UnknownMessageType(message_type)),
             }
-            
+
             //all good generate the slice
             Ok(SomeIpHeaderSlice {
                 tp,
                 // SAFETY: Check is preformed above to ensure slice has at least total length
-                slice: unsafe {
-                    from_raw_parts(
-                        slice.as_ptr(),
-                        total_length
-                    )
-                }
+                slice: unsafe { from_raw_parts(slice.as_ptr(), total_length) },
             })
         }
     }
@@ -706,9 +670,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            get_unchecked_be_u32(self.slice.as_ptr())
-        }
+        unsafe { get_unchecked_be_u32(self.slice.as_ptr()) }
     }
 
     ///Returns the service id (first 16 bits of the message id)
@@ -717,9 +679,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            get_unchecked_be_u16(self.slice.as_ptr())
-        }
+        unsafe { get_unchecked_be_u16(self.slice.as_ptr()) }
     }
 
     ///Returns true if the event or notification bit in the message id is set
@@ -728,9 +688,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        0 != unsafe {
-            self.slice.get_unchecked(2)
-        } & 0x80
+        0 != unsafe { self.slice.get_unchecked(2) } & 0x80
     }
 
     ///Return the event id or method id. This number includes the "event bit".
@@ -739,9 +697,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            get_unchecked_be_u16(self.slice.as_ptr().add(2))
-        }
+        unsafe { get_unchecked_be_u16(self.slice.as_ptr().add(2)) }
     }
 
     ///Return the event id. `None` if event bit is not set.
@@ -770,17 +726,15 @@ impl<'a> SomeIpHeaderSlice<'a> {
         SOMEIP_SD_MESSAGE_ID == self.message_id()
     }
 
-    /// Returns the length contained in the header. WARNING: the length paritally 
-    /// contains the header and partially the payload, use the payload() method 
+    /// Returns the length contained in the header. WARNING: the length paritally
+    /// contains the header and partially the payload, use the payload() method
     /// instead if you want to access the payload slice).
     #[inline]
     pub fn length(&self) -> u32 {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            get_unchecked_be_u32(self.slice.as_ptr().add(4))
-        }
+        unsafe { get_unchecked_be_u32(self.slice.as_ptr().add(4)) }
     }
 
     ///Returns the request id of the message.
@@ -789,9 +743,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            get_unchecked_be_u32(self.slice.as_ptr().add(8))
-        }
+        unsafe { get_unchecked_be_u32(self.slice.as_ptr().add(8)) }
     }
 
     ///Return the value of the protocol version field of the message (must match SOMEIP_PROTOCOL_VERSION, unless something dark and unsafe is beeing done).
@@ -801,9 +753,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            *self.slice.get_unchecked(12)
-        }
+        unsafe { *self.slice.get_unchecked(12) }
     }
 
     ///Returns the interface version field of the message.
@@ -812,12 +762,10 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            *self.slice.get_unchecked(13)
-        }
+        unsafe { *self.slice.get_unchecked(13) }
     }
 
-    ///Return the message type (does not contain the tp flag, use the message_type_tp method for 
+    ///Return the message type (does not contain the tp flag, use the message_type_tp method for
     ///checking if this is a tp message).
     pub fn message_type(&self) -> MessageType {
         use MessageType::*;
@@ -837,9 +785,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            *self.slice.get_unchecked(14)
-        }
+        unsafe { *self.slice.get_unchecked(14) }
     }
 
     ///Returns true if the tp flag in the message type is set (Transporting large SOME/IP messages of UDP [SOME/IP-TP])
@@ -854,9 +800,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
         // SAFETY:
         // Safe as the slice length is checked to have at least a length of
         // SOMEIP_HEADER_LENGTH (16) during construction of the struct.
-        unsafe {
-            *self.slice.get_unchecked(15)
-        }
+        unsafe { *self.slice.get_unchecked(15) }
     }
 
     /// Return a slice to the payload of the someip header.
@@ -872,12 +816,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
             // Safe as it is checked in SomeipHeaderSlice::from_slice that the
             // slice has at least SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH len
             // if the tp flag is set.
-            unsafe {
-                from_raw_parts(
-                    self.slice.as_ptr().add(OFFSET),
-                    self.slice.len() - OFFSET
-                )
-            }
+            unsafe { from_raw_parts(self.slice.as_ptr().add(OFFSET), self.slice.len() - OFFSET) }
         } else {
             // SAFETY:
             // Safe as it is checked in SomeipHeaderSlice::from_slice that the
@@ -885,7 +824,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
             unsafe {
                 from_raw_parts(
                     self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH),
-                    self.slice.len() - SOMEIP_HEADER_LENGTH
+                    self.slice.len() - SOMEIP_HEADER_LENGTH,
                 )
             }
         }
@@ -900,10 +839,8 @@ impl<'a> SomeIpHeaderSlice<'a> {
                 // Safe as the slice len is checked to have SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH
                 // length during SomeIpHeaderSlice::from_slice.
                 unsafe {
-                    TpHeader::from_slice_unchecked(
-                        self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH)
-                    )
-                }
+                    TpHeader::from_slice_unchecked(self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH))
+                },
             )
         } else {
             None
@@ -927,14 +864,12 @@ impl<'a> SomeIpHeaderSlice<'a> {
 ///Allows iterating over the someip messages in a udp or tcp payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SliceIterator<'a> {
-    slice: &'a [u8]
+    slice: &'a [u8],
 }
 
 impl<'a> SliceIterator<'a> {
     pub fn new(slice: &'a [u8]) -> SliceIterator<'a> {
-        SliceIterator {
-            slice
-        }
+        SliceIterator { slice }
     }
 }
 
@@ -969,14 +904,14 @@ impl<'a> Iterator for SliceIterator<'a> {
 
 impl Default for SomeIpHeader {
     fn default() -> SomeIpHeader {
-        SomeIpHeader{
+        SomeIpHeader {
             message_id: 0,
             length: SOMEIP_LEN_OFFSET_TO_PAYLOAD,
             request_id: 0,
             interface_version: 0,
             message_type: MessageType::Request,
             return_code: 0,
-            tp_header: None
+            tp_header: None,
         }
     }
 }
@@ -1012,7 +947,7 @@ impl From<std::io::Error> for ReadError {
 pub enum WriteError {
     IoError(std::io::Error),
     ///The slice length was not large enough to write the header.
-    UnexpectedEndOfSlice(usize)
+    UnexpectedEndOfSlice(usize),
 }
 
 impl From<std::io::Error> for WriteError {
@@ -1029,9 +964,9 @@ pub enum ValueError {
 
     /// Offset of the tp header is not a multiple of 16.
     ///
-    /// PRS_SOMEIP_00724: The Offset field shall transport the upper 28 bits of a 
+    /// PRS_SOMEIP_00724: The Offset field shall transport the upper 28 bits of a
     /// uint32. The lower 4 bits shall be always interpreted as 0.
-    /// Note: This means that the offset field can only transport offset values 
+    /// Note: This means that the offset field can only transport offset values
     /// that are multiples of 16 bytes.
     TpOffsetNotMultipleOf16(u32),
 
@@ -1048,7 +983,7 @@ pub enum ValueError {
     NumberOfOption1TooLarge(u8),
 
     /// Number of options 2 exceeds 4 bit
-    NumberOfOption2TooLarge(u8)
+    NumberOfOption2TooLarge(u8),
 }
 
 /// Helper function for reading big endian u32 values from a ptr unchecked.
@@ -1060,14 +995,7 @@ pub enum ValueError {
 /// will be triggered.
 #[inline]
 unsafe fn get_unchecked_be_u32(ptr: *const u8) -> u32 {
-    u32::from_be_bytes(
-        [
-            *ptr,
-            *ptr.add(1),
-            *ptr.add(2),
-            *ptr.add(3)
-        ]
-    )
+    u32::from_be_bytes([*ptr, *ptr.add(1), *ptr.add(2), *ptr.add(3)])
 }
 
 /// Helper function for reading big endian u16 values from a ptr unchecked.
@@ -1079,12 +1007,7 @@ unsafe fn get_unchecked_be_u32(ptr: *const u8) -> u32 {
 /// will be triggered.
 #[inline]
 unsafe fn get_unchecked_be_u16(ptr: *const u8) -> u16 {
-    u16::from_be_bytes(
-        [
-            *ptr,
-            *ptr.add(1),
-        ]
-    )
+    u16::from_be_bytes([*ptr, *ptr.add(1)])
 }
 
 #[cfg(test)]
@@ -1121,22 +1044,17 @@ mod tests_return_code {
 
 #[cfg(test)]
 mod tests_someip_header {
-    use super::*;
     use super::proptest_generators::*;
+    use super::*;
     use proptest::prelude::*;
     use std::io::Cursor;
     use MessageType::*;
     use ReadError::*;
 
-    const MESSAGE_TYPE_VALUES: &[MessageType;5] = &[
-        Request,
-        RequestNoReturn,
-        Notification,
-        Response,
-        Error
-    ];
+    const MESSAGE_TYPE_VALUES: &[MessageType; 5] =
+        &[Request, RequestNoReturn, Notification, Response, Error];
 
-    const MESSAGE_TYPE_VALUES_RAW: &[u8;10] = &[
+    const MESSAGE_TYPE_VALUES_RAW: &[u8; 10] = &[
         Request as u8,
         RequestNoReturn as u8,
         Notification as u8,
@@ -1211,7 +1129,7 @@ mod tests_someip_header {
                 input.write_raw(&mut buffer).unwrap();
 
                 //add some payload
-                let expected_length = 
+                let expected_length =
                     length as usize
                     + (SOMEIP_HEADER_LENGTH - SOMEIP_LEN_OFFSET_TO_PAYLOAD as usize);
                 buffer.resize(expected_length + add, 0);
@@ -1255,7 +1173,7 @@ mod tests_someip_header {
         fn unknown_message_type(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
                                 ref input_base in someip_header_any(),
                                 message_type in any::<u8>().prop_filter("message type must be unknown",
-                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| (v == &x || 
+                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| (v == &x ||
                                                                              (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | v) == x)))
             )
         {
@@ -1318,11 +1236,14 @@ mod tests_someip_header {
         let mut buffer = Vec::new();
         SomeIpHeader::default().write_raw(&mut buffer).unwrap();
         //set the protocol to an unsupported version
-        buffer[4*3] = 0;
+        buffer[4 * 3] = 0;
         let mut cursor = Cursor::new(&buffer);
         let result = SomeIpHeader::read(&mut cursor);
         assert_matches!(result, Err(ReadError::UnsupportedProtocolVersion(0)));
-        assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..]), Err(ReadError::UnsupportedProtocolVersion(0)));
+        assert_matches!(
+            SomeIpHeaderSlice::from_slice(&buffer[..]),
+            Err(ReadError::UnsupportedProtocolVersion(0))
+        );
     }
 
     #[test]
@@ -1342,7 +1263,10 @@ mod tests_someip_header {
             let result = SomeIpHeader::read(&mut cursor);
             assert_matches!(result, Err(ReadError::LengthFieldTooSmall(0)));
             //check the from_slice method
-            assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..]), Err(ReadError::LengthFieldTooSmall(0)));
+            assert_matches!(
+                SomeIpHeaderSlice::from_slice(&buffer[..]),
+                Err(ReadError::LengthFieldTooSmall(0))
+            );
         }
         //SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
         {
@@ -1360,7 +1284,10 @@ mod tests_someip_header {
             let mut cursor = Cursor::new(&buffer);
             let result = SomeIpHeader::read(&mut cursor);
             assert_matches!(result, Err(ReadError::LengthFieldTooSmall(TOO_SMALL)));
-            assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..]), Err(ReadError::LengthFieldTooSmall(TOO_SMALL)));
+            assert_matches!(
+                SomeIpHeaderSlice::from_slice(&buffer[..]),
+                Err(ReadError::LengthFieldTooSmall(TOO_SMALL))
+            );
         }
     }
 
@@ -1517,7 +1444,9 @@ mod test_enums {
                 UnsupportedProtocolVersion(0),
                 LengthFieldTooSmall(0),
                 UnknownMessageType(0),
-            ].iter() {
+            ]
+            .iter()
+            {
                 println!("{:?}", value);
             }
         }
@@ -1526,25 +1455,30 @@ mod test_enums {
             use WriteError::*;
             for value in [
                 IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
-                UnexpectedEndOfSlice(0)
-            ].iter() {
+                UnexpectedEndOfSlice(0),
+            ]
+            .iter()
+            {
                 println!("{:?}", value);
             }
         }
         //ValueError
         {
             use ValueError::*;
-            for value in [
-                LengthTooLarge(0),
-                TpOffsetNotMultipleOf16(0)
-            ].iter() {
+            for value in [LengthTooLarge(0), TpOffsetNotMultipleOf16(0)].iter() {
                 println!("{:?}", value);
             }
         }
         //SomeIpHeaderSlice
         {
-            let buffer: [u8;SOMEIP_HEADER_LENGTH] = [0;SOMEIP_HEADER_LENGTH];
-            println!("{:?}", SomeIpHeaderSlice{ tp:false, slice: &buffer[..]});
+            let buffer: [u8; SOMEIP_HEADER_LENGTH] = [0; SOMEIP_HEADER_LENGTH];
+            println!(
+                "{:?}",
+                SomeIpHeaderSlice {
+                    tp: false,
+                    slice: &buffer[..]
+                }
+            );
         }
     }
 }
@@ -1553,8 +1487,8 @@ mod test_enums {
 mod tests_tp_header {
 
     use super::*;
-    use proptest_generators::*;
     use proptest::prelude::*;
+    use proptest_generators::*;
 
     proptest! {
         #[test]
@@ -1579,7 +1513,7 @@ mod tests_tp_header {
             assert_eq!(result.more_segment, more_segment);
         }
     }
-    
+
     proptest! {
         #[test]
         fn with_offset_error(
@@ -1601,7 +1535,7 @@ mod tests_tp_header {
             assert_eq!(header.offset, offset);
         }
     }
-    
+
     proptest! {
         #[test]
         fn set_offset_error(
@@ -1644,8 +1578,8 @@ mod tests_tp_header {
 
 #[cfg(test)]
 mod tests_iterator {
-    use super::*;
     use super::proptest_generators::*;
+    use super::*;
 
     proptest! {
         #[test]
@@ -1660,7 +1594,7 @@ mod tests_iterator {
 
             //read message with iterator
             let actual = SliceIterator::new(&buffer[..]).fold(
-                Vec::with_capacity(expected.len()), 
+                Vec::with_capacity(expected.len()),
                 |mut acc, x| {
                     let x_unwraped = x.unwrap();
                     acc.push((

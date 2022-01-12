@@ -1,5 +1,5 @@
 use crate::{ReadError, ValueError, WriteError};
-use std::io::{Read, Write, Seek};
+use std::io::{Read, Seek, Write};
 
 ///Length of someip sd header, flags + reserved + entries length + options length
 ///excluding entries and options arrays
@@ -34,7 +34,7 @@ pub mod flags {
 
 /// Constants related to sd entries.
 pub mod entries {
-    use super::{SdServiceEntryType, SdEventGroupEntryType};
+    use super::{SdEventGroupEntryType, SdServiceEntryType};
 
     /// Maximum entry length that is supported by the read & from slice functions.
     ///
@@ -132,10 +132,10 @@ pub mod options {
     /// For the sd entries we assume an empty array.
     pub const MAX_OPTIONS_LEN: u32 = crate::SOMEIP_MAX_PAYLOAD_LEN_UDP - 4 - 4 - 4;
 
-    /// Flag in the 4th byte (reserved) indicating that the option is allowed 
+    /// Flag in the 4th byte (reserved) indicating that the option is allowed
     /// to be discarded by the receiver if not supported.
     pub const DISCARDABLE_FLAG: u8 = 0b1000_0000;
-    
+
     /// Value of the `type` field of a configuration sd option.
     pub const CONFIGURATION_TYPE: u8 = 0x01;
 
@@ -199,42 +199,42 @@ pub mod options {
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv4EndpointOption {
-        pub ipv4_address: [u8;4],
+        pub ipv4_address: [u8; 4],
         pub transport_protocol: TransportProtocol,
         pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv6EndpointOption {
-        pub ipv6_address: [u8;16],
+        pub ipv6_address: [u8; 16],
         pub transport_protocol: TransportProtocol,
         pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv4MulticastOption {
-        pub ipv4_address: [u8;4],
+        pub ipv4_address: [u8; 4],
         pub transport_protocol: TransportProtocol,
         pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv6MulticastOption {
-        pub ipv6_address: [u8;16],
+        pub ipv6_address: [u8; 16],
         pub transport_protocol: TransportProtocol,
         pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv4SdEndpointOption {
-        pub ipv4_address: [u8;4],
+        pub ipv4_address: [u8; 4],
         pub transport_protocol: TransportProtocol,
         pub port: u16,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct Ipv6SdEndpointOption {
-        pub ipv6_address: [u8;16],
+        pub ipv6_address: [u8; 16],
         pub transport_protocol: TransportProtocol,
         pub port: u16,
     }
@@ -253,8 +253,8 @@ pub mod options {
     }
 }
 
-use self::options::*;
 use self::entries::*;
+use self::options::*;
 
 /// Flags at the start of a SOMEIP service discovery header.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -279,22 +279,16 @@ impl Default for SdHeaderFlags {
 
 impl SdHeaderFlags {
     /// Returns the first 4 bytes of an SOMEIP SD header.
-    pub fn to_bytes(&self) -> [u8;4] {
+    pub fn to_bytes(&self) -> [u8; 4] {
         use sd::flags::*;
         [
-            if self.reboot {
-                REBOOT_FLAG
-            } else {
-                0
-            } | if self.unicast {
-                UNICAST_FLAG
-            } else {
-                0
-            } | if self.explicit_initial_data_control {
-                EXPLICIT_INITIAL_DATA_CONTROL_FLAG
-            } else {
-                0
-            },
+            if self.reboot { REBOOT_FLAG } else { 0 }
+                | if self.unicast { UNICAST_FLAG } else { 0 }
+                | if self.explicit_initial_data_control {
+                    EXPLICIT_INITIAL_DATA_CONTROL_FLAG
+                } else {
+                    0
+                },
             0,
             0,
             0,
@@ -332,7 +326,6 @@ impl SdHeader {
     #[inline]
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, ReadError> {
-
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
@@ -346,9 +339,7 @@ impl SdHeader {
             ]);
 
             if length_entries > MAX_ENTRIES_LEN {
-                return Err(
-                    ReadError::SdEntriesArrayLengthTooLarge(length_entries)
-                );
+                return Err(ReadError::SdEntriesArrayLengthTooLarge(length_entries));
             }
 
             // Note this function only supports 32 & 64 bit systems.
@@ -372,9 +363,7 @@ impl SdHeader {
         };
 
         if options_length > MAX_OPTIONS_LEN {
-            return Err(
-                ReadError::SdOptionsArrayLengthTooLarge(options_length)
-            );
+            return Err(ReadError::SdOptionsArrayLengthTooLarge(options_length));
         }
 
         let mut options = Vec::new();
@@ -395,7 +384,8 @@ impl SdHeader {
             flags: SdHeaderFlags {
                 reboot: 0 != header_bytes[0] & REBOOT_FLAG,
                 unicast: 0 != header_bytes[0] & UNICAST_FLAG,
-                explicit_initial_data_control: 0 != header_bytes[0] & EXPLICIT_INITIAL_DATA_CONTROL_FLAG,
+                explicit_initial_data_control: 0
+                    != header_bytes[0] & EXPLICIT_INITIAL_DATA_CONTROL_FLAG,
             },
             entries,
             options,
@@ -430,19 +420,18 @@ impl SdHeader {
     pub fn header_len(&self) -> usize {
         // 4*3 (flags, entries len & options len)
         let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
-        4*3 + self.entries.len()*ENTRY_LEN + options_len
+        4 * 3 + self.entries.len() * ENTRY_LEN + options_len
     }
 
     /// Writes the header to a slice without checking the slice length.
     #[inline]
     pub fn to_bytes_vec(&self) -> Result<Vec<u8>, ValueError> {
-
         // calculate memory usage
-        let entries_len = self.entries.len()*ENTRY_LEN;
+        let entries_len = self.entries.len() * ENTRY_LEN;
         let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
 
         // pre-allocate the resulting buffer (4*3 for flags, entries len & options len)
-        let mut bytes = Vec::with_capacity(4*3 + entries_len + options_len);
+        let mut bytes = Vec::with_capacity(4 * 3 + entries_len + options_len);
 
         // flags & reserved
         bytes.extend_from_slice(&self.flags.to_bytes());
@@ -475,12 +464,16 @@ pub enum SdEntry {
 
 impl From<ServiceEntry> for SdEntry {
     #[inline]
-    fn from(e: ServiceEntry) -> Self { SdEntry::Service(e) }
+    fn from(e: ServiceEntry) -> Self {
+        SdEntry::Service(e)
+    }
 }
 
 impl From<EventgroupEntry> for SdEntry {
     #[inline]
-    fn from(o: EventgroupEntry) -> Self { SdEntry::Eventgroup(o) }
+    fn from(o: EventgroupEntry) -> Self {
+        SdEntry::Eventgroup(o)
+    }
 }
 
 impl SdEntry {
@@ -504,22 +497,18 @@ impl SdEntry {
         } else if number_of_options_2 > 0x0F {
             Err(ValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
-            Ok(
-                Self::Service(
-                    ServiceEntry {
-                        _type,
-                        index_first_option_run,
-                        index_second_option_run,
-                        number_of_options_1,
-                        number_of_options_2,
-                        service_id,
-                        instance_id,
-                        major_version,
-                        ttl,
-                        minor_version,
-                    }
-                )
-            )
+            Ok(Self::Service(ServiceEntry {
+                _type,
+                index_first_option_run,
+                index_second_option_run,
+                number_of_options_1,
+                number_of_options_2,
+                service_id,
+                instance_id,
+                major_version,
+                ttl,
+                minor_version,
+            }))
         }
     }
 
@@ -646,24 +635,20 @@ impl SdEntry {
         } else if number_of_options_2 > 0x0F {
             Err(ValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
-            Ok(
-                Self::Eventgroup(
-                    EventgroupEntry {
-                        _type,
-                        index_first_option_run,
-                        index_second_option_run,
-                        number_of_options_1,
-                        number_of_options_2,
-                        service_id,
-                        instance_id,
-                        major_version,
-                        ttl,
-                        initial_data_requested,
-                        counter,
-                        eventgroup_id,
-                    }
-                )
-            )
+            Ok(Self::Eventgroup(EventgroupEntry {
+                _type,
+                index_first_option_run,
+                index_second_option_run,
+                number_of_options_1,
+                number_of_options_2,
+                service_id,
+                instance_id,
+                major_version,
+                ttl,
+                initial_data_requested,
+                counter,
+                eventgroup_id,
+            }))
         }
     }
 
@@ -689,27 +674,23 @@ impl SdEntry {
         entry_bytes: [u8; entries::ENTRY_LEN],
     ) -> Result<Self, ReadError> {
         //return result
-        Ok(
-            Self::Service(
-                ServiceEntry {
-                    _type,
-                    index_first_option_run: entry_bytes[1],
-                    index_second_option_run: entry_bytes[2],
-                    number_of_options_1: entry_bytes[3] >> 4,
-                    number_of_options_2: entry_bytes[3] & 0x0F,
-                    service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-                    instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-                    major_version: entry_bytes[8],
-                    ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
-                    minor_version: u32::from_be_bytes([
-                        entry_bytes[12],
-                        entry_bytes[13],
-                        entry_bytes[14],
-                        entry_bytes[15],
-                    ]),
-                }
-            )
-        )
+        Ok(Self::Service(ServiceEntry {
+            _type,
+            index_first_option_run: entry_bytes[1],
+            index_second_option_run: entry_bytes[2],
+            number_of_options_1: entry_bytes[3] >> 4,
+            number_of_options_2: entry_bytes[3] & 0x0F,
+            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
+            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
+            major_version: entry_bytes[8],
+            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+            minor_version: u32::from_be_bytes([
+                entry_bytes[12],
+                entry_bytes[13],
+                entry_bytes[14],
+                entry_bytes[15],
+            ]),
+        }))
     }
 
     /// Read an entry group from byte array.
@@ -718,26 +699,22 @@ impl SdEntry {
         _type: SdEventGroupEntryType,
         entry_bytes: [u8; entries::ENTRY_LEN],
     ) -> Result<Self, ReadError> {
-        Ok(
-            Self::Eventgroup(
-                EventgroupEntry {
-                    _type,
-                    index_first_option_run: entry_bytes[1],
-                    index_second_option_run: entry_bytes[2],
-                    number_of_options_1: entry_bytes[3] >> 4,
-                    number_of_options_2: entry_bytes[3] & 0x0F,
-                    service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-                    instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-                    major_version: entry_bytes[8],
-                    ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
-                    // skip reserved byte, TODO: should this be verified to be 0x00 ?
-                    initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
-                    // ignore reserved bits, TODO: should this be verified to be 0x00 ?
-                    counter: entry_bytes[13] & 0x0F,
-                    eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
-                }
-            )
-        )
+        Ok(Self::Eventgroup(EventgroupEntry {
+            _type,
+            index_first_option_run: entry_bytes[1],
+            index_second_option_run: entry_bytes[2],
+            number_of_options_1: entry_bytes[3] >> 4,
+            number_of_options_2: entry_bytes[3] & 0x0F,
+            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
+            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
+            major_version: entry_bytes[8],
+            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+            // skip reserved byte, TODO: should this be verified to be 0x00 ?
+            initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
+            // ignore reserved bits, TODO: should this be verified to be 0x00 ?
+            counter: entry_bytes[13] & 0x0F,
+            eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
+        }))
     }
 
     /// Writes the eventgroup entry to the given writer.
@@ -822,8 +799,8 @@ impl SdEntry {
 
     /// Length of the serialized header in bytes.
     pub fn header_len(&self) -> usize {
-        4*4
-    } 
+        4 * 4
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -871,7 +848,7 @@ impl From<TransportProtocol> for u8 {
 #[cfg(test)]
 mod test_transport_protocol {
     use proptest::prelude::*;
-    proptest!{
+    proptest! {
         #[test]
         fn from_u8(argu8 in any::<u8>()) {
             use super::TransportProtocol::*;
@@ -905,56 +882,74 @@ pub enum SdOption {
 
 impl From<ConfigurationOption> for SdOption {
     #[inline]
-    fn from(o: ConfigurationOption) -> Self { SdOption::Configuration(o) }
+    fn from(o: ConfigurationOption) -> Self {
+        SdOption::Configuration(o)
+    }
 }
 
 impl From<LoadBalancingOption> for SdOption {
     #[inline]
-    fn from(o: LoadBalancingOption) -> Self { SdOption::LoadBalancing(o) }
+    fn from(o: LoadBalancingOption) -> Self {
+        SdOption::LoadBalancing(o)
+    }
 }
 
 impl From<Ipv4EndpointOption> for SdOption {
     #[inline]
-    fn from(o: Ipv4EndpointOption) -> Self { SdOption::Ipv4Endpoint(o) }
+    fn from(o: Ipv4EndpointOption) -> Self {
+        SdOption::Ipv4Endpoint(o)
+    }
 }
 
 impl From<Ipv6EndpointOption> for SdOption {
     #[inline]
-    fn from(o: Ipv6EndpointOption) -> Self { SdOption::Ipv6Endpoint(o) }
+    fn from(o: Ipv6EndpointOption) -> Self {
+        SdOption::Ipv6Endpoint(o)
+    }
 }
 
 impl From<Ipv4MulticastOption> for SdOption {
     #[inline]
-    fn from(o: Ipv4MulticastOption) -> Self { SdOption::Ipv4Multicast(o) }
+    fn from(o: Ipv4MulticastOption) -> Self {
+        SdOption::Ipv4Multicast(o)
+    }
 }
 
 impl From<Ipv6MulticastOption> for SdOption {
     #[inline]
-    fn from(o: Ipv6MulticastOption) -> Self { SdOption::Ipv6Multicast(o) }
+    fn from(o: Ipv6MulticastOption) -> Self {
+        SdOption::Ipv6Multicast(o)
+    }
 }
 
 impl From<Ipv4SdEndpointOption> for SdOption {
     #[inline]
-    fn from(o: Ipv4SdEndpointOption) -> Self { SdOption::Ipv4SdEndpoint(o) }
+    fn from(o: Ipv4SdEndpointOption) -> Self {
+        SdOption::Ipv4SdEndpoint(o)
+    }
 }
 
 impl From<Ipv6SdEndpointOption> for SdOption {
     #[inline]
-    fn from(o: Ipv6SdEndpointOption) -> Self { SdOption::Ipv6SdEndpoint(o) }
+    fn from(o: Ipv6SdEndpointOption) -> Self {
+        SdOption::Ipv6SdEndpoint(o)
+    }
 }
 
 impl From<UnknownDiscardableOption> for SdOption {
     #[inline]
-    fn from(o: UnknownDiscardableOption) -> Self { SdOption::UnknownDiscardable(o) }
+    fn from(o: UnknownDiscardableOption) -> Self {
+        SdOption::UnknownDiscardable(o)
+    }
 }
 
 impl SdOption {
     /// Read the value from a [`std::io::Read`] source.
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), ReadError> {
-        use ReadError::*;
-        use self::SdOption::*;
         use self::options::*;
+        use self::SdOption::*;
+        use ReadError::*;
 
         let mut option_bytes: [u8; 4] = [0; 4];
         reader.read_exact(&mut option_bytes)?;
@@ -974,13 +969,11 @@ impl SdOption {
             if expected_len == length {
                 Ok(())
             } else {
-                Err(
-                    SdOptionUnexpectedLen {
-                        expected_len,
-                        actual_len: length,
-                        option_type: type_raw,
-                    }
-                )
+                Err(SdOptionUnexpectedLen {
+                    expected_len,
+                    actual_len: length,
+                    option_type: type_raw,
+                })
             }
         };
 
@@ -992,137 +985,114 @@ impl SdOption {
                 reader
                     .take(length_array as u64)
                     .read_to_end(&mut configuration_string)?;
-                Configuration(
-                    ConfigurationOption {
-                        discardable,
-                        configuration_string,
-                    }
-                )
-            },
+                Configuration(ConfigurationOption {
+                    discardable,
+                    configuration_string,
+                })
+            }
             LOAD_BALANCING_TYPE => {
                 expect_len(LOAD_BALANCING_LEN)?;
 
                 let mut load_balancing_bytes: [u8; 4] = [0; 4];
                 reader.read_exact(&mut load_balancing_bytes)?;
-                LoadBalancing(
-                    LoadBalancingOption {
-                        discardable,
-                        priority: u16::from_be_bytes([
-                            load_balancing_bytes[0],
-                            load_balancing_bytes[1],
-                        ]),
-                        weight: u16::from_be_bytes([load_balancing_bytes[2], load_balancing_bytes[3]]),
-                    }
-                )
-            },
+                LoadBalancing(LoadBalancingOption {
+                    discardable,
+                    priority: u16::from_be_bytes([
+                        load_balancing_bytes[0],
+                        load_balancing_bytes[1],
+                    ]),
+                    weight: u16::from_be_bytes([load_balancing_bytes[2], load_balancing_bytes[3]]),
+                })
+            }
             IPV4_ENDPOINT_TYPE => {
                 expect_len(IPV4_ENDPOINT_LEN)?;
 
-                let (ipv4_address, transport_protocol, port) =
-                    Self::read_ip4_option(reader)?;
-                Ipv4Endpoint(
-                    Ipv4EndpointOption {
-                        ipv4_address,
-                        transport_protocol,
-                        port,
-                    }
-                )
-            },
+                let (ipv4_address, transport_protocol, port) = Self::read_ip4_option(reader)?;
+                Ipv4Endpoint(Ipv4EndpointOption {
+                    ipv4_address,
+                    transport_protocol,
+                    port,
+                })
+            }
             IPV6_ENDPOINT_TYPE => {
                 expect_len(IPV6_ENDPOINT_LEN)?;
 
-                let (ipv6_address, transport_protocol, port) =
-                    Self::read_ip6_option(reader)?;
-                Ipv6Endpoint(
-                    Ipv6EndpointOption {
-                        ipv6_address,
-                        transport_protocol,
-                        port,
-                    }
-                )
-            },
+                let (ipv6_address, transport_protocol, port) = Self::read_ip6_option(reader)?;
+                Ipv6Endpoint(Ipv6EndpointOption {
+                    ipv6_address,
+                    transport_protocol,
+                    port,
+                })
+            }
             IPV4_MULTICAST_TYPE => {
                 expect_len(IPV4_MULTICAST_LEN)?;
 
-                let (ipv4_address, transport_protocol, port) =
-                    Self::read_ip4_option(reader)?;
-                Ipv4Multicast(
-                    Ipv4MulticastOption {
-                        ipv4_address,
-                        transport_protocol,
-                        port,
-                    }
-                )
-            },
+                let (ipv4_address, transport_protocol, port) = Self::read_ip4_option(reader)?;
+                Ipv4Multicast(Ipv4MulticastOption {
+                    ipv4_address,
+                    transport_protocol,
+                    port,
+                })
+            }
             IPV6_MULTICAST_TYPE => {
                 expect_len(IPV6_MULTICAST_LEN)?;
 
-                let (ipv6_address, transport_protocol, port) =
-                    Self::read_ip6_option(reader)?;
-                Ipv6Multicast(
-                    Ipv6MulticastOption {
-                        ipv6_address,
-                        transport_protocol,
-                        port,
-                    }
-                )
-            },
+                let (ipv6_address, transport_protocol, port) = Self::read_ip6_option(reader)?;
+                Ipv6Multicast(Ipv6MulticastOption {
+                    ipv6_address,
+                    transport_protocol,
+                    port,
+                })
+            }
             IPV4_SD_ENDPOINT_TYPE => {
                 expect_len(IPV4_SD_ENDPOINT_LEN)?;
 
-                let (ipv4_address, transport_protocol, port) =
-                    Self::read_ip4_option(reader)?;
-                Ipv4SdEndpoint(
-                    Ipv4SdEndpointOption {
-                        ipv4_address,
-                        transport_protocol,
-                        port,
-                    }
-                )
-            },
+                let (ipv4_address, transport_protocol, port) = Self::read_ip4_option(reader)?;
+                Ipv4SdEndpoint(Ipv4SdEndpointOption {
+                    ipv4_address,
+                    transport_protocol,
+                    port,
+                })
+            }
             IPV6_SD_ENDPOINT_TYPE => {
                 expect_len(IPV6_SD_ENDPOINT_LEN)?;
 
-                let (ipv6_address, transport_protocol, port) =
-                    Self::read_ip6_option(reader)?;
-                Ipv6SdEndpoint(
-                    Ipv6SdEndpointOption {
-                        ipv6_address,
-                        transport_protocol,
-                        port,
+                let (ipv6_address, transport_protocol, port) = Self::read_ip6_option(reader)?;
+                Ipv6SdEndpoint(Ipv6SdEndpointOption {
+                    ipv6_address,
+                    transport_protocol,
+                    port,
+                })
+            }
+            option_type => {
+                if discardable {
+                    // skip unknown options payload if "discardable"
+                    // if length is greater then 1 then we need to skip the rest of the option
+                    // (note that we already read length 1 as this contains the "discardable"
+                    // flag)
+                    if length > 1 {
+                        // first seek past the payload (except for one byte)
+                        if length > 2 {
+                            reader.seek(std::io::SeekFrom::Current(i64::from(length) - 2))?;
+                        }
+                        // do a final read to trigger io errors in case they occur
+                        //
+                        // NOTE: Seek does not trigger io errors if the end of the file
+                        // is reached. Instead it silently fails and just sits there.
+                        // We still want to trigger io::Errors so don't remove this read.
+                        let mut buf = [0; 1];
+                        reader.read_exact(&mut buf)?;
                     }
-                )
-            },
-            option_type => if discardable {
-                // skip unknown options payload if "discardable"
-                // if length is greater then 1 then we need to skip the rest of the option
-                // (note that we already read length 1 as this contains the "discardable"
-                // flag)
-                if length > 1 {
 
-                    // first seek past the payload (except for one byte)
-                    if length > 2 {
-                        reader.seek(std::io::SeekFrom::Current(i64::from(length) - 2))?;
-                    }
-                    // do a final read to trigger io errors in case they occur
-                    //
-                    // NOTE: Seek does not trigger io errors if the end of the file
-                    // is reached. Instead it silently fails and just sits there.
-                    // We still want to trigger io::Errors so don't remove this read.
-                    let mut buf = [0; 1];
-                    reader.read_exact(&mut buf)?;
-                }
-
-                // return a dummy entry so the option indices are not shifted
-                UnknownDiscardable(
-                    UnknownDiscardableOption {
+                    // return a dummy entry so the option indices are not shifted
+                    UnknownDiscardable(UnknownDiscardableOption {
                         length,
                         option_type,
-                    }
-                )
-            } else {
-                return Err(UnknownSdOptionType(option_type))
-            },
+                    })
+                } else {
+                    return Err(UnknownSdOptionType(option_type));
+                }
+            }
         };
         Ok((3 + length, option))
     }
@@ -1130,7 +1100,7 @@ impl SdOption {
     #[inline]
     fn read_ip4_option<T: Read>(
         reader: &mut T,
-    ) -> Result<([u8;4], TransportProtocol, u16), ReadError> {
+    ) -> Result<([u8; 4], TransportProtocol, u16), ReadError> {
         let mut ipv4endpoint_bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut ipv4endpoint_bytes)?;
 
@@ -1158,7 +1128,7 @@ impl SdOption {
     #[inline]
     fn read_ip6_option<T: Read>(
         reader: &mut T,
-    ) -> Result<([u8;16], TransportProtocol, u16), ReadError> {
+    ) -> Result<([u8; 16], TransportProtocol, u16), ReadError> {
         let mut ipv6endpoint_bytes: [u8; 20] = [0; 20];
         reader.read_exact(&mut ipv6endpoint_bytes)?;
 
@@ -1198,23 +1168,32 @@ impl SdOption {
     /// Writes the eventgroup entry to the given writer.
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
-        use self::SdOption::*;
         use self::options::*;
+        use self::SdOption::*;
 
         fn write_ipv4<R: Write>(
             writer: &mut R,
             len: u16,
             t: u8,
-            addr: [u8;4],
+            addr: [u8; 4],
             tp: TransportProtocol,
             port: u16,
         ) -> Result<(), WriteError> {
             let len_be = len.to_be_bytes();
             let port_be = port.to_be_bytes();
             writer.write_all(&[
-                len_be[0], len_be[1], t, 0, 
-                addr[0], addr[1], addr[2], addr[3],
-                0, tp.into(), port_be[0], port_be[1],
+                len_be[0],
+                len_be[1],
+                t,
+                0,
+                addr[0],
+                addr[1],
+                addr[2],
+                addr[3],
+                0,
+                tp.into(),
+                port_be[0],
+                port_be[1],
             ])?;
             Ok(())
         }
@@ -1223,19 +1202,37 @@ impl SdOption {
             writer: &mut R,
             len: u16,
             t: u8,
-            addr: [u8;16],
+            addr: [u8; 16],
             tp: TransportProtocol,
             port: u16,
         ) -> Result<(), WriteError> {
             let len_be = len.to_be_bytes();
             let port_be = port.to_be_bytes();
             writer.write_all(&[
-                len_be[0], len_be[1], t, 0, 
-                addr[0], addr[1], addr[2], addr[3],
-                addr[4], addr[5], addr[6], addr[7],
-                addr[8], addr[9], addr[10], addr[11],
-                addr[12], addr[13], addr[14], addr[15],
-                0, tp.into(), port_be[0], port_be[1],
+                len_be[0],
+                len_be[1],
+                t,
+                0,
+                addr[0],
+                addr[1],
+                addr[2],
+                addr[3],
+                addr[4],
+                addr[5],
+                addr[6],
+                addr[7],
+                addr[8],
+                addr[9],
+                addr[10],
+                addr[11],
+                addr[12],
+                addr[13],
+                addr[14],
+                addr[15],
+                0,
+                tp.into(),
+                port_be[0],
+                port_be[1],
             ])?;
             Ok(())
         }
@@ -1243,37 +1240,32 @@ impl SdOption {
         match self {
             Configuration(c) => {
                 let len_be = (1u16 + c.configuration_string.len() as u16).to_be_bytes();
-                writer.write_all(
-                    &[
-                        len_be[0],
-                        len_be[1],
-                        CONFIGURATION_TYPE,
-                        if c.discardable { DISCARDABLE_FLAG } else { 0 },
-                    ]
-                )?;
+                writer.write_all(&[
+                    len_be[0],
+                    len_be[1],
+                    CONFIGURATION_TYPE,
+                    if c.discardable { DISCARDABLE_FLAG } else { 0 },
+                ])?;
                 writer.write_all(&c.configuration_string)?;
                 Ok(())
-            },
+            }
             LoadBalancing(o) => {
-                
                 let len_be = LOAD_BALANCING_LEN.to_be_bytes();
                 let prio_be = o.priority.to_be_bytes();
                 let weight_be = o.weight.to_be_bytes();
 
-                writer.write_all(
-                    &[
-                        len_be[0],
-                        len_be[1],
-                        LOAD_BALANCING_TYPE,
-                        if o.discardable { DISCARDABLE_FLAG } else { 0 },
-                        prio_be[0],
-                        prio_be[1],
-                        weight_be[0],
-                        weight_be[1],
-                    ]
-                )?;
+                writer.write_all(&[
+                    len_be[0],
+                    len_be[1],
+                    LOAD_BALANCING_TYPE,
+                    if o.discardable { DISCARDABLE_FLAG } else { 0 },
+                    prio_be[0],
+                    prio_be[1],
+                    weight_be[0],
+                    weight_be[1],
+                ])?;
                 Ok(())
-            },
+            }
             Ipv4Endpoint(o) => write_ipv4(
                 writer,
                 IPV4_ENDPOINT_LEN,
@@ -1322,24 +1314,20 @@ impl SdOption {
                 o.transport_protocol,
                 o.port,
             ),
-            UnknownDiscardable(o) => {
-                Err(
-                    WriteError::ValueError(
-                        ValueError::SdUnknownDiscardableOption(o.option_type)
-                    )
-                )
-            },
+            UnknownDiscardable(o) => Err(WriteError::ValueError(
+                ValueError::SdUnknownDiscardableOption(o.option_type),
+            )),
         }
     }
 
     /// Serializes option and append data to a vec
     pub fn append_bytes_to_vec(&self, buffer: &mut Vec<u8>) -> Result<(), ValueError> {
-        use self::SdOption::*;
         use self::options::*;
+        use self::SdOption::*;
 
         fn append_ip4(
             buffer: &mut Vec<u8>,
-            ipv4_address: [u8;4],
+            ipv4_address: [u8; 4],
             transport_protocol: TransportProtocol,
             port: u16,
         ) {
@@ -1351,7 +1339,7 @@ impl SdOption {
 
         fn append_ip6(
             buffer: &mut Vec<u8>,
-            ipv6_address: [u8;16],
+            ipv6_address: [u8; 16],
             transport_protocol: TransportProtocol,
             port: u16,
         ) {
@@ -1369,83 +1357,53 @@ impl SdOption {
                 buffer.push(CONFIGURATION_TYPE);
                 buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
                 buffer.extend_from_slice(&o.configuration_string);
-            },
+            }
             LoadBalancing(o) => {
                 buffer.extend_from_slice(&LOAD_BALANCING_LEN.to_be_bytes());
                 buffer.push(LOAD_BALANCING_TYPE);
                 buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
                 buffer.extend_from_slice(&o.priority.to_be_bytes());
                 buffer.extend_from_slice(&o.weight.to_be_bytes());
-            },
+            }
             Ipv4Endpoint(o) => {
                 buffer.extend_from_slice(&IPV4_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV4_ENDPOINT_TYPE);
                 buffer.push(0x00u8); // Reserved byte
-                append_ip4(
-                    buffer,
-                    o.ipv4_address,
-                    o.transport_protocol,
-                    o.port,
-                );
-            },
+                append_ip4(buffer, o.ipv4_address, o.transport_protocol, o.port);
+            }
             Ipv6Endpoint(o) => {
                 buffer.extend_from_slice(&IPV6_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV6_ENDPOINT_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
-                append_ip6(
-                    buffer,
-                    o.ipv6_address,
-                    o.transport_protocol,
-                    o.port,
-                );
-            },
+                append_ip6(buffer, o.ipv6_address, o.transport_protocol, o.port);
+            }
             Ipv4Multicast(o) => {
                 buffer.extend_from_slice(&IPV4_MULTICAST_LEN.to_be_bytes());
                 buffer.push(IPV4_MULTICAST_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
-                append_ip4(
-                    buffer,
-                    o.ipv4_address,
-                    o.transport_protocol,
-                    o.port,
-                );
-            },
+                append_ip4(buffer, o.ipv4_address, o.transport_protocol, o.port);
+            }
             Ipv6Multicast(o) => {
                 buffer.extend_from_slice(&IPV6_MULTICAST_LEN.to_be_bytes());
                 buffer.push(IPV6_MULTICAST_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
-                append_ip6(
-                    buffer,
-                    o.ipv6_address,
-                    o.transport_protocol,
-                    o.port,
-                );
-            },
+                append_ip6(buffer, o.ipv6_address, o.transport_protocol, o.port);
+            }
             Ipv4SdEndpoint(o) => {
                 buffer.extend_from_slice(&IPV4_SD_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV4_SD_ENDPOINT_TYPE);
                 buffer.push(0x00u8); // Reserved byte
-                append_ip4(
-                    buffer,
-                    o.ipv4_address,
-                    o.transport_protocol,
-                    o.port,
-                );
-            },
+                append_ip4(buffer, o.ipv4_address, o.transport_protocol, o.port);
+            }
             Ipv6SdEndpoint(o) => {
                 buffer.extend_from_slice(&IPV6_SD_ENDPOINT_LEN.to_be_bytes());
                 buffer.push(IPV6_SD_ENDPOINT_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
-                append_ip6(
-                    buffer,
-                    o.ipv6_address,
-                    o.transport_protocol,
-                    o.port,
-                );
-            },
+                append_ip6(buffer, o.ipv6_address, o.transport_protocol, o.port);
+            }
             UnknownDiscardable(o) => {
                 return Err(ValueError::SdUnknownDiscardableOption(o.option_type));
-            },
+            }
         }
         Ok(())
     }
@@ -1453,8 +1411,8 @@ impl SdOption {
     /// Length of the serialized header in bytes.
     #[inline]
     pub fn header_len(&self) -> usize {
-        use self::SdOption::*;
         use self::options::*;
+        use self::SdOption::*;
 
         3 + match self {
             Configuration(o) => 1 + o.configuration_string.len(),
@@ -1502,9 +1460,8 @@ mod tests_sd_header {
         for len in [entries::MAX_ENTRIES_LEN + 1, u32::MAX] {
             let len_be = len.to_be_bytes();
             let buffer = [
-                0,0,0,0, // flags
-                len_be[0], len_be[1], len_be[2], len_be[3],
-                0,0,0,0,
+                0, 0, 0, 0, // flags
+                len_be[0], len_be[1], len_be[2], len_be[3], 0, 0, 0, 0,
             ];
             let mut cursor = Cursor::new(&buffer);
             assert_matches!(
@@ -1517,10 +1474,9 @@ mod tests_sd_header {
         for len in [options::MAX_OPTIONS_LEN + 1, u32::MAX] {
             let len_be = len.to_be_bytes();
             let buffer = [
-                0,0,0,0, // flags
-                0,0,0,0, // entries array length
-                len_be[0], len_be[1], len_be[2], len_be[3],
-                0,0,0,0,
+                0, 0, 0, 0, // flags
+                0, 0, 0, 0, // entries array length
+                len_be[0], len_be[1], len_be[2], len_be[3], 0, 0, 0, 0,
             ];
             let mut cursor = Cursor::new(&buffer);
             assert_matches!(
@@ -1590,35 +1546,39 @@ mod tests_sd_option {
             assert_matches!(result, Err(ReadError::SdOptionLengthZero));
         }
         // ipv4 length check errors
-        for t in [IPV4_ENDPOINT_TYPE, IPV4_MULTICAST_TYPE, IPV4_SD_ENDPOINT_TYPE] {
+        for t in [
+            IPV4_ENDPOINT_TYPE,
+            IPV4_MULTICAST_TYPE,
+            IPV4_SD_ENDPOINT_TYPE,
+        ] {
             let buffer = [0x00, 0x01, t, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(
-                    ReadError::SdOptionUnexpectedLen {
-                        expected_len: 0x9,
-                        actual_len: 0x1,
-                        option_type: _,
-                    }
-                )
+                Err(ReadError::SdOptionUnexpectedLen {
+                    expected_len: 0x9,
+                    actual_len: 0x1,
+                    option_type: _,
+                })
             );
         }
         // ipv6 length check errors
-        for t in [IPV6_ENDPOINT_TYPE, IPV6_MULTICAST_TYPE, IPV6_SD_ENDPOINT_TYPE] {
+        for t in [
+            IPV6_ENDPOINT_TYPE,
+            IPV6_MULTICAST_TYPE,
+            IPV6_SD_ENDPOINT_TYPE,
+        ] {
             let buffer = [0x00, 0x01, t, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(
-                    ReadError::SdOptionUnexpectedLen {
-                        expected_len: 0x15,
-                        actual_len: 0x1,
-                        option_type: _,
-                    }
-                )
+                Err(ReadError::SdOptionUnexpectedLen {
+                    expected_len: 0x15,
+                    actual_len: 0x1,
+                    option_type: _,
+                })
             );
         }
         // unknown option type (non discardable)
@@ -1638,7 +1598,8 @@ mod tests_sd_option {
                 UnknownDiscardableOption {
                     length: 1,
                     option_type: 0xff,
-                }.into()
+                }
+                .into()
             );
             assert_eq!(4, len);
         }

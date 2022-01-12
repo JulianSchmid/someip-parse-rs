@@ -62,12 +62,12 @@ prop_compose! {
     -> (SomeIpHeader, Vec<u8>)
     {
         (SomeIpHeader {
-            message_id: message_id,
-            length: length,
-            request_id: request_id,
-            interface_version: interface_version,
-            message_type: message_type,
-            return_code: return_code,
+            message_id,
+            length,
+            request_id,
+            interface_version,
+            message_type,
+            return_code,
             tp_header: None
         }, payload)
     }

@@ -56,7 +56,7 @@ fn read(in_file_path: &str) -> Result<(),Error> {
     let mut reader = PcapReader::new(BufReader::new(File::open(in_file_path)?))?;
 
     while let Some(packet) = reader.next()? {
-        let sliced = SlicedPacket::from_ethernet(&packet.data);
+        let sliced = SlicedPacket::from_ethernet(packet.data);
 
         match sliced {
             Err(_) => {},

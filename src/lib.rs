@@ -1128,7 +1128,7 @@ mod tests_someip_header {
     use MessageType::*;
     use ReadError::*;
 
-    const MESSAGE_TYPE_VALUES: &'static [MessageType;5] = &[
+    const MESSAGE_TYPE_VALUES: &[MessageType;5] = &[
         Request,
         RequestNoReturn,
         Notification,
@@ -1136,7 +1136,7 @@ mod tests_someip_header {
         Error
     ];
 
-    const MESSAGE_TYPE_VALUES_RAW: &'static [u8;10] = &[
+    const MESSAGE_TYPE_VALUES_RAW: &[u8;10] = &[
         Request as u8,
         RequestNoReturn as u8,
         Notification as u8,

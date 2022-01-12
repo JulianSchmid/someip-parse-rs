@@ -194,6 +194,7 @@ pub enum SomeIpSdEntry {
 }
 
 impl SomeIpSdEntry {
+    #[allow(clippy::too_many_arguments)]
     pub fn new_service_entry(
         _type: SdServiceEntryType,
         index_first_option_run: u8,
@@ -234,6 +235,7 @@ impl SomeIpSdEntry {
     /// * `major_version` - Set to 0xFF if any version should be returned.
     /// * `minor_version` - Set to 0xFFFF_FFFF if any version should be returned.
     /// * `ttl` - Must not be 0 as this indicates a "stop offering".
+    #[allow(clippy::too_many_arguments)]
     pub fn new_find_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
@@ -265,6 +267,7 @@ impl SomeIpSdEntry {
 
     /// Offer a service to others.
     /// * `ttl` - Must not be 0 as this indicates a "stop offering".
+    #[allow(clippy::too_many_arguments)]
     pub fn new_offer_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
@@ -295,6 +298,7 @@ impl SomeIpSdEntry {
     }
 
     /// Stop offering a given service.
+    #[allow(clippy::too_many_arguments)]
     pub fn new_stop_offer_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
@@ -319,6 +323,7 @@ impl SomeIpSdEntry {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new_eventgroup(
         _type: SdEventGroupEntryType,
         index_first_option_run: u8,
@@ -370,7 +375,7 @@ impl SomeIpSdEntry {
             0x01 => Self::read_service(SdServiceEntryType::OfferService, entry_bytes),
             0x06 => Self::read_entry_group(SdEventGroupEntryType::Subscribe, entry_bytes),
             0x07 => Self::read_entry_group(SdEventGroupEntryType::SubscribeAck, entry_bytes),
-            _ => return Err(ReadError::UnknownSdServiceEntryType(_type_raw)),
+            _ => Err(ReadError::UnknownSdServiceEntryType(_type_raw)),
         }
     }
 
@@ -491,9 +496,9 @@ impl SomeIpSdEntry {
                 // skip reserved byte, already initialized as 0x00
 
                 if *initial_data_requested {
-                    result[13] = result[13] | EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
+                    result[13] |= EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
                 }
-                result[13] = result[13] | (counter & 0x0F);
+                result[13] |= counter & 0x0F;
 
                 let eventgroup_id_bytes = eventgroup_id.to_be_bytes();
                 result[14] = eventgroup_id_bytes[0];
@@ -834,7 +839,7 @@ impl SomeIpSdOption {
                 buffer.extend_from_slice(&length_bytes);
                 buffer.push(SdOptionType::Configuration as u8); // Type
                 buffer.push(0x00u8); // Reserved byte
-                buffer.extend_from_slice(&configuration_string);
+                buffer.extend_from_slice(configuration_string);
             }
             SomeIpSdOption::LoadBalancing { priority, weight } => {
                 let length_bytes = 0x05u16.to_be_bytes();

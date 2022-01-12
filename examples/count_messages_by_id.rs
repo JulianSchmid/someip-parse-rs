@@ -78,7 +78,7 @@ fn read(in_file_path: &str) -> Result<(),Error> {
     while let Some(packet) = reader.next()? {
         stats.total_payload_size += packet.data.len();
 
-        let sliced = SlicedPacket::from_ethernet(&packet.data);
+        let sliced = SlicedPacket::from_ethernet(packet.data);
 
         match sliced {
             Err(_) => {},

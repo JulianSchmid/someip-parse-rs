@@ -57,9 +57,7 @@
 //! * [SOME/IP Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf)
 //! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
-pub use sd::{
-    SdEventGroupEntryType, SdServiceEntryType,
-};
+pub use sd::{SdEventGroupEntryType, SdServiceEntryType};
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
 
@@ -960,7 +958,7 @@ pub enum ReadError {
         expected_len: u16,
         actual_len: u16,
         option_type: u8,
-    }
+    },
 }
 
 impl From<std::io::Error> for ReadError {

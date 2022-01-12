@@ -3,6 +3,21 @@ name: Main
 on: [ push, pull_request ]
 
 jobs:
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions/checkout@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest

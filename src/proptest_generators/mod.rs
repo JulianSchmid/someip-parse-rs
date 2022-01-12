@@ -1,9 +1,8 @@
-
-use super::*;
 use super::sd::*;
+use super::*;
 
-use proptest::prelude::*;
 use proptest::option;
+use proptest::prelude::*;
 
 fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
     prop_oneof![
@@ -72,7 +71,6 @@ prop_compose! {
         }, payload)
     }
 }
-
 
 prop_compose! {
     pub fn someip_sd_header_any()(

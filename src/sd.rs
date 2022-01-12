@@ -354,7 +354,7 @@ impl SdHeader {
             // Note this function only supports 32 & 64 bit systems.
             // `read` has been disabled for 16 bit systems to
             // make this explicit.
-            (length_entries as usize) / usize::from(ENTRY_LEN)
+            (length_entries as usize) / ENTRY_LEN
         };
         let entries = {
             let mut entries = Vec::new();
@@ -429,7 +429,7 @@ impl SdHeader {
     #[inline]
     pub fn header_len(&self) -> usize {
         // 4*3 (flags, entries len & options len)
-        let options_len: usize = self.options.iter().map(|ref o| o.header_len()).sum();
+        let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
         4*3 + self.entries.len()*ENTRY_LEN + options_len
     }
 
@@ -439,7 +439,7 @@ impl SdHeader {
 
         // calculate memory usage
         let entries_len = self.entries.len()*ENTRY_LEN;
-        let options_len: usize = self.options.iter().map(|ref o| o.header_len()).sum();
+        let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
 
         // pre-allocate the resulting buffer (4*3 for flags, entries len & options len)
         let mut bytes = Vec::with_capacity(4*3 + entries_len + options_len);

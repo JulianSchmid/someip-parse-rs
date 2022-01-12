@@ -1024,10 +1024,10 @@ pub enum ValueError {
     /// Number of options 2 exceeds 4 bit
     NumberOfOption2TooLarge(u8),
 
-    /// An [`SomeIpSdOption::UnknownDiscardable`] option has been passed
+    /// An [`sd::SdOption::UnknownDiscardable`] option has been passed
     /// to the write function.
     ///
-    /// [`SomeIpSdOption::UnknownDiscardable`] are only intended to be used
+    /// [`sd::SdOption::UnknownDiscardable`] are only intended to be used
     /// in read and from_slice functions.
     SdUnknownDiscardableOption(u8),
 }

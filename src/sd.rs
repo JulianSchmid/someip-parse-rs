@@ -34,6 +34,8 @@ pub mod flags {
 
 /// Constants related to sd entries.
 pub mod entries {
+    use super::{SdServiceEntryType, SdEventGroupEntryType};
+
     /// Maximum entry length that is supported by the read & from slice functions.
     ///
     /// This constant is used to make sure no attacks with too large length
@@ -63,6 +65,41 @@ pub mod entries {
     /// Length of an sd entry (note that all entry types currently have
     /// the same length).
     pub const ENTRY_LEN: usize = 16;
+
+    /// SOMEIP service discovery entry for a service.
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct ServiceEntry {
+        pub _type: SdServiceEntryType,
+        pub index_first_option_run: u8,
+        pub index_second_option_run: u8,
+        pub number_of_options_1: u8,
+        pub number_of_options_2: u8,
+        pub service_id: u16,
+        pub instance_id: u16,
+        pub major_version: u8,
+        pub ttl: u32,
+        pub minor_version: u32,
+    }
+
+    /// SOMEIP service discovery entry for an eventgroup.
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct EventgroupEntry {
+        pub _type: SdEventGroupEntryType,
+        pub index_first_option_run: u8,
+        pub index_second_option_run: u8,
+        pub number_of_options_1: u8,
+        pub number_of_options_2: u8,
+        pub service_id: u16,
+        pub instance_id: u16,
+        pub major_version: u8,
+        pub ttl: u32,
+        /// True if initial data shall be sent by server
+        pub initial_data_requested: bool,
+        /// distinguish identical subscribe eventgroups of the same subscriber
+        /// 4 bit
+        pub counter: u8,
+        pub eventgroup_id: u16,
+    }
 }
 
 /// Constants related to sd options.
@@ -217,9 +254,9 @@ pub mod options {
 }
 
 use self::options::*;
+use self::entries::*;
 
-/// Flags at the start of a SOMEIP service discovery
-/// header.
+/// Flags at the start of a SOMEIP service discovery header.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdHeaderFlags {
     pub reboot: bool,
@@ -295,9 +332,7 @@ impl SdHeader {
     #[inline]
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, ReadError> {
-        use sd::entries::*;
-        use sd::options::*;
-        
+
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
@@ -393,7 +428,6 @@ impl SdHeader {
     /// Length of the serialized header in bytes.
     #[inline]
     pub fn header_len(&self) -> usize {
-        use self::entries::*;
         // 4*3 (flags, entries len & options len)
         let options_len: usize = self.options.iter().map(|ref o| o.header_len()).sum();
         4*3 + self.entries.len()*ENTRY_LEN + options_len
@@ -402,7 +436,6 @@ impl SdHeader {
     /// Writes the header to a slice without checking the slice length.
     #[inline]
     pub fn to_bytes_vec(&self) -> Result<Vec<u8>, ValueError> {
-        use self::entries::*;
 
         // calculate memory usage
         let entries_len = self.entries.len()*ENTRY_LEN;
@@ -433,40 +466,21 @@ impl SdHeader {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SdEntry {
-    ///SOMEIP service discovery entry for a service.
-    Service {
-        _type: SdServiceEntryType,
-        index_first_option_run: u8,
-        index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
-        service_id: u16,
-        instance_id: u16,
-        major_version: u8,
-        ttl: u32,
-        minor_version: u32,
-    },
+    /// SOMEIP service discovery entry for a service.
+    Service(ServiceEntry),
 
-    ///SOMEIP service discovery entry for an eventgroup.
-    Eventgroup {
-        _type: SdEventGroupEntryType,
-        index_first_option_run: u8,
-        index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
-        service_id: u16,
-        instance_id: u16,
-        major_version: u8,
-        ttl: u32,
-        // reserved: u8,
-        /// True if initial data shall be sent by server
-        initial_data_requested: bool,
-        // reserved: 3 bit
-        /// distinguish identical subscribe eventgroups of the same subscriber
-        /// 4 bit
-        counter: u8,
-        eventgroup_id: u16,
-    },
+    /// SOMEIP service discovery entry for an eventgroup.
+    Eventgroup(EventgroupEntry),
+}
+
+impl From<ServiceEntry> for SdEntry {
+    #[inline]
+    fn from(e: ServiceEntry) -> Self { SdEntry::Service(e) }
+}
+
+impl From<EventgroupEntry> for SdEntry {
+    #[inline]
+    fn from(o: EventgroupEntry) -> Self { SdEntry::Eventgroup(o) }
 }
 
 impl SdEntry {
@@ -490,18 +504,22 @@ impl SdEntry {
         } else if number_of_options_2 > 0x0F {
             Err(ValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
-            Ok(Self::Service {
-                _type,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                minor_version,
-            })
+            Ok(
+                Self::Service(
+                    ServiceEntry {
+                        _type,
+                        index_first_option_run,
+                        index_second_option_run,
+                        number_of_options_1,
+                        number_of_options_2,
+                        service_id,
+                        instance_id,
+                        major_version,
+                        ttl,
+                        minor_version,
+                    }
+                )
+            )
         }
     }
 
@@ -628,20 +646,24 @@ impl SdEntry {
         } else if number_of_options_2 > 0x0F {
             Err(ValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
-            Ok(Self::Eventgroup {
-                _type,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                initial_data_requested,
-                counter,
-                eventgroup_id,
-            })
+            Ok(
+                Self::Eventgroup(
+                    EventgroupEntry {
+                        _type,
+                        index_first_option_run,
+                        index_second_option_run,
+                        number_of_options_1,
+                        number_of_options_2,
+                        service_id,
+                        instance_id,
+                        major_version,
+                        ttl,
+                        initial_data_requested,
+                        counter,
+                        eventgroup_id,
+                    }
+                )
+            )
         }
     }
 
@@ -667,23 +689,27 @@ impl SdEntry {
         entry_bytes: [u8; entries::ENTRY_LEN],
     ) -> Result<Self, ReadError> {
         //return result
-        Ok(Self::Service {
-            _type,
-            index_first_option_run: entry_bytes[1],
-            index_second_option_run: entry_bytes[2],
-            number_of_options_1: entry_bytes[3] >> 4,
-            number_of_options_2: entry_bytes[3] & 0x0F,
-            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-            major_version: entry_bytes[8],
-            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
-            minor_version: u32::from_be_bytes([
-                entry_bytes[12],
-                entry_bytes[13],
-                entry_bytes[14],
-                entry_bytes[15],
-            ]),
-        })
+        Ok(
+            Self::Service(
+                ServiceEntry {
+                    _type,
+                    index_first_option_run: entry_bytes[1],
+                    index_second_option_run: entry_bytes[2],
+                    number_of_options_1: entry_bytes[3] >> 4,
+                    number_of_options_2: entry_bytes[3] & 0x0F,
+                    service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
+                    instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
+                    major_version: entry_bytes[8],
+                    ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+                    minor_version: u32::from_be_bytes([
+                        entry_bytes[12],
+                        entry_bytes[13],
+                        entry_bytes[14],
+                        entry_bytes[15],
+                    ]),
+                }
+            )
+        )
     }
 
     /// Read an entry group from byte array.
@@ -692,23 +718,26 @@ impl SdEntry {
         _type: SdEventGroupEntryType,
         entry_bytes: [u8; entries::ENTRY_LEN],
     ) -> Result<Self, ReadError> {
-        //return result
-        Ok(Self::Eventgroup {
-            _type,
-            index_first_option_run: entry_bytes[1],
-            index_second_option_run: entry_bytes[2],
-            number_of_options_1: entry_bytes[3] >> 4,
-            number_of_options_2: entry_bytes[3] & 0x0F,
-            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-            major_version: entry_bytes[8],
-            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
-            // skip reserved byte, TODO: should this be verified to be 0x00 ?
-            initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
-            // ignore reserved bits, TODO: should this be verified to be 0x00 ?
-            counter: entry_bytes[13] & 0x0F,
-            eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
-        })
+        Ok(
+            Self::Eventgroup(
+                EventgroupEntry {
+                    _type,
+                    index_first_option_run: entry_bytes[1],
+                    index_second_option_run: entry_bytes[2],
+                    number_of_options_1: entry_bytes[3] >> 4,
+                    number_of_options_2: entry_bytes[3] & 0x0F,
+                    service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
+                    instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
+                    major_version: entry_bytes[8],
+                    ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+                    // skip reserved byte, TODO: should this be verified to be 0x00 ?
+                    initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
+                    // ignore reserved bits, TODO: should this be verified to be 0x00 ?
+                    counter: entry_bytes[13] & 0x0F,
+                    eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
+                }
+            )
+        )
     }
 
     /// Writes the eventgroup entry to the given writer.
@@ -722,90 +751,65 @@ impl SdEntry {
     #[inline]
     pub fn to_bytes(&self) -> [u8; entries::ENTRY_LEN] {
         match self {
-            SdEntry::Eventgroup {
-                _type,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                initial_data_requested,
-                counter,
-                eventgroup_id,
-            } => {
+            SdEntry::Eventgroup(e) => {
                 let mut result = [0x00; entries::ENTRY_LEN];
 
-                result[0] = _type.clone() as u8;
-                result[1] = *index_first_option_run;
-                result[2] = *index_second_option_run;
-                result[3] = (number_of_options_1 << 4) | (number_of_options_2 & 0x0F);
+                result[0] = e._type.clone() as u8;
+                result[1] = e.index_first_option_run;
+                result[2] = e.index_second_option_run;
+                result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);
 
-                let service_id_bytes = service_id.to_be_bytes();
+                let service_id_bytes = e.service_id.to_be_bytes();
                 result[4] = service_id_bytes[0];
                 result[5] = service_id_bytes[1];
 
-                let instance_id_bytes = instance_id.to_be_bytes();
+                let instance_id_bytes = e.instance_id.to_be_bytes();
                 result[6] = instance_id_bytes[0];
                 result[7] = instance_id_bytes[1];
 
-                result[8] = *major_version;
+                result[8] = e.major_version;
 
-                let ttl_bytes = ttl.to_be_bytes();
+                let ttl_bytes = e.ttl.to_be_bytes();
                 result[9] = ttl_bytes[1];
                 result[10] = ttl_bytes[2];
                 result[11] = ttl_bytes[3];
 
                 // skip reserved byte, already initialized as 0x00
-
-                if *initial_data_requested {
+                if e.initial_data_requested {
                     result[13] |= EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
                 }
-                result[13] |= counter & 0x0F;
+                result[13] |= e.counter & 0x0F;
 
-                let eventgroup_id_bytes = eventgroup_id.to_be_bytes();
+                let eventgroup_id_bytes = e.eventgroup_id.to_be_bytes();
                 result[14] = eventgroup_id_bytes[0];
                 result[15] = eventgroup_id_bytes[1];
 
                 result
             }
-            SdEntry::Service {
-                _type,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                minor_version,
-            } => {
+            SdEntry::Service(e) => {
                 let mut result = [0x00; entries::ENTRY_LEN];
 
-                result[0] = _type.clone() as u8;
-                result[1] = *index_first_option_run;
-                result[2] = *index_second_option_run;
-                result[3] = (number_of_options_1 << 4) | (number_of_options_2 & 0x0F);
+                result[0] = e._type.clone() as u8;
+                result[1] = e.index_first_option_run;
+                result[2] = e.index_second_option_run;
+                result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);
 
-                let service_id_bytes = service_id.to_be_bytes();
+                let service_id_bytes = e.service_id.to_be_bytes();
                 result[4] = service_id_bytes[0];
                 result[5] = service_id_bytes[1];
 
-                let instance_id_bytes = instance_id.to_be_bytes();
+                let instance_id_bytes = e.instance_id.to_be_bytes();
                 result[6] = instance_id_bytes[0];
                 result[7] = instance_id_bytes[1];
 
-                result[8] = *major_version;
+                result[8] = e.major_version;
 
-                let ttl_bytes = ttl.to_be_bytes();
+                let ttl_bytes = e.ttl.to_be_bytes();
                 result[9] = ttl_bytes[1];
                 result[10] = ttl_bytes[2];
                 result[11] = ttl_bytes[3];
 
-                let minor_version_bytes = minor_version.to_be_bytes();
+                let minor_version_bytes = e.minor_version.to_be_bytes();
                 result[12] = minor_version_bytes[0];
                 result[13] = minor_version_bytes[1];
                 result[14] = minor_version_bytes[2];
@@ -860,6 +864,20 @@ impl From<TransportProtocol> for u8 {
             TransportProtocol::Tcp => 0x06,
             TransportProtocol::Udp => 0x11,
             TransportProtocol::Generic(tp) => tp,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_transport_protocol {
+    use proptest::prelude::*;
+    proptest!{
+        #[test]
+        fn from_u8(argu8 in any::<u8>()) {
+            use super::TransportProtocol::*;
+            assert_eq!(u8::from(Tcp), 0x06);
+            assert_eq!(u8::from(Udp), 0x11);
+            assert_eq!(u8::from(Generic(argu8)), argu8);
         }
     }
 }

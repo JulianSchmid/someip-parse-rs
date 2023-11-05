@@ -57,20 +57,39 @@
 //! * [SOME/IP Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf)
 //! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
-pub use sd::*;
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
 
 #[cfg(test)]
-#[macro_use]
-extern crate assert_matches;
-#[cfg(test)]
-#[macro_use]
-extern crate proptest;
-#[cfg(test)]
 mod proptest_generators;
 
+/// Error types of someip_parse.
+pub mod err;
+
 mod sd;
+pub use sd::*;
+
+mod section_range;
+pub use section_range::*;
+
+mod tp_buf_config;
+pub use tp_buf_config::*;
+
+mod tp_buf;
+pub use tp_buf::*;
+
+mod tp_pool;
+pub use tp_pool::*;
+
+/// Maximum allowed TP segment length.
+pub const TP_UDP_MAX_SEGMENT_LEN: usize = 1400;
+
+/// Maximum allowed TP aligned segment length.
+///
+/// All packets except for the last packet (where
+/// the "more segments" flag is set to 0) are required
+/// to have a len of multiple of 16 bytes.
+pub const TP_UDP_MAX_SEGMENT_LEN_ALIGNED: usize = 1392;
 
 ///The currently supported protocol version.
 pub const SOMEIP_PROTOCOL_VERSION: u8 = 1;
@@ -288,7 +307,7 @@ impl SomeIpHeader {
             self.interface_version,
             match self.tp_header {
                 Some(_) => (self.message_type.clone() as u8) | SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG,
-                None => (self.message_type.clone() as u8),
+                None => self.message_type.clone() as u8,
             },
             self.return_code,
         ]
@@ -1058,13 +1077,14 @@ unsafe fn get_unchecked_be_u16(ptr: *const u8) -> u16 {
 
 #[cfg(test)]
 mod tests_return_code {
+    use proptest::prelude::*;
 
     proptest! {
         #[test]
         fn into_u8(generic_error in 0x0bu8..0x20,
                    interface_error in 0x20u8..0x5F)
         {
-            use ReturnCode::*;
+            use crate::ReturnCode::*;
             let values = [
                 (Ok, 0x00),
                 (NotOk, 0x01),
@@ -1096,6 +1116,7 @@ mod tests_someip_header {
     use std::io::Cursor;
     use MessageType::*;
     use ReadError::*;
+    use assert_matches::*;
 
     const MESSAGE_TYPE_VALUES: &[MessageType; 5] =
         &[Request, RequestNoReturn, Notification, Response, Error];
@@ -1470,6 +1491,7 @@ mod tests_someip_header {
 #[cfg(test)]
 mod test_enums {
     use super::*;
+    use assert_matches::*;
 
     #[test]
     fn from_io_error() {
@@ -1535,6 +1557,7 @@ mod tests_tp_header {
     use super::*;
     use proptest::prelude::*;
     use proptest_generators::*;
+    use assert_matches::*;
 
     proptest! {
         #[test]
@@ -1624,8 +1647,10 @@ mod tests_tp_header {
 
 #[cfg(test)]
 mod tests_iterator {
-    use super::proptest_generators::*;
     use super::*;
+    use assert_matches::*;
+    use crate::proptest_generators::*;
+    use proptest::prelude::*;
 
     proptest! {
         #[test]

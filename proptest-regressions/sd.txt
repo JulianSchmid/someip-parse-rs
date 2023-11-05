@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2e7272d868b4da67eb279d02b3905cbf112b56a5bcd306445c3dec8c6f179378 # shrinks to option = Ipv4SdEndpoint { ipv4_address: 0, transport_protocol: Tcp, transport_protocol_number: 0 }
+cc 9798e6f943fa0d345dab7361ad3336f208435d1a997ae1943a7a1fb58c0dc231 # shrinks to header = SomeIpSdHeader { flags: SdHeaderFlags { reboot: false, unicast: false, explicit_initial_data_control: false }, entries: [], options: [Configuration { discardable: false, configuration_string: [] }] }
+cc 731dcd5180613e46806ff65155e27c1f31f4df042c69444e0160dcdccbe25f87 # shrinks to option = Configuration { discardable: true, configuration_string: [] }

@@ -1,16 +1,6 @@
 ///Range errors in fields of the someip & tp header struct. These can occur when serializing or modifying an error.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ValueError {
-    /// Payload length is too long as 8 bytes for the header have to be added.
-    LengthTooLarge(u32),
-
-    /// Offset of the tp header is not a multiple of 16.
-    ///
-    /// PRS_SOMEIP_00724: The Offset field shall transport the upper 28 bits of a
-    /// uint32. The lower 4 bits shall be always interpreted as 0.
-    /// Note: This means that the offset field can only transport offset values
-    /// that are multiples of 16 bytes.
-    TpOffsetNotMultipleOf16(u32),
 
     /// Counter value exceeds 4 bit
     CounterTooLarge(u8),
@@ -37,13 +27,35 @@ pub enum ValueError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::ValueError::*;
 
     #[test]
-    fn debug_write() {
-        use ValueError::*;
-        for value in [LengthTooLarge(0), TpOffsetNotMultipleOf16(0)].iter() {
-            let _ = format!("{:?}", value);
-        }
+    fn debug() {
+        let err = CounterTooLarge(0);
+        let _ = format!("{err:?}");
     }
+
+    #[test]
+    fn clone_eq_hash_ord() {
+        use core::cmp::Ordering;
+        use std::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+
+        let err = CounterTooLarge(0);
+        assert_eq!(err, err.clone());
+        let hash_a = {
+            let mut hasher = DefaultHasher::new();
+            err.hash(&mut hasher);
+            hasher.finish()
+        };
+        let hash_b = {
+            let mut hasher = DefaultHasher::new();
+            err.clone().hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash_a, hash_b);
+        assert_eq!(Ordering::Equal, err.cmp(&err));
+        assert_eq!(Some(Ordering::Equal), err.partial_cmp(&err));
+    }
+
 }

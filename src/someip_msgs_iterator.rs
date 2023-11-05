@@ -100,12 +100,12 @@ mod tests {
             assert_eq!(iterator.next(), Some(Err(Len(LenError{
                 required_len: len,
                 len: len - 1,
-                len_source: if len - 1 > SOMEIP_HEADER_LENGTH {
+                len_source: if len - 1 >= SOMEIP_HEADER_LENGTH {
                     LenSource::SomeipHeaderLength
                 } else {
                     LenSource::Slice
                 },
-                layer: if len - 1 > SOMEIP_HEADER_LENGTH {
+                layer: if len - 1 >= SOMEIP_HEADER_LENGTH {
                     Layer::SomeipPayload
                 } else {
                     Layer::SomeipHeader

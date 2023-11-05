@@ -2,7 +2,7 @@ use super::*;
 
 /// Errors that can occur when serializing a someip & tp header.
 #[derive(Debug)]
-pub enum WriteError {
+pub enum SdWriteError {
     IoError(std::io::Error),
     ///The slice length was not large enough to write the header.
     UnexpectedEndOfSlice(usize),
@@ -10,15 +10,15 @@ pub enum WriteError {
     ValueError(ValueError),
 }
 
-impl From<std::io::Error> for WriteError {
-    fn from(err: std::io::Error) -> WriteError {
-        WriteError::IoError(err)
+impl From<std::io::Error> for SdWriteError {
+    fn from(err: std::io::Error) -> SdWriteError {
+        SdWriteError::IoError(err)
     }
 }
 
-impl From<ValueError> for WriteError {
-    fn from(err: ValueError) -> WriteError {
-        WriteError::ValueError(err)
+impl From<ValueError> for SdWriteError {
+    fn from(err: ValueError) -> SdWriteError {
+        SdWriteError::ValueError(err)
     }
 }
 
@@ -30,14 +30,14 @@ mod tests {
     #[test]
     fn from_io_error() {
         assert_matches!(
-            WriteError::from(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
-            WriteError::IoError(_)
+            SdWriteError::from(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+            SdWriteError::IoError(_)
         );
     }
 
     #[test]
     fn debug_write() {
-        use WriteError::*;
+        use SdWriteError::*;
         for value in [
             IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
             UnexpectedEndOfSlice(0),

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2fc1abd3b503e68d5a4980b7c684e514d4f5d70f7faafcaee684774946b631a2 # shrinks to packet = (SomeipHeader { message_id: 0, length: 9, request_id: 0, interface_version: 0, message_type: Request, return_code: 0, tp_header: None }, [0])

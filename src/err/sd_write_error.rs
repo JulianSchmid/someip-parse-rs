@@ -7,7 +7,7 @@ pub enum SdWriteError {
     ///The slice length was not large enough to write the header.
     UnexpectedEndOfSlice(usize),
     /// Error in the data that was attempted to be written
-    ValueError(ValueError),
+    ValueError(SdValueError),
 }
 
 impl From<std::io::Error> for SdWriteError {
@@ -16,8 +16,8 @@ impl From<std::io::Error> for SdWriteError {
     }
 }
 
-impl From<ValueError> for SdWriteError {
-    fn from(err: ValueError) -> SdWriteError {
+impl From<SdValueError> for SdWriteError {
+    fn from(err: SdValueError) -> SdWriteError {
         SdWriteError::ValueError(err)
     }
 }

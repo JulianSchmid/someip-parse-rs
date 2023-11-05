@@ -1,4 +1,4 @@
-use crate::err::{SdReadError, ValueError, SdWriteError};
+use crate::err::{SdReadError, SdValueError, SdWriteError};
 use std::io::{Read, Seek, Write};
 
 ///Length of someip sd header, flags + reserved + entries length + options length
@@ -425,7 +425,7 @@ impl SdHeader {
 
     /// Writes the header to a slice without checking the slice length.
     #[inline]
-    pub fn to_bytes_vec(&self) -> Result<Vec<u8>, ValueError> {
+    pub fn to_bytes_vec(&self) -> Result<Vec<u8>, SdValueError> {
         // calculate memory usage
         let entries_len = self.entries.len() * ENTRY_LEN;
         let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
@@ -489,13 +489,13 @@ impl SdEntry {
         major_version: u8,
         ttl: u32,
         minor_version: u32,
-    ) -> Result<Self, ValueError> {
+    ) -> Result<Self, SdValueError> {
         if ttl > 0x00FF_FFFF {
-            Err(ValueError::TtlTooLarge(ttl))
+            Err(SdValueError::TtlTooLarge(ttl))
         } else if number_of_options_1 > 0x0F {
-            Err(ValueError::NumberOfOption1TooLarge(number_of_options_1))
+            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
         } else if number_of_options_2 > 0x0F {
-            Err(ValueError::NumberOfOption2TooLarge(number_of_options_2))
+            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Service(ServiceEntry {
                 _type,
@@ -529,9 +529,9 @@ impl SdEntry {
         major_version: u8,
         ttl: u32,
         minor_version: u32,
-    ) -> Result<Self, ValueError> {
+    ) -> Result<Self, SdValueError> {
         if ttl == 0 {
-            Err(ValueError::TtlZeroIndicatesStopOffering)
+            Err(SdValueError::TtlZeroIndicatesStopOffering)
         } else {
             Self::new_service_entry(
                 SdServiceEntryType::FindService,
@@ -566,9 +566,9 @@ impl SdEntry {
         major_version: u8,
         ttl: u32,
         minor_version: u32,
-    ) -> Result<Self, ValueError> {
+    ) -> Result<Self, SdValueError> {
         if ttl == 0 {
-            Err(ValueError::TtlZeroIndicatesStopOffering)
+            Err(SdValueError::TtlZeroIndicatesStopOffering)
         } else {
             Self::new_service_entry(
                 SdServiceEntryType::OfferService,
@@ -596,7 +596,7 @@ impl SdEntry {
         instance_id: u16,
         major_version: u8,
         minor_version: u32,
-    ) -> Result<Self, ValueError> {
+    ) -> Result<Self, SdValueError> {
         Self::new_service_entry(
             SdServiceEntryType::OfferService,
             index_first_option_run,
@@ -625,15 +625,15 @@ impl SdEntry {
         initial_data_requested: bool,
         counter: u8,
         eventgroup_id: u16,
-    ) -> Result<Self, ValueError> {
+    ) -> Result<Self, SdValueError> {
         if counter > 0x0F {
-            Err(ValueError::CounterTooLarge(counter))
+            Err(SdValueError::CounterTooLarge(counter))
         } else if ttl > 0x00FF_FFFF {
-            Err(ValueError::TtlTooLarge(ttl))
+            Err(SdValueError::TtlTooLarge(ttl))
         } else if number_of_options_1 > 0x0F {
-            Err(ValueError::NumberOfOption1TooLarge(number_of_options_1))
+            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
         } else if number_of_options_2 > 0x0F {
-            Err(ValueError::NumberOfOption2TooLarge(number_of_options_2))
+            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Eventgroup(EventgroupEntry {
                 _type,
@@ -1315,13 +1315,13 @@ impl SdOption {
                 o.port,
             ),
             UnknownDiscardable(o) => Err(SdWriteError::ValueError(
-                ValueError::SdUnknownDiscardableOption(o.option_type),
+                SdValueError::SdUnknownDiscardableOption(o.option_type),
             )),
         }
     }
 
     /// Serializes option and append data to a vec
-    pub fn append_bytes_to_vec(&self, buffer: &mut Vec<u8>) -> Result<(), ValueError> {
+    pub fn append_bytes_to_vec(&self, buffer: &mut Vec<u8>) -> Result<(), SdValueError> {
         use self::sd_options::*;
         use self::SdOption::*;
 
@@ -1402,7 +1402,7 @@ impl SdOption {
                 append_ip6(buffer, o.ipv6_address, o.transport_protocol, o.port);
             }
             UnknownDiscardable(o) => {
-                return Err(ValueError::SdUnknownDiscardableOption(o.option_type));
+                return Err(SdValueError::SdUnknownDiscardableOption(o.option_type));
             }
         }
         Ok(())
@@ -1644,7 +1644,7 @@ fn new_service_entry_ttl_too_large() {
         0xFFFF_FFFF,
         0,
     );
-    assert_matches!(result, Err(ValueError::TtlTooLarge(0xFFFF_FFFF)));
+    assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
 }
 
 #[test]
@@ -1663,7 +1663,7 @@ fn new_service_entry_number_option1_too_large() {
         0,
         0,
     );
-    assert_matches!(result, Err(ValueError::NumberOfOption1TooLarge(0xFF)));
+    assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0xFF)));
 }
 
 #[test]
@@ -1682,7 +1682,7 @@ fn new_service_entry_number_option2_too_large() {
         0,
         0,
     );
-    assert_matches!(result, Err(ValueError::NumberOfOption2TooLarge(0xFF)));
+    assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0xFF)));
 }
 
 #[test]
@@ -1690,7 +1690,7 @@ fn new_service_find_service_entry_zero_ttl() {
     use assert_matches::*;
 
     let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
-    assert_matches!(result, Err(ValueError::TtlZeroIndicatesStopOffering));
+    assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
 }
 
 #[test]
@@ -1698,5 +1698,5 @@ fn new_service_offer_service_entry_zero_ttl() {
     use assert_matches::*;
 
     let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
-    assert_matches!(result, Err(ValueError::TtlZeroIndicatesStopOffering));
+    assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
 }

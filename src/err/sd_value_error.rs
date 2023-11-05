@@ -1,6 +1,6 @@
 ///Range errors in fields of the someip & tp header struct. These can occur when serializing or modifying an error.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum ValueError {
+pub enum SdValueError {
 
     /// Counter value exceeds 4 bit
     CounterTooLarge(u8),
@@ -27,7 +27,7 @@ pub enum ValueError {
 
 #[cfg(test)]
 mod tests {
-    use super::ValueError::*;
+    use super::SdValueError::*;
 
     #[test]
     fn debug() {

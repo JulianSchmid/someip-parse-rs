@@ -32,9 +32,9 @@ prop_compose! {
         message_type in someip_header_message_type(),
         return_code in any::<u8>(),
         tp_header in option::of(someip_tp_any()))
-    -> SomeIpHeader
+    -> SomeipHeader
     {
-        SomeIpHeader {
+        SomeipHeader {
             message_id,
             length,
             request_id,
@@ -57,9 +57,9 @@ prop_compose! {
         message_type in someip_header_message_type(),
         return_code in any::<u8>(),
         payload in proptest::collection::vec(any::<u8>(), payload_length as usize))
-    -> (SomeIpHeader, Vec<u8>)
+    -> (SomeipHeader, Vec<u8>)
     {
-        (SomeIpHeader {
+        (SomeipHeader {
             message_id,
             length,
             request_id,

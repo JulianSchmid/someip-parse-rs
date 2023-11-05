@@ -91,9 +91,57 @@ mod test {
     use super::*;
 
     #[test]
+    fn debug_clone_eq() {
+        let config = TpBufConfig::new(1024, 1024).unwrap();
+        let _ = format!("{:?}", config);
+        assert_eq!(config, config.clone());
+        assert_eq!(config.cmp(&config), core::cmp::Ordering::Equal);
+        assert_eq!(config.partial_cmp(&config), Some(core::cmp::Ordering::Equal));
+
+        use core::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+        let h1 = {
+            let mut h = DefaultHasher::new();
+            config.hash(&mut h);
+            h.finish()
+        };
+        let h2 = {
+            let mut h = DefaultHasher::new();
+            config.clone().hash(&mut h);
+            h.finish()
+        };
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
     fn default() {
         let actual: TpBufConfig = Default::default();
         assert_eq!(0x4000, actual.tp_buffer_start_payload_alloc_len);
         assert_eq!(TpBufConfig::MAX_TP_PAYLOAD_LEN, actual.tp_max_payload_len);
+    }
+
+    #[test]
+    fn new() {
+        {
+            let actual = TpBufConfig::new(
+                // start alloc size
+                1024,
+                // maximum allowed size
+                // (if you have knowledge about the maximum message size,
+                // insert that here and above)
+                TpBufConfig::MAX_TP_PAYLOAD_LEN
+            ).unwrap();
+            assert_eq!(actual.tp_buffer_start_payload_alloc_len, 1024);
+            assert_eq!(actual.tp_max_payload_len(), TpBufConfig::MAX_TP_PAYLOAD_LEN);
+        }
+        
+        use crate::err::TpBufConfigError::*;
+        assert_eq!(
+            TpBufConfig::new(1024, TpBufConfig::MAX_TP_PAYLOAD_LEN + 1),
+            Err(MaxPayloadLenTooBig{
+                allowed_max: TpBufConfig::MAX_TP_PAYLOAD_LEN,
+                actual: TpBufConfig::MAX_TP_PAYLOAD_LEN + 1,
+            })
+        );
     }
 }

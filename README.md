@@ -20,10 +20,10 @@ someip_parse = "0.5.0"
 ## Example
 [examples/print_messages.rs](examples/print_messages.rs):
 ```rust
-use someip_parse::SliceIterator;
+use someip_parse::SomeipMsgsIterator;
 
 //trying parsing some ip messages located in a udp payload
-for someip_message in SliceIterator::new(&udp_payload) {
+for someip_message in SomeipMsgsIterator::new(&udp_payload) {
     match someip_message {
         Ok(value) => {
             if value.is_someip_sd() {

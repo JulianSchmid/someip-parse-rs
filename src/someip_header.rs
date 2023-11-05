@@ -1,8 +1,12 @@
 use crate::*;
 
+/// Deprecated use [`SomeipHeader`] instead.
+#[deprecated(since = "0.5.0", note = "Use SomeipHeader instead (renamed, 'i' is lower case now).")]
+pub type SomeIpHeader = SomeipHeader;
+
 ///SOMEIP header (including tp header if present).
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SomeIpHeader {
+pub struct SomeipHeader {
     pub message_id: u32,
     pub length: u32,
     pub request_id: u32,
@@ -17,7 +21,7 @@ pub struct SomeIpHeader {
     pub tp_header: Option<TpHeader>,
 }
 
-impl SomeIpHeader {
+impl SomeipHeader {
     ///Create a service discovery message header.
     pub fn new_sd_header(length: u32, session_id: u16, tp_header: Option<TpHeader>) -> Self {
         Self {
@@ -139,7 +143,7 @@ impl SomeIpHeader {
     }
 
     ///Read a header from a byte stream.
-    pub fn read<T: std::io::Read>(reader: &mut T) -> Result<SomeIpHeader, err::ReadError> {
+    pub fn read<T: std::io::Read>(reader: &mut T) -> Result<SomeipHeader, err::ReadError> {
         use err::ReadError::*;
 
         // read the header
@@ -178,7 +182,7 @@ impl SomeIpHeader {
             }
         };
 
-        Ok(SomeIpHeader {
+        Ok(SomeipHeader {
             message_id: u32::from_be_bytes([
                 header_bytes[0],
                 header_bytes[1],
@@ -205,9 +209,9 @@ impl SomeIpHeader {
     }
 }
 
-impl Default for SomeIpHeader {
-    fn default() -> SomeIpHeader {
-        SomeIpHeader {
+impl Default for SomeipHeader {
+    fn default() -> SomeipHeader {
+        SomeipHeader {
             message_id: 0,
             length: SOMEIP_LEN_OFFSET_TO_PAYLOAD,
             request_id: 0,
@@ -247,7 +251,7 @@ mod tests {
 
     #[test]
     fn default() {
-        let header: SomeIpHeader = Default::default();
+        let header: SomeipHeader = Default::default();
         assert_eq!(0, header.message_id);
         assert_eq!(SOMEIP_LEN_OFFSET_TO_PAYLOAD, header.length);
         assert_eq!(0, header.request_id);
@@ -271,13 +275,13 @@ mod tests {
 
                 //read the header
                 let mut cursor = Cursor::new(&buffer);
-                let result = SomeIpHeader::read(&mut cursor).unwrap();
+                let result = SomeipHeader::read(&mut cursor).unwrap();
                 assert_eq!(input, result);
 
                 //check that a too smal cursor results in an io error
                 {
                     let buffer_len = buffer.len();
-                    assert_matches!(SomeIpHeader::read(&mut Cursor::new(&buffer[..buffer_len-1])), Err(IoError(_)));
+                    assert_matches!(SomeipHeader::read(&mut Cursor::new(&buffer[..buffer_len-1])), Err(IoError(_)));
                 }
             }
         }
@@ -379,7 +383,7 @@ mod tests {
             buffer[14] = message_type;
 
             //check that deserialization triggers an error
-            assert_matches!(SomeIpHeader::read(&mut Cursor::new(&buffer)), Err(UnknownMessageType(_)));
+            assert_matches!(SomeipHeader::read(&mut Cursor::new(&buffer)), Err(UnknownMessageType(_)));
             assert_matches!(SomeipMsgSlice::from_slice(&buffer), Err(UnknownMessageType(_)));
         }
     }
@@ -387,11 +391,11 @@ mod tests {
     #[test]
     fn read_unsupported_protocol_version() {
         let mut buffer = Vec::new();
-        SomeIpHeader::default().write_raw(&mut buffer).unwrap();
+        SomeipHeader::default().write_raw(&mut buffer).unwrap();
         //set the protocol to an unsupported version
         buffer[4 * 3] = 0;
         let mut cursor = Cursor::new(&buffer);
-        let result = SomeIpHeader::read(&mut cursor);
+        let result = SomeipHeader::read(&mut cursor);
         assert_matches!(result, Err(err::ReadError::UnsupportedProtocolVersion(0)));
         assert_matches!(
             SomeipMsgSlice::from_slice(&buffer[..]),
@@ -404,7 +408,7 @@ mod tests {
         //0
         {
             let mut buffer = Vec::new();
-            SomeIpHeader::default().write_raw(&mut buffer).unwrap();
+            SomeipHeader::default().write_raw(&mut buffer).unwrap();
             //set the length to 0
             {
                 buffer[4] = 0;
@@ -413,7 +417,7 @@ mod tests {
                 buffer[7] = 0;
             }
             let mut cursor = Cursor::new(&buffer);
-            let result = SomeIpHeader::read(&mut cursor);
+            let result = SomeipHeader::read(&mut cursor);
             assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(0)));
             //check the from_slice method
             assert_matches!(
@@ -424,7 +428,7 @@ mod tests {
         //SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
         {
             let mut buffer = Vec::new();
-            SomeIpHeader::default().write_raw(&mut buffer).unwrap();
+            SomeipHeader::default().write_raw(&mut buffer).unwrap();
             //set the length to SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
             const TOO_SMALL: u32 = SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1;
             {
@@ -435,7 +439,7 @@ mod tests {
                 buffer[7] = length_be[3];
             }
             let mut cursor = Cursor::new(&buffer);
-            let result = SomeIpHeader::read(&mut cursor);
+            let result = SomeipHeader::read(&mut cursor);
             assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(TOO_SMALL)));
             assert_matches!(
                 SomeipMsgSlice::from_slice(&buffer[..]),

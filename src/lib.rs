@@ -27,10 +27,10 @@
 //! #     header.write_raw(&mut udp_payload).unwrap();
 //! #     udp_payload.extend_from_slice(&[1,2,3,4]);*/
 //! # }
-//! use someip_parse::SliceIterator;
+//! use someip_parse::SomeipMsgsIterator;
 //!
 //! //trying parsing some ip messages located in a udp payload
-//! for someip_message in SliceIterator::new(&udp_payload) {
+//! for someip_message in SomeipMsgsIterator::new(&udp_payload) {
 //!     match someip_message {
 //!         Ok(value) => {
 //!             if value.is_someip_sd() {
@@ -88,14 +88,14 @@ pub use return_code::*;
 mod sd;
 pub use sd::*;
 
-mod section_range;
-pub use section_range::*;
+mod tp_range;
+pub use tp_range::*;
 
-mod slice_iterator;
-pub use slice_iterator::*;
+mod someip_msgs_iterator;
+pub use someip_msgs_iterator::*;
 
-mod some_ip_header;
-pub use some_ip_header::*;
+mod someip_header;
+pub use someip_header::*;
 
 mod someip_msg_slice;
 pub use someip_msg_slice::*;

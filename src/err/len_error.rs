@@ -79,7 +79,10 @@ mod test {
             ),
             format!(
                 "LenError {{ required_len: {:?}, len: {:?}, len_source: {:?}, layer: {:?} }}",
-                2, 1, LenSource::Slice, Layer::SomeipHeader
+                2,
+                1,
+                LenSource::Slice,
+                Layer::SomeipHeader
             ),
         );
     }

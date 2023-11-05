@@ -98,9 +98,9 @@ impl TpHeader {
     }
 
     /// Reads a tp header from a slice.
-    pub fn read_from_slice(slice: &[u8]) -> Result<TpHeader, err::ReadError> {
+    pub fn read_from_slice(slice: &[u8]) -> Result<TpHeader, err::SdReadError> {
         if slice.len() < TP_HEADER_LENGTH {
-            use err::ReadError::*;
+            use err::SdReadError::*;
             Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
         } else {
             Ok(
@@ -144,7 +144,7 @@ impl TpHeader {
     #[inline]
     pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), err::SliceWriteSpaceError> {
         if slice.len() < TP_HEADER_LENGTH {
-            Err(err::SliceWriteSpaceError{
+            Err(err::SliceWriteSpaceError {
                 required_len: TP_HEADER_LENGTH,
                 len: slice.len(),
                 layer: err::Layer::SomeipTpHeader,
@@ -268,7 +268,7 @@ mod tests {
                 );
 
                 //read_from_slice
-                assert_matches!(TpHeader::read_from_slice(&buffer[..TP_HEADER_LENGTH-1]), Err(err::ReadError::UnexpectedEndOfSlice(_)));
+                assert_matches!(TpHeader::read_from_slice(&buffer[..TP_HEADER_LENGTH-1]), Err(err::SdReadError::UnexpectedEndOfSlice(_)));
             }
         }
     }

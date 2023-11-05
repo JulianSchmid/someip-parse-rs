@@ -1,17 +1,11 @@
 ///Errors that can occur when reading someip headers.
 #[derive(Debug)]
-pub enum ReadError {
+pub enum SdReadError {
     IoError(std::io::Error),
     /// Allocation error when trying to reserving memory.
     AllocationError(std::collections::TryReserveError),
     /// The slice length was not large enough to contain the header.
     UnexpectedEndOfSlice(usize),
-    /// Error when the protocol version field contains a version that is not supported by this library (aka != SOMEIP_PROTOCOL_VERSION)
-    UnsupportedProtocolVersion(u8),
-    /// Error returned when a someip header has a value in the length field that is smaller then the rest of someip header itself (8 bytes).
-    LengthFieldTooSmall(u32),
-    /// Error when the message type field contains an unknown value
-    UnknownMessageType(u8),
     /// Error when the sd event entry type field contains an unknown value
     UnknownSdEventGroupEntryType(u8),
     /// Error when the sd service entry type field contains an unknown value
@@ -32,15 +26,15 @@ pub enum ReadError {
     },
 }
 
-impl From<std::io::Error> for ReadError {
-    fn from(err: std::io::Error) -> ReadError {
-        ReadError::IoError(err)
+impl From<std::io::Error> for SdReadError {
+    fn from(err: std::io::Error) -> SdReadError {
+        SdReadError::IoError(err)
     }
 }
 
-impl From<std::collections::TryReserveError> for ReadError {
-    fn from(err: std::collections::TryReserveError) -> ReadError {
-        ReadError::AllocationError(err)
+impl From<std::collections::TryReserveError> for SdReadError {
+    fn from(err: std::collections::TryReserveError) -> SdReadError {
+        SdReadError::AllocationError(err)
     }
 }
 
@@ -50,13 +44,10 @@ mod tests {
 
     #[test]
     fn debug_write() {
-        use ReadError::*;
+        use SdReadError::*;
         for value in [
             IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
             UnexpectedEndOfSlice(0),
-            UnsupportedProtocolVersion(0),
-            LengthFieldTooSmall(0),
-            UnknownMessageType(0),
         ]
         .iter()
         {

@@ -7,14 +7,17 @@ pub use len_error::*;
 mod len_source;
 pub use len_source::*;
 
-mod read_error;
-pub use read_error::*;
+mod sd_read_error;
+pub use sd_read_error::*;
 
 mod slice_write_space_error;
 pub use slice_write_space_error::*;
 
 mod someip_header_error;
 pub use someip_header_error::*;
+
+mod someip_header_read_error;
+pub use someip_header_read_error::*;
 
 mod someip_slice_error;
 pub use someip_slice_error::*;

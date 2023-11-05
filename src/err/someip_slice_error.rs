@@ -41,7 +41,6 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-
     #[test]
     fn debug() {
         let err = SomeipHeaderError::UnsupportedProtocolVersion(5);
@@ -95,10 +94,8 @@ mod tests {
         })
         .source()
         .is_some());
-        assert!(
-            Content(SomeipHeaderError::UnsupportedProtocolVersion(6))
-                .source()
-                .is_some()
-        );
+        assert!(Content(SomeipHeaderError::UnsupportedProtocolVersion(6))
+            .source()
+            .is_some());
     }
 }

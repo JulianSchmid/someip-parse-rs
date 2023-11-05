@@ -96,7 +96,10 @@ mod test {
         let _ = format!("{:?}", config);
         assert_eq!(config, config.clone());
         assert_eq!(config.cmp(&config), core::cmp::Ordering::Equal);
-        assert_eq!(config.partial_cmp(&config), Some(core::cmp::Ordering::Equal));
+        assert_eq!(
+            config.partial_cmp(&config),
+            Some(core::cmp::Ordering::Equal)
+        );
 
         use core::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
@@ -129,16 +132,17 @@ mod test {
                 // maximum allowed size
                 // (if you have knowledge about the maximum message size,
                 // insert that here and above)
-                TpBufConfig::MAX_TP_PAYLOAD_LEN
-            ).unwrap();
+                TpBufConfig::MAX_TP_PAYLOAD_LEN,
+            )
+            .unwrap();
             assert_eq!(actual.tp_buffer_start_payload_alloc_len, 1024);
             assert_eq!(actual.tp_max_payload_len(), TpBufConfig::MAX_TP_PAYLOAD_LEN);
         }
-        
+
         use crate::err::TpBufConfigError::*;
         assert_eq!(
             TpBufConfig::new(1024, TpBufConfig::MAX_TP_PAYLOAD_LEN + 1),
-            Err(MaxPayloadLenTooBig{
+            Err(MaxPayloadLenTooBig {
                 allowed_max: TpBufConfig::MAX_TP_PAYLOAD_LEN,
                 actual: TpBufConfig::MAX_TP_PAYLOAD_LEN + 1,
             })

@@ -1,4 +1,4 @@
-use crate::err::{ReadError, ValueError, WriteError};
+use crate::err::{SdReadError, ValueError, WriteError};
 use std::io::{Read, Seek, Write};
 
 ///Length of someip sd header, flags + reserved + entries length + options length
@@ -325,7 +325,7 @@ impl SdHeader {
 
     #[inline]
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, ReadError> {
+    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
@@ -339,7 +339,7 @@ impl SdHeader {
             ]);
 
             if length_entries > MAX_ENTRIES_LEN {
-                return Err(ReadError::SdEntriesArrayLengthTooLarge(length_entries));
+                return Err(SdReadError::SdEntriesArrayLengthTooLarge(length_entries));
             }
 
             // Note this function only supports 32 & 64 bit systems.
@@ -363,7 +363,7 @@ impl SdHeader {
         };
 
         if options_length > MAX_OPTIONS_LEN {
-            return Err(ReadError::SdOptionsArrayLengthTooLarge(options_length));
+            return Err(SdReadError::SdOptionsArrayLengthTooLarge(options_length));
         }
 
         let mut options = Vec::new();
@@ -653,7 +653,7 @@ impl SdEntry {
     }
 
     #[inline]
-    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, ReadError> {
+    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
         let mut entry_bytes: [u8; sd_entries::ENTRY_LEN] = [0; sd_entries::ENTRY_LEN];
         reader.read_exact(&mut entry_bytes)?;
 
@@ -663,7 +663,7 @@ impl SdEntry {
             0x01 => Self::read_service(SdServiceEntryType::OfferService, entry_bytes),
             0x06 => Self::read_entry_group(SdEventGroupEntryType::Subscribe, entry_bytes),
             0x07 => Self::read_entry_group(SdEventGroupEntryType::SubscribeAck, entry_bytes),
-            _ => Err(ReadError::UnknownSdServiceEntryType(_type_raw)),
+            _ => Err(SdReadError::UnknownSdServiceEntryType(_type_raw)),
         }
     }
 
@@ -672,7 +672,7 @@ impl SdEntry {
     pub fn read_service(
         _type: SdServiceEntryType,
         entry_bytes: [u8; sd_entries::ENTRY_LEN],
-    ) -> Result<Self, ReadError> {
+    ) -> Result<Self, SdReadError> {
         //return result
         Ok(Self::Service(ServiceEntry {
             _type,
@@ -698,7 +698,7 @@ impl SdEntry {
     pub fn read_entry_group(
         _type: SdEventGroupEntryType,
         entry_bytes: [u8; sd_entries::ENTRY_LEN],
-    ) -> Result<Self, ReadError> {
+    ) -> Result<Self, SdReadError> {
         Ok(Self::Eventgroup(EventgroupEntry {
             _type,
             index_first_option_run: entry_bytes[1],
@@ -946,10 +946,10 @@ impl From<UnknownDiscardableOption> for SdOption {
 impl SdOption {
     /// Read the value from a [`std::io::Read`] source.
     #[inline]
-    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), ReadError> {
+    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), SdReadError> {
         use self::sd_options::*;
         use self::SdOption::*;
-        use ReadError::*;
+        use SdReadError::*;
 
         let mut option_bytes: [u8; 4] = [0; 4];
         reader.read_exact(&mut option_bytes)?;
@@ -965,7 +965,7 @@ impl SdOption {
 
         // Helper function that returns an SdOptionUnexpectedLen error
         // when the expected_len does not match the len.
-        let expect_len = |expected_len: u16| -> Result<(), ReadError> {
+        let expect_len = |expected_len: u16| -> Result<(), SdReadError> {
             if expected_len == length {
                 Ok(())
             } else {
@@ -1100,7 +1100,7 @@ impl SdOption {
     #[inline]
     fn read_ip4_option<T: Read>(
         reader: &mut T,
-    ) -> Result<([u8; 4], TransportProtocol, u16), ReadError> {
+    ) -> Result<([u8; 4], TransportProtocol, u16), SdReadError> {
         let mut ipv4endpoint_bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut ipv4endpoint_bytes)?;
 
@@ -1128,7 +1128,7 @@ impl SdOption {
     #[inline]
     fn read_ip6_option<T: Read>(
         reader: &mut T,
-    ) -> Result<([u8; 16], TransportProtocol, u16), ReadError> {
+    ) -> Result<([u8; 16], TransportProtocol, u16), SdReadError> {
         let mut ipv6endpoint_bytes: [u8; 20] = [0; 20];
         reader.read_exact(&mut ipv6endpoint_bytes)?;
 
@@ -1467,7 +1467,7 @@ mod tests_sd_header {
             let mut cursor = Cursor::new(&buffer);
             assert_matches!(
                 SdHeader::read(&mut cursor),
-                Err(ReadError::SdEntriesArrayLengthTooLarge(_))
+                Err(SdReadError::SdEntriesArrayLengthTooLarge(_))
             );
         }
 
@@ -1482,7 +1482,7 @@ mod tests_sd_header {
             let mut cursor = Cursor::new(&buffer);
             assert_matches!(
                 SdHeader::read(&mut cursor),
-                Err(ReadError::SdOptionsArrayLengthTooLarge(_))
+                Err(SdReadError::SdOptionsArrayLengthTooLarge(_))
             );
         }
     }
@@ -1545,7 +1545,7 @@ mod tests_sd_option {
             let buffer = [0x00, 0x00, IPV4_ENDPOINT_TYPE, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(result, Err(ReadError::SdOptionLengthZero));
+            assert_matches!(result, Err(SdReadError::SdOptionLengthZero));
         }
         // ipv4 length check errors
         for t in [
@@ -1558,7 +1558,7 @@ mod tests_sd_option {
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(ReadError::SdOptionUnexpectedLen {
+                Err(SdReadError::SdOptionUnexpectedLen {
                     expected_len: 0x9,
                     actual_len: 0x1,
                     option_type: _,
@@ -1576,7 +1576,7 @@ mod tests_sd_option {
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(ReadError::SdOptionUnexpectedLen {
+                Err(SdReadError::SdOptionUnexpectedLen {
                     expected_len: 0x15,
                     actual_len: 0x1,
                     option_type: _,
@@ -1588,7 +1588,7 @@ mod tests_sd_option {
             let buffer = [0x00, 0x01, 0xff, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(result, Err(ReadError::UnknownSdOptionType(0xFF)));
+            assert_matches!(result, Err(SdReadError::UnknownSdOptionType(0xFF)));
         }
         // unknown option type (discardable)
         {
@@ -1625,7 +1625,7 @@ fn service_entry_read_unknown_service_entry_type() {
     buffer[0] = 0xFF; // Unknown Type
     let mut cursor = std::io::Cursor::new(buffer);
     let result = SdEntry::read(&mut cursor);
-    assert_matches!(result, Err(ReadError::UnknownSdServiceEntryType(0xFF)));
+    assert_matches!(result, Err(SdReadError::UnknownSdServiceEntryType(0xFF)));
 }
 
 #[test]

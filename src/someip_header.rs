@@ -351,8 +351,16 @@ mod tests {
                     Err(Len(LenError {
                         required_len: expected_length,
                         len: expected_length - 1,
-                        len_source: LenSource::SomeipHeaderLength,
-                        layer: Layer::SomeipPayload
+                        len_source: if expected_length <= SOMEIP_HEADER_LENGTH {
+                            LenSource::Slice
+                        } else {
+                            LenSource::SomeipHeaderLength
+                        },
+                        layer: if expected_length <= SOMEIP_HEADER_LENGTH {
+                            Layer::SomeipHeader
+                        } else {
+                            Layer::SomeipPayload
+                        },
                     }))
                 );
             }

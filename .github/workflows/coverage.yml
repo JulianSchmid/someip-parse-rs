@@ -14,10 +14,12 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
       with:
+        toolchain: stable
         override: true
         components: llvm-tools-preview
     - uses: actions-rs/cargo@v1
       with:
+        toolchain: stable
         command: install
         args: cargo-binutils rustfilt
     - name: Install jq

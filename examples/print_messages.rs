@@ -1,17 +1,17 @@
 use etherparse::*;
 use rpcap::read::PcapReader;
+use someip_parse::*;
 use std::fs::File;
 use std::io::BufReader;
-use someip_parse::*;
 
 fn main() -> Result<(), Error> {
-
-    let pcap_path = std::env::args().nth(1).expect("Expected PCAP file as argument");
+    let pcap_path = std::env::args()
+        .nth(1)
+        .expect("Expected PCAP file as argument");
 
     let (_, mut reader) = PcapReader::new(BufReader::new(File::open(pcap_path)?))?;
 
     while let Some(packet) = reader.next()? {
-
         // parse ethernet to udp layer
         let eth_slice = if let Ok(e) = SlicedPacket::from_ethernet(packet.data) {
             e

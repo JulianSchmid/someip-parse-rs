@@ -1,13 +1,14 @@
 use etherparse::*;
-use someip_parse::*;
 use rpcap::read::PcapReader;
+use someip_parse::*;
 use std::collections::HashMap;
 use std::{fs::File, io::BufReader, time::Instant};
 
 /// Count the SOMEIP messages by message id.
 fn main() -> Result<(), Error> {
-
-    let pcap_path = std::env::args().nth(1).expect("Expected PCAP file as argument");
+    let pcap_path = std::env::args()
+        .nth(1)
+        .expect("Expected PCAP file as argument");
 
     let in_file_metadata = std::fs::metadata(&pcap_path).unwrap();
     let mut stats: Stats = Default::default();
@@ -64,7 +65,7 @@ fn main() -> Result<(), Error> {
             Some(Tcp(_)) => {
                 stats.tcp += 1;
             }
-            Some(_) => {},
+            Some(_) => {}
             None => {}
         }
     }

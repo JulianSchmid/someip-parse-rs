@@ -1,17 +1,17 @@
 use crate::*;
-use std::collections::HashMap;
 use core::hash::Hash;
+use std::collections::HashMap;
 
 /// Pool of buffers to reconstruct multiple SOMEIP TP packet streams in
 /// parallel (re-uses buffers to minimize allocations).
-/// 
+///
 /// # Issues to keep in mind:
-/// 
+///
 /// If you use the [`TpPool`] in an untrusted environment an attacker could
 /// cause an "out of memory error" by opening up multiple parallel TP streams,
 /// never ending them and filling them up with as much data as possible.
-/// 
-/// Mitigations will hopefully be offered in future versions but if you have 
+///
+/// Mitigations will hopefully be offered in future versions but if you have
 /// take care right now you can still use [`TpBuf`] directly and implement the
 /// connection handling and mitigation yourself.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -27,7 +27,6 @@ pub struct TpPool<ChannelId: Hash + Eq + PartialEq + Clone + Sized> {
 }
 
 impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
-
     pub fn new(buf_config: TpBufConfig) -> TpPool<ChannelId> {
         TpPool {
             active: HashMap::new(),
@@ -42,7 +41,6 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
         someip_slice: SomeipMsgSlice<'b>,
     ) -> Result<Option<SomeipMsgSlice<'c>>, err::TpReassembleError> {
         if someip_slice.is_tp() {
-
             use std::collections::hash_map::Entry::*;
             match self.active.entry((id, someip_slice.request_id())) {
                 Occupied(mut o) => {
@@ -53,11 +51,13 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
                     if o.get().is_complete() {
                         // if done move the buffer to the finished list and return the result
                         self.finished.push(o.remove());
-                        Ok(Some(self.finished.last_mut().unwrap().try_finalize().unwrap()))
+                        Ok(Some(
+                            self.finished.last_mut().unwrap().try_finalize().unwrap(),
+                        ))
                     } else {
                         Ok(None)
                     }
-                },
+                }
                 Vacant(v) => {
                     // new stream get a finished or new buffer
                     let mut buf = if let Some(mut b) = self.finished.pop() {
@@ -74,13 +74,15 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
                     if buf.is_complete() {
                         // if done move the buffer to the finished list and return the result
                         self.finished.push(buf);
-                        Ok(Some(self.finished.last_mut().unwrap().try_finalize().unwrap()))
+                        Ok(Some(
+                            self.finished.last_mut().unwrap().try_finalize().unwrap(),
+                        ))
                     } else {
                         // stream is not yet done, keep it around until done
                         v.insert(buf);
                         Ok(None)
                     }
-                },
+                }
             }
         } else {
             Ok(Some(someip_slice))
@@ -273,5 +275,4 @@ mod tests {
         }
 
     }
-
 }

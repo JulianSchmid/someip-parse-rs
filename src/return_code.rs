@@ -1,4 +1,3 @@
-
 ///Return code contained in a SOME/IP header.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReturnCode {

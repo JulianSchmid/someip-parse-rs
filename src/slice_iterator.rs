@@ -41,12 +41,11 @@ impl<'a> Iterator for SliceIterator<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use assert_matches::*;
     use crate::proptest_generators::*;
+    use assert_matches::*;
     use proptest::prelude::*;
 
     proptest! {

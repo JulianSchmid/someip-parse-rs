@@ -143,7 +143,6 @@ pub const SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG: u8 = 0x20;
 ///Message id of SOMEIP service discovery messages
 pub const SOMEIP_SD_MESSAGE_ID: u32 = 0xffff_8100;
 
-
 /// Helper function for reading big endian u32 values from a ptr unchecked.
 ///
 /// # Safety

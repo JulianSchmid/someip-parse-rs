@@ -1,4 +1,3 @@
-
 ///Errors that can occur when reading someip headers.
 #[derive(Debug)]
 pub enum ReadError {
@@ -44,7 +43,6 @@ impl From<std::collections::TryReserveError> for ReadError {
         ReadError::AllocationError(err)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

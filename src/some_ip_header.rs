@@ -17,7 +17,6 @@ pub struct SomeIpHeader {
     pub tp_header: Option<TpHeader>,
 }
 
-
 impl SomeIpHeader {
     ///Create a service discovery message header.
     pub fn new_sd_header(length: u32, session_id: u16, tp_header: Option<TpHeader>) -> Self {
@@ -224,11 +223,11 @@ impl Default for SomeIpHeader {
 mod tests {
     use super::proptest_generators::*;
     use super::*;
+    use assert_matches::*;
+    use err::ReadError::*;
     use proptest::prelude::*;
     use std::io::Cursor;
     use MessageType::*;
-    use err::ReadError::*;
-    use assert_matches::*;
 
     const MESSAGE_TYPE_VALUES: &[MessageType; 5] =
         &[Request, RequestNoReturn, Notification, Response, Error];
@@ -384,7 +383,6 @@ mod tests {
             assert_matches!(SomeipMsgSlice::from_slice(&buffer), Err(UnknownMessageType(_)));
         }
     }
-
 
     #[test]
     fn read_unsupported_protocol_version() {

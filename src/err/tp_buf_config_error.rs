@@ -1,4 +1,3 @@
-
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TpBufConfigError {
     /// Error if the configured maximum payload is bigger then the possible value.

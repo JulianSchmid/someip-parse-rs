@@ -88,7 +88,7 @@ mod test {
     }
 
     #[test]
-    fn clone_eq_hash() {
+    fn clone_eq_hash_ord() {
         let err = LenError {
             required_len: 2,
             layer: Layer::SomeipHeader,
@@ -107,6 +107,9 @@ mod test {
             hasher.finish()
         };
         assert_eq!(hash_a, hash_b);
+        use core::cmp::Ordering;
+        assert_eq!(Ordering::Equal, err.cmp(&err));
+        assert_eq!(Some(Ordering::Equal), err.partial_cmp(&err));
     }
 
     #[test]

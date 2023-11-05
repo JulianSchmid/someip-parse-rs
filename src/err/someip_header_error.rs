@@ -27,15 +27,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn clone_eq_hash_ord() {
+        use core::cmp::Ordering;
+        use std::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+
+        let err = SomeipHeaderError::UnsupportedProtocolVersion(0);
+        assert_eq!(err, err.clone());
+        let hash_a = {
+            let mut hasher = DefaultHasher::new();
+            err.hash(&mut hasher);
+            hasher.finish()
+        };
+        let hash_b = {
+            let mut hasher = DefaultHasher::new();
+            err.clone().hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash_a, hash_b);
+        assert_eq!(Ordering::Equal, err.cmp(&err));
+        assert_eq!(Some(Ordering::Equal), err.partial_cmp(&err));
+    }
+
+    #[test]
     fn debug_write() {
         use SomeipHeaderError::*;
-        for value in [
+        let values = [
             UnsupportedProtocolVersion(0),
             LengthFieldTooSmall(0),
             UnknownMessageType(0),
-        ]
-        .iter()
-        {
+        ];
+        for value in values {
             let _ = format!("{:?}", value);
         }
     }

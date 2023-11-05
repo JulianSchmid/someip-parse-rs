@@ -1,4 +1,4 @@
-use crate::err::{SdReadError, ValueError, WriteError};
+use crate::err::{SdReadError, ValueError, SdWriteError};
 use std::io::{Read, Seek, Write};
 
 ///Length of someip sd header, flags + reserved + entries length + options length
@@ -394,17 +394,17 @@ impl SdHeader {
 
     /// Writes the header to the given writer.
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         writer.write_all(&self.to_bytes_vec()?)?;
         Ok(())
     }
 
     /// Writes the header to a slice.
     #[inline]
-    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), WriteError> {
+    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), SdWriteError> {
         let buffer = self.to_bytes_vec()?;
         if slice.len() < buffer.len() {
-            use crate::err::WriteError::*;
+            use crate::err::SdWriteError::*;
             Err(UnexpectedEndOfSlice(buffer.len()))
         } else {
             // TODO figure out a better way
@@ -719,7 +719,7 @@ impl SdEntry {
 
     /// Writes the eventgroup entry to the given writer.
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         writer.write_all(&self.to_bytes())?;
         Ok(())
     }
@@ -1167,7 +1167,7 @@ impl SdOption {
 
     /// Writes the eventgroup entry to the given writer.
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), WriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         use self::sd_options::*;
         use self::SdOption::*;
 
@@ -1178,7 +1178,7 @@ impl SdOption {
             addr: [u8; 4],
             tp: TransportProtocol,
             port: u16,
-        ) -> Result<(), WriteError> {
+        ) -> Result<(), SdWriteError> {
             let len_be = len.to_be_bytes();
             let port_be = port.to_be_bytes();
             writer.write_all(&[
@@ -1205,7 +1205,7 @@ impl SdOption {
             addr: [u8; 16],
             tp: TransportProtocol,
             port: u16,
-        ) -> Result<(), WriteError> {
+        ) -> Result<(), SdWriteError> {
             let len_be = len.to_be_bytes();
             let port_be = port.to_be_bytes();
             writer.write_all(&[
@@ -1314,7 +1314,7 @@ impl SdOption {
                 o.transport_protocol,
                 o.port,
             ),
-            UnknownDiscardable(o) => Err(WriteError::ValueError(
+            UnknownDiscardable(o) => Err(SdWriteError::ValueError(
                 ValueError::SdUnknownDiscardableOption(o.option_type),
             )),
         }
@@ -1614,7 +1614,7 @@ fn sd_header_write_unexpected_end_of_slice() {
 
     let header = SdHeader::default();
     let result = header.write_to_slice(&mut []);
-    assert_matches!(result, Err(WriteError::UnexpectedEndOfSlice(_)));
+    assert_matches!(result, Err(SdWriteError::UnexpectedEndOfSlice(_)));
 }
 
 #[test]

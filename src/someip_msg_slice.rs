@@ -5,7 +5,7 @@ use crate::*;
 pub type SomeIpHeaderSlice<'a> = SomeipMsgSlice<'a>;
 
 /// A slice containing an some ip header & payload of that message.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct SomeipMsgSlice<'a> {
     /// If true a TP header is following the SOME/IP header.
     tp: bool,

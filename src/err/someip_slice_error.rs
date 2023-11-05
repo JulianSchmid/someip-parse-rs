@@ -34,12 +34,6 @@ impl std::error::Error for SomeipSliceError {
 #[cfg(test)]
 mod tests {
     use super::{SomeipSliceError::*, *};
-    use crate::err::{Layer, LenError, LenSource};
-    use std::{
-        collections::hash_map::DefaultHasher,
-        error::Error,
-        hash::{Hash, Hasher},
-    };
 
     #[test]
     fn debug() {
@@ -51,7 +45,11 @@ mod tests {
     }
 
     #[test]
-    fn clone_eq_hash() {
+    fn clone_eq_hash_ord() {
+        use core::cmp::Ordering;
+        use std::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+
         let err = Content(SomeipHeaderError::UnsupportedProtocolVersion(5));
         assert_eq!(err, err.clone());
         let hash_a = {
@@ -65,6 +63,8 @@ mod tests {
             hasher.finish()
         };
         assert_eq!(hash_a, hash_b);
+        assert_eq!(Ordering::Equal, err.cmp(&err));
+        assert_eq!(Some(Ordering::Equal), err.partial_cmp(&err));
     }
 
     #[test]
@@ -86,6 +86,8 @@ mod tests {
 
     #[test]
     fn source() {
+        use std::error::Error;
+
         assert!(Len(LenError {
             required_len: 1,
             layer: Layer::SomeipHeader,

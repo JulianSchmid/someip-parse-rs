@@ -37,7 +37,7 @@ impl TpHeader {
     /// # Example:
     ///
     /// ```
-    /// use someip_parse::{TpHeader, err::ValueError};
+    /// use someip_parse::{TpHeader, err::TpOffsetNotMultipleOf16Error};
     ///
     /// // create a header with offset 32 (multiple of 16) and the more_segement flag set
     /// let header = TpHeader::with_offset(32, true).unwrap();
@@ -48,12 +48,11 @@ impl TpHeader {
     /// // try to create a header with a bad offset (non multiple of 16)
     /// let error = TpHeader::with_offset(31, false);
     ///
-    /// assert_eq!(Err(ValueError::TpOffsetNotMultipleOf16(31)), error);
+    /// assert_eq!(Err(TpOffsetNotMultipleOf16Error{ bad_offset: 31 }), error);
     /// ```
-    pub fn with_offset(offset: u32, more_segment: bool) -> Result<TpHeader, err::ValueError> {
-        use err::ValueError::*;
+    pub fn with_offset(offset: u32, more_segment: bool) -> Result<TpHeader, err::TpOffsetNotMultipleOf16Error> {
         if 0 != offset % 16 {
-            Err(TpOffsetNotMultipleOf16(offset))
+            Err(err::TpOffsetNotMultipleOf16Error{ bad_offset: offset })
         } else {
             Ok(TpHeader {
                 offset,
@@ -71,13 +70,12 @@ impl TpHeader {
     /// Sets the field of the header and returns Ok(()) on success. Note: The value must be a multiple of 16.
     ///
     /// If the given value is not a multiple of 16, the value is not set and an error
-    /// ValueError::TpOffsetNotMultipleOf16 is returned.
-    pub fn set_offset(&mut self, value: u32) -> Result<(), err::ValueError> {
-        use err::ValueError::*;
-        if 0 != value % 16 {
-            Err(TpOffsetNotMultipleOf16(value))
+    /// err::TpOffsetNotMultipleOf16Error is returned.
+    pub fn set_offset(&mut self, offset: u32) -> Result<(), err::TpOffsetNotMultipleOf16Error> {
+        if 0 != offset % 16 {
+            Err(err::TpOffsetNotMultipleOf16Error{ bad_offset: offset })
         } else {
-            self.offset = value;
+            self.offset = offset;
             Ok(())
         }
     }
@@ -148,7 +146,6 @@ impl TpHeader {
                 required_len: TP_HEADER_LENGTH,
                 len: slice.len(),
                 layer: err::Layer::SomeipTpHeader,
-                layer_start_offset: 0,
             })
         } else {
             let buffer = self.to_bytes();
@@ -176,6 +173,7 @@ impl TpHeader {
 mod tests {
 
     use super::*;
+    use crate::err::TpOffsetNotMultipleOf16Error;
     use crate::proptest_generators::*;
     use assert_matches::*;
     use proptest::prelude::*;
@@ -211,7 +209,7 @@ mod tests {
             more_segment in any::<bool>()
         ) {
             let result = TpHeader::with_offset(offset, more_segment);
-            assert_eq!(Err(err::ValueError::TpOffsetNotMultipleOf16(offset)), result);
+            assert_eq!(Err(TpOffsetNotMultipleOf16Error{ bad_offset: offset }), result);
         }
     }
 
@@ -232,7 +230,7 @@ mod tests {
             offset in any::<u32>().prop_filter("must not be multiple of 16", |v| 0 != v % 16)
         ) {
             let mut header: TpHeader = Default::default();
-            assert_eq!(Err(err::ValueError::TpOffsetNotMultipleOf16(offset)), header.set_offset(offset));
+            assert_eq!(Err(TpOffsetNotMultipleOf16Error{ bad_offset: offset }), header.set_offset(offset));
             assert_eq!(0, header.offset);
         }
     }
@@ -263,7 +261,6 @@ mod tests {
                         required_len: TP_HEADER_LENGTH,
                         len: TP_HEADER_LENGTH - 1,
                         layer: err::Layer::SomeipTpHeader,
-                        layer_start_offset: 0
                     })
                 );
 

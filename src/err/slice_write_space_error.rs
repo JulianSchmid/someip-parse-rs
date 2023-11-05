@@ -33,23 +33,33 @@ impl std::error::Error for SliceWriteSpaceError {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn debug_write() {
-        let _ = format!("{:?}", SliceWriteSpaceError{ required_len: 1, len: 0, layer: Layer::SomeipTpHeader });
+        let _ = format!(
+            "{:?}",
+            SliceWriteSpaceError {
+                required_len: 1,
+                len: 0,
+                layer: Layer::SomeipTpHeader
+            }
+        );
     }
 
     #[test]
     fn clone_eq_hash_ord() {
         use core::cmp::Ordering;
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
-        let err = SliceWriteSpaceError{ required_len: 1, len: 0, layer: Layer::SomeipTpHeader };
+        let err = SliceWriteSpaceError {
+            required_len: 1,
+            len: 0,
+            layer: Layer::SomeipTpHeader,
+        };
         assert_eq!(err, err.clone());
         let hash_a = {
             let mut hasher = DefaultHasher::new();
@@ -77,11 +87,12 @@ mod tests {
     #[test]
     fn source() {
         use std::error::Error;
-        assert!(SliceWriteSpaceError{
+        assert!(SliceWriteSpaceError {
             required_len: 4,
             len: 1,
             layer: Layer::SomeipTpHeader
-        }.source()
+        }
+        .source()
         .is_none());
     }
 }

@@ -1,7 +1,6 @@
 ///Range errors in fields of the someip & tp header struct. These can occur when serializing or modifying an error.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum SdValueError {
-
     /// Counter value exceeds 4 bit
     CounterTooLarge(u8),
 
@@ -17,10 +16,10 @@ pub enum SdValueError {
     /// Number of options 2 exceeds 4 bit
     NumberOfOption2TooLarge(u8),
 
-    /// An [`sd::SdOption::UnknownDiscardable`] option has been passed
+    /// An [`crate::sd::SdOption::UnknownDiscardable`] option has been passed
     /// to the write function.
     ///
-    /// [`sd::SdOption::UnknownDiscardable`] are only intended to be used
+    /// [`crate::sd::SdOption::UnknownDiscardable`] are only intended to be used
     /// in read and from_slice functions.
     SdUnknownDiscardableOption(u8),
 }
@@ -38,8 +37,8 @@ mod tests {
     #[test]
     fn clone_eq_hash_ord() {
         use core::cmp::Ordering;
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
         let err = CounterTooLarge(0);
         assert_eq!(err, err.clone());
@@ -57,5 +56,4 @@ mod tests {
         assert_eq!(Ordering::Equal, err.cmp(&err));
         assert_eq!(Some(Ordering::Equal), err.partial_cmp(&err));
     }
-
 }

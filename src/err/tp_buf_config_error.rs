@@ -24,17 +24,23 @@ mod tests {
 
     #[test]
     fn debug() {
-        let err = MaxPayloadLenTooBig{ allowed_max: 10, actual: 12 };
+        let err = MaxPayloadLenTooBig {
+            allowed_max: 10,
+            actual: 12,
+        };
         let _ = format!("{err:?}");
     }
 
     #[test]
     fn clone_eq_hash_ord() {
         use core::cmp::Ordering;
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
-        let err = MaxPayloadLenTooBig{ allowed_max: 10, actual: 12 };
+        let err = MaxPayloadLenTooBig {
+            allowed_max: 10,
+            actual: 12,
+        };
         assert_eq!(err, err.clone());
         let hash_a = {
             let mut hasher = DefaultHasher::new();
@@ -62,6 +68,11 @@ mod tests {
     #[test]
     fn source() {
         use std::error::Error;
-        assert!(MaxPayloadLenTooBig{ allowed_max: 10, actual: 12 }.source().is_none());
+        assert!(MaxPayloadLenTooBig {
+            allowed_max: 10,
+            actual: 12
+        }
+        .source()
+        .is_none());
     }
 }

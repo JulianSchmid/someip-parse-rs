@@ -29,8 +29,8 @@ mod tests {
     #[test]
     fn clone_eq_hash_ord() {
         use core::cmp::Ordering;
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
         let err = SomeipHeaderError::UnsupportedProtocolVersion(0);
         assert_eq!(err, err.clone());

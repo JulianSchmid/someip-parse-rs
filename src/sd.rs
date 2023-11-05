@@ -1433,8 +1433,9 @@ mod tests_sd_header {
 
     use super::*;
     use proptest::prelude::*;
-    use proptest_generators::*;
+    use crate::proptest_generators::*;
     use std::io::Cursor;
+    use assert_matches::*;
 
     proptest! {
         #[test]
@@ -1492,7 +1493,7 @@ mod tests_sd_entry {
 
     use super::*;
     use proptest::prelude::*;
-    use proptest_generators::*;
+    use crate::proptest_generators::*;
     use std::io::Cursor;
 
     proptest! {
@@ -1516,8 +1517,9 @@ mod tests_sd_option {
 
     use super::*;
     use proptest::prelude::*;
-    use proptest_generators::*;
+    use crate::proptest_generators::*;
     use std::io::Cursor;
+    use assert_matches::*;
 
     proptest! {
         #[test]
@@ -1608,6 +1610,8 @@ mod tests_sd_option {
 
 #[test]
 fn sd_header_write_unexpected_end_of_slice() {
+    use assert_matches::*;
+
     let header = SdHeader::default();
     let result = header.write_to_slice(&mut []);
     assert_matches!(result, Err(WriteError::UnexpectedEndOfSlice(_)));
@@ -1615,6 +1619,8 @@ fn sd_header_write_unexpected_end_of_slice() {
 
 #[test]
 fn service_entry_read_unknown_service_entry_type() {
+    use assert_matches::*;
+    
     let mut buffer = [0x00; sd_entries::ENTRY_LEN];
     buffer[0] = 0xFF; // Unknown Type
     let mut cursor = std::io::Cursor::new(buffer);
@@ -1624,6 +1630,8 @@ fn service_entry_read_unknown_service_entry_type() {
 
 #[test]
 fn new_service_entry_ttl_too_large() {
+    use assert_matches::*;
+    
     let result = SdEntry::new_service_entry(
         SdServiceEntryType::OfferService,
         0,
@@ -1641,6 +1649,8 @@ fn new_service_entry_ttl_too_large() {
 
 #[test]
 fn new_service_entry_number_option1_too_large() {
+    use assert_matches::*;
+    
     let result = SdEntry::new_service_entry(
         SdServiceEntryType::OfferService,
         0,
@@ -1658,6 +1668,8 @@ fn new_service_entry_number_option1_too_large() {
 
 #[test]
 fn new_service_entry_number_option2_too_large() {
+    use assert_matches::*;
+    
     let result = SdEntry::new_service_entry(
         SdServiceEntryType::OfferService,
         0,
@@ -1675,12 +1687,16 @@ fn new_service_entry_number_option2_too_large() {
 
 #[test]
 fn new_service_find_service_entry_zero_ttl() {
+    use assert_matches::*;
+    
     let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
     assert_matches!(result, Err(ValueError::TtlZeroIndicatesStopOffering));
 }
 
 #[test]
 fn new_service_offer_service_entry_zero_ttl() {
+    use assert_matches::*;
+    
     let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
     assert_matches!(result, Err(ValueError::TtlZeroIndicatesStopOffering));
 }

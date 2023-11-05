@@ -41,17 +41,13 @@ for someip_message in SomeipMsgsIterator::new(&udp_payload) {
 }
 ```
 
-## Todo
-* Example how to serialize someip packets
-* SOMEIP Service Discovery Message Parsing
-
 ## References
 * [AUTOSAR Foundation](https://www.autosar.org/standards/foundation) \(contains SOMEIP Protocol Specification & SOME/IP Service Discovery Protocol Specification\)
 * [SOME/IP Protocol Specification R22-11](https://www.autosar.org/fileadmin/standards/R22-11/FO/AUTOSAR_PRS_SOMEIPProtocol.pdf)
 * [SOME/IP Service Discovery Protocol Specification R22-11](https://www.autosar.org/fileadmin/standards/R22-11/FO/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 
 ## License
-Licensed under the BSD 3-Clause license. Please see the LICENSE file for more information.
+Licensed under either of Apache License, Version 2.0 or MIT license at your option. The corresponding license texts can be found in the LICENSE-APACHE file and the LICENSE-MIT file.
 
 ### Contribution
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you shall be licensed as above, without any additional terms or conditions.

@@ -48,10 +48,6 @@
 //! }
 //! ```
 //!
-//! # Todo
-//! * Example how to serialize someip packets
-//! * SOMEIP Service Discovery Message Parsing
-//!
 //! # References
 //! * [AUTOSAR Foundation](https://www.autosar.org/standards/foundation) \(contains SOMEIP Protocol Specification & SOME/IP Service Discovery Protocol Specification\)
 //! * [SOME/IP Protocol Specification R22-11](https://www.autosar.org/fileadmin/standards/R22-11/FO/AUTOSAR_PRS_SOMEIPProtocol.pdf)

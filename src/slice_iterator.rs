@@ -13,12 +13,12 @@ impl<'a> SliceIterator<'a> {
 }
 
 impl<'a> Iterator for SliceIterator<'a> {
-    type Item = Result<SomeIpHeaderSlice<'a>, err::ReadError>;
+    type Item = Result<SomeipMsgSlice<'a>, err::ReadError>;
 
-    fn next(&mut self) -> Option<Result<SomeIpHeaderSlice<'a>, err::ReadError>> {
+    fn next(&mut self) -> Option<Result<SomeipMsgSlice<'a>, err::ReadError>> {
         if !self.slice.is_empty() {
             //parse
-            let result = SomeIpHeaderSlice::from_slice(self.slice);
+            let result = SomeipMsgSlice::from_slice(self.slice);
 
             //move the slice depending on the result
             match &result {

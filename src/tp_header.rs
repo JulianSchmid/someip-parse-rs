@@ -83,7 +83,7 @@ impl TpHeader {
     }
 
     /// Read a header from a byte stream.
-    pub fn read<T: Read>(reader: &mut T) -> Result<TpHeader, std::io::Error> {
+    pub fn read<T: std::io::Read>(reader: &mut T) -> Result<TpHeader, std::io::Error> {
         let mut buffer = [0u8; TP_HEADER_LENGTH];
         reader.read_exact(&mut buffer)?;
         let more_segment = 0 != (buffer[3] & 0b0001u8);
@@ -114,7 +114,7 @@ impl TpHeader {
 
     /// Read the value from the slice without checking for the minimum length of the slice.
     ///
-    /// # Safety:
+    /// # Safety
     ///
     /// It is required that the slice has at least the length of TP_HEADER_LENGTH (4 octets/bytes).
     /// If this is not the case undefined behavior will occur.
@@ -136,7 +136,7 @@ impl TpHeader {
 
     /// Writes the header to the given writer.
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
+    pub fn write<T: std::io::Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
         writer.write_all(&self.to_bytes())
     }
 

@@ -206,15 +206,15 @@ impl TpBuf {
 
         if 0 == tp_header.offset() {
             // copy header
-            (&mut self.data[..SOMEIP_HEADER_LENGTH])
+            self.data[..SOMEIP_HEADER_LENGTH]
                 .clone_from_slice(&someip_slice.slice()[..SOMEIP_HEADER_LENGTH]);
             // remove TP flag
-            self.data[4 * 3 + 2] = self.data[4 * 3 + 2] & 0b1101_1111;
+            self.data[4 * 3 + 2] &= 0b1101_1111;
         }
 
         // insert new data
         let data_offset = SOMEIP_HEADER_LENGTH + (tp_header.offset() as usize);
-        (&mut self.data[data_offset..data_offset + payload.len()]).clone_from_slice(payload);
+        self.data[data_offset..data_offset + payload.len()].clone_from_slice(payload);
 
         // update sections
         let mut new_section = SectionRange {
@@ -246,7 +246,7 @@ impl TpBuf {
 
     /// Try finalizing the reconstructed TP packet and return a reference to it
     /// if the stream reconstruction was completed.
-    pub fn try_finalize<'a>(&'a mut self) -> Option<SomeipMsgSlice<'a>> {
+    pub fn try_finalize(&mut self) -> Option<SomeipMsgSlice<'_>> {
         if false == self.is_complete() {
             return None;
         }

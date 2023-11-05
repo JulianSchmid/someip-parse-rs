@@ -47,6 +47,7 @@ mod tests {
     use crate::proptest_generators::*;
     use assert_matches::*;
     use proptest::prelude::*;
+    use std::io::Write;
 
     proptest! {
         #[test]

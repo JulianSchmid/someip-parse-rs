@@ -71,7 +71,7 @@ impl<'a> SomeipMsgSlice<'a> {
             Ok(SomeipMsgSlice {
                 tp,
                 // SAFETY: Check is preformed above to ensure slice has at least total length
-                slice: unsafe { from_raw_parts(slice.as_ptr(), total_length) },
+                slice: unsafe { core::slice::from_raw_parts(slice.as_ptr(), total_length) },
             })
         }
     }
@@ -303,13 +303,13 @@ impl<'a> SomeipMsgSlice<'a> {
             // Safe as it is checked in SomeipHeaderSlice::from_slice that the
             // slice has at least SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH len
             // if the tp flag is set.
-            unsafe { from_raw_parts(self.slice.as_ptr().add(OFFSET), self.slice.len() - OFFSET) }
+            unsafe { core::slice::from_raw_parts(self.slice.as_ptr().add(OFFSET), self.slice.len() - OFFSET) }
         } else {
             // SAFETY:
             // Safe as it is checked in SomeipHeaderSlice::from_slice that the
             // slice has at least SOMEIP_HEADER_LENGTH len.
             unsafe {
-                from_raw_parts(
+                core::slice::from_raw_parts(
                     self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH),
                     self.slice.len() - SOMEIP_HEADER_LENGTH,
                 )

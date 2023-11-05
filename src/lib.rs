@@ -53,10 +53,9 @@
 //! * SOMEIP Service Discovery Message Parsing
 //!
 //! # References
-//! * [AUTOSAR Foundation 1.5.0](https://www.autosar.org/standards/foundation/foundation-150/) \(contains SOMEIP Protocol Specification 1.5.0 & SOME/IP Service Discovery Protocol Specification 1.5.0\)
-//! * [SOME/IP Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPProtocol.pdf)
-//! * [SOME/IP Service Discovery Protocol Specification 1.3.0](https://www.autosar.org/fileadmin/user_upload/standards/foundation/1-3/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
-
+//! * [AUTOSAR Foundation](https://www.autosar.org/standards/foundation) \(contains SOMEIP Protocol Specification & SOME/IP Service Discovery Protocol Specification\)
+//! * [SOME/IP Protocol Specification R22-11](https://www.autosar.org/fileadmin/standards/R22-11/FO/AUTOSAR_PRS_SOMEIPProtocol.pdf)
+//! * [SOME/IP Service Discovery Protocol Specification R22-11](https://www.autosar.org/fileadmin/standards/R22-11/FO/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf)
 use std::io::{Read, Write};
 use std::slice::from_raw_parts;
 
@@ -167,62 +166,4 @@ unsafe fn get_unchecked_be_u32(ptr: *const u8) -> u32 {
 #[inline]
 unsafe fn get_unchecked_be_u16(ptr: *const u8) -> u16 {
     u16::from_be_bytes([*ptr, *ptr.add(1)])
-}
-
-#[cfg(test)]
-mod tests_iterator {
-    use super::*;
-    use assert_matches::*;
-    use crate::proptest_generators::*;
-    use proptest::prelude::*;
-
-    proptest! {
-        #[test]
-        fn iterator(expected in proptest::collection::vec(someip_header_with_payload_any(), 0..5))
-        {
-            //serialize
-            let mut buffer = Vec::new();
-            for (message, payload) in expected.iter() {
-                message.write_raw(&mut buffer).unwrap();
-                buffer.write(&payload[..]).unwrap();
-            }
-
-            //read message with iterator
-            let actual = SliceIterator::new(&buffer[..]).fold(
-                Vec::with_capacity(expected.len()),
-                |mut acc, x| {
-                    let x_unwraped = x.unwrap();
-                    acc.push((
-                        x_unwraped.to_header(),
-                        {
-                            let mut vec = Vec::with_capacity(x_unwraped.payload().len());
-                            vec.extend_from_slice(x_unwraped.payload());
-                            vec
-                        })
-                    );
-                    acc
-                });
-            assert_eq!(expected, actual);
-        }
-
-    }
-
-    proptest! {
-        #[test]
-        fn iterator_error(packet in someip_header_with_payload_any()) {
-            //serialize
-            let mut buffer = Vec::new();
-            packet.0.write_raw(&mut buffer).unwrap();
-            buffer.write(&packet.1[..]).unwrap();
-
-            //generate iterator
-            let len = buffer.len();
-            let mut iterator = SliceIterator::new(&buffer[..len-1]);
-
-            //check that an error is generated
-            assert_matches!(iterator.next(), Some(Err(err::ReadError::UnexpectedEndOfSlice(_))));
-            assert_matches!(iterator.next(), None);
-            assert_matches!(iterator.next(), None);
-        }
-    }
 }

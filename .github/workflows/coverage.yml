@@ -14,12 +14,10 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly
         override: true
         components: llvm-tools-preview
     - uses: actions-rs/cargo@v1
       with:
-        toolchain: nightly
         command: install
         args: cargo-binutils rustfilt
     - name: Install jq

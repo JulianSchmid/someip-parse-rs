@@ -99,10 +99,15 @@ impl TpHeader {
     }
 
     /// Reads a tp header from a slice.
-    pub fn read_from_slice(slice: &[u8]) -> Result<TpHeader, err::SdReadError> {
+    pub fn read_from_slice(slice: &[u8]) -> Result<TpHeader, err::LenError> {
         if slice.len() < TP_HEADER_LENGTH {
-            use err::SdReadError::*;
-            Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
+            use err::*;
+            Err(LenError {
+                required_len: TP_HEADER_LENGTH,
+                len: slice.len(),
+                len_source: LenSource::Slice,
+                layer: Layer::SomeipTpHeader,
+            })
         } else {
             Ok(
                 // SAFETY:
@@ -178,8 +183,12 @@ mod tests {
     use super::*;
     use crate::err::TpOffsetNotMultipleOf16Error;
     use crate::proptest_generators::*;
-    use assert_matches::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn debug() {
+        let _ = format!("{:?}", TpHeader::new(false));
+    }
 
     proptest! {
         #[test]
@@ -256,7 +265,7 @@ mod tests {
 
             //error
             {
-                //write_to_slice
+                // write_to_slice
                 let mut buffer: [u8;TP_HEADER_LENGTH] = [0;TP_HEADER_LENGTH];
                 assert_eq!(
                     header.write_to_slice(&mut buffer[..TP_HEADER_LENGTH-1]),
@@ -267,8 +276,17 @@ mod tests {
                     })
                 );
 
-                //read_from_slice
-                assert_matches!(TpHeader::read_from_slice(&buffer[..TP_HEADER_LENGTH-1]), Err(err::SdReadError::UnexpectedEndOfSlice(_)));
+                // read_from_slice
+                use crate::err::*;
+                assert_eq!(
+                    TpHeader::read_from_slice(&buffer[..TP_HEADER_LENGTH-1]),
+                    Err(LenError{
+                        required_len: TP_HEADER_LENGTH,
+                        len: TP_HEADER_LENGTH - 1,
+                        len_source: LenSource::Slice,
+                        layer: Layer::SomeipTpHeader,
+                    })
+                );
             }
         }
     }

@@ -17,12 +17,12 @@ use crate::*;
 /// ```
 /// # #[derive(Debug)]
 /// # enum Error {
-/// #     Reassemble(someip_parse::err::ReassembleError),
+/// #     TpReassemble(someip_parse::err::TpReassembleError),
 /// #     Parse(someip_parse::ReadError),
 /// # }
-/// # impl From<someip_parse::err::ReassembleError> for Error {
-/// #     fn from(value: someip_parse::err::ReassembleError) -> Self {
-/// #         Error::Reassemble(value)
+/// # impl From<someip_parse::err::TpReassembleError> for Error {
+/// #     fn from(value: someip_parse::err::TpReassembleError) -> Self {
+/// #         Error::TpReassemble(value)
 /// #     }
 /// # }
 /// # impl From<someip_parse::ReadError> for Error {
@@ -145,8 +145,8 @@ impl TpBuf {
 
     /// Consume a TP SOMEIP slice (caller must ensure that `someip_slice.is_tp()` is `true`).
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-    pub fn consume_tp(&mut self, someip_slice: SomeIpHeaderSlice) -> Result<(), err::ReassembleError> {
-        use err::ReassembleError::*;
+    pub fn consume_tp(&mut self, someip_slice: SomeIpHeaderSlice) -> Result<(), err::TpReassembleError> {
+        use err::TpReassembleError::*;
 
         assert!(someip_slice.is_tp());
 
@@ -280,7 +280,7 @@ mod test {
             }
         }
 
-        fn send_to_buffer(&self, buffer: &mut TpBuf) -> Result<(), err::ReassembleError> {
+        fn send_to_buffer(&self, buffer: &mut TpBuf) -> Result<(), err::TpReassembleError> {
             let packet = self.to_vec();
             let slice = SomeIpHeaderSlice::from_slice(&packet).unwrap();
             buffer.consume_tp(slice)
@@ -359,7 +359,7 @@ mod test {
     #[rustfmt::skip]
     #[test]
     fn consume() {
-        use err::ReassembleError::*;
+        use err::TpReassembleError::*;
 
         // normal reconstruction
         {

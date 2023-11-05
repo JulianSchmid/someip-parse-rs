@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ReassembleError {
+pub enum TpReassembleError {
     /// Error if a payload lenght of a SOMEIP TP packet is not a multiple of 16
     /// and the "more segments" flag is set.
     UnalignedTpPayloadLen { offset: u32, payload_len: usize },
@@ -25,9 +25,9 @@ pub enum ReassembleError {
     AllocationFailure { len: usize },
 }
 
-impl core::fmt::Display for ReassembleError {
+impl core::fmt::Display for TpReassembleError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ReassembleError::*;
+        use TpReassembleError::*;
         match self {
             UnalignedTpPayloadLen{ offset, payload_len } => write!(f, "Payload length {payload_len} of SOMEIP TP segment (offset {offset}) is not a multiple of 16. This is only allowed for TP packets where the 'more segements' flag is not set."),
             SegmentTooBig{ offset, payload_len, max } => write!(f, "Overall length of TP segment (offset {offset}, payload len: {payload_len}) bigger then the maximum allowed size of {max}."),
@@ -37,7 +37,7 @@ impl core::fmt::Display for ReassembleError {
     }
 }
 
-impl std::error::Error for ReassembleError {}
+impl std::error::Error for TpReassembleError {}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TpBufConfigError {

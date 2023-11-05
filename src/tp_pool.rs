@@ -40,7 +40,7 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
         &'a mut self,
         id: ChannelId,
         someip_slice: SomeIpHeaderSlice<'b>,
-    ) -> Result<Option<SomeIpHeaderSlice<'c>>, err::ReassembleError> {
+    ) -> Result<Option<SomeIpHeaderSlice<'c>>, err::TpReassembleError> {
         if someip_slice.is_tp() {
 
             use std::collections::hash_map::Entry::*;

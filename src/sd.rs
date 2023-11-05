@@ -1,4 +1,4 @@
-use crate::{ReadError, ValueError, WriteError};
+use crate::err::{ReadError, ValueError, WriteError};
 use std::io::{Read, Seek, Write};
 
 ///Length of someip sd header, flags + reserved + entries length + options length
@@ -404,7 +404,7 @@ impl SdHeader {
     pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), WriteError> {
         let buffer = self.to_bytes_vec()?;
         if slice.len() < buffer.len() {
-            use WriteError::*;
+            use crate::err::WriteError::*;
             Err(UnexpectedEndOfSlice(buffer.len()))
         } else {
             // TODO figure out a better way

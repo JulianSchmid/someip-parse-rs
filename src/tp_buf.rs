@@ -18,15 +18,15 @@ use crate::*;
 /// # #[derive(Debug)]
 /// # enum Error {
 /// #     TpReassemble(someip_parse::err::TpReassembleError),
-/// #     Parse(someip_parse::ReadError),
+/// #     Parse(someip_parse::err::ReadError),
 /// # }
 /// # impl From<someip_parse::err::TpReassembleError> for Error {
 /// #     fn from(value: someip_parse::err::TpReassembleError) -> Self {
 /// #         Error::TpReassemble(value)
 /// #     }
 /// # }
-/// # impl From<someip_parse::ReadError> for Error {
-/// #     fn from(value: someip_parse::ReadError) -> Self {
+/// # impl From<someip_parse::err::ReadError> for Error {
+/// #     fn from(value: someip_parse::err::ReadError) -> Self {
 /// #         Error::Parse(value)
 /// #     }
 /// # }
@@ -72,21 +72,21 @@ use crate::*;
 /// #
 /// #
 /// use someip_parse::TpBuf;
-/// use someip_parse::SomeIpHeaderSlice;
+/// use someip_parse::SomeipMsgSlice;
 ///
 /// // setup the buffer
 /// // (replace default if you have knowledge about the upper package sizes)
 /// let mut buf = TpBuf::new(Default::default());
 ///
 /// // feed the packets to the buffer
-/// let pkt1_slice = SomeIpHeaderSlice::from_slice(&pkt1_bytes)?;
+/// let pkt1_slice = SomeipMsgSlice::from_slice(&pkt1_bytes)?;
 /// assert!(pkt1_slice.is_tp()); // only tp packets are allowed
 /// buf.consume_tp(pkt1_slice.clone())?;
 ///
 /// // incomplete packets will fail to finalize
 /// assert_eq!(None, buf.try_finalize());
 ///
-/// let pkt2_slice = SomeIpHeaderSlice::from_slice(&pkt2_bytes)?;
+/// let pkt2_slice = SomeipMsgSlice::from_slice(&pkt2_bytes)?;
 /// assert!(pkt2_slice.is_tp());
 ///
 /// // user of the TpBuf have to ensure the "message id"

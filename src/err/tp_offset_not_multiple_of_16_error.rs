@@ -1,4 +1,3 @@
-
 /// Error if the offset of the tp header is not a multiple of 16.
 ///
 /// PRS_SOMEIP_00724: The Offset field shall transport the upper 28 bits of a
@@ -12,12 +11,15 @@ pub struct TpOffsetNotMultipleOf16Error {
 
 impl core::fmt::Display for TpOffsetNotMultipleOf16Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Error SOMEIP TP offset {} is not a multiple of 16 (this is required).", self.bad_offset)
+        write!(
+            f,
+            "Error SOMEIP TP offset {} is not a multiple of 16 (this is required).",
+            self.bad_offset
+        )
     }
 }
 
 impl std::error::Error for TpOffsetNotMultipleOf16Error {}
-
 
 #[cfg(test)]
 mod tests {
@@ -25,17 +27,17 @@ mod tests {
 
     #[test]
     fn debug() {
-        let err = TpOffsetNotMultipleOf16Error{ bad_offset: 0 };
+        let err = TpOffsetNotMultipleOf16Error { bad_offset: 0 };
         let _ = format!("{err:?}");
     }
 
     #[test]
     fn clone_eq_hash_ord() {
         use core::cmp::Ordering;
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
-        let err = TpOffsetNotMultipleOf16Error{ bad_offset: 0 };
+        let err = TpOffsetNotMultipleOf16Error { bad_offset: 0 };
         assert_eq!(err, err.clone());
         let hash_a = {
             let mut hasher = DefaultHasher::new();
@@ -55,7 +57,7 @@ mod tests {
     #[test]
     fn fmt() {
         assert_eq!(
-            format!("{}", TpOffsetNotMultipleOf16Error{ bad_offset: 123 }),
+            format!("{}", TpOffsetNotMultipleOf16Error { bad_offset: 123 }),
             "Error SOMEIP TP offset 123 is not a multiple of 16 (this is required)."
         );
     }
@@ -63,6 +65,8 @@ mod tests {
     #[test]
     fn source() {
         use std::error::Error;
-        assert!(TpOffsetNotMultipleOf16Error{ bad_offset: 123 }.source().is_none());
+        assert!(TpOffsetNotMultipleOf16Error { bad_offset: 123 }
+            .source()
+            .is_none());
     }
 }

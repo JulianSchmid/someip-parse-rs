@@ -39,24 +39,23 @@ impl core::fmt::Display for TpReassembleError {
 
 impl std::error::Error for TpReassembleError {}
 
-
 #[cfg(test)]
 mod tests {
     use super::TpReassembleError::*;
 
     #[test]
     fn debug() {
-        let err = AllocationFailure{ len: 0 };
+        let err = AllocationFailure { len: 0 };
         let _ = format!("{err:?}");
     }
 
     #[test]
     fn clone_eq_hash_ord() {
         use core::cmp::Ordering;
-        use std::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
-        let err = AllocationFailure{ len: 0 };
+        let err = AllocationFailure { len: 0 };
         assert_eq!(err, err.clone());
         let hash_a = {
             let mut hasher = DefaultHasher::new();
@@ -89,6 +88,6 @@ mod tests {
     #[test]
     fn source() {
         use std::error::Error;
-        assert!(AllocationFailure{ len: 0 }.source().is_none());
+        assert!(AllocationFailure { len: 0 }.source().is_none());
     }
 }

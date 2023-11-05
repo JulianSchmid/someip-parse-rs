@@ -50,9 +50,12 @@ impl TpHeader {
     ///
     /// assert_eq!(Err(TpOffsetNotMultipleOf16Error{ bad_offset: 31 }), error);
     /// ```
-    pub fn with_offset(offset: u32, more_segment: bool) -> Result<TpHeader, err::TpOffsetNotMultipleOf16Error> {
+    pub fn with_offset(
+        offset: u32,
+        more_segment: bool,
+    ) -> Result<TpHeader, err::TpOffsetNotMultipleOf16Error> {
         if 0 != offset % 16 {
-            Err(err::TpOffsetNotMultipleOf16Error{ bad_offset: offset })
+            Err(err::TpOffsetNotMultipleOf16Error { bad_offset: offset })
         } else {
             Ok(TpHeader {
                 offset,
@@ -73,7 +76,7 @@ impl TpHeader {
     /// err::TpOffsetNotMultipleOf16Error is returned.
     pub fn set_offset(&mut self, offset: u32) -> Result<(), err::TpOffsetNotMultipleOf16Error> {
         if 0 != offset % 16 {
-            Err(err::TpOffsetNotMultipleOf16Error{ bad_offset: offset })
+            Err(err::TpOffsetNotMultipleOf16Error { bad_offset: offset })
         } else {
             self.offset = offset;
             Ok(())

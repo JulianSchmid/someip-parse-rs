@@ -553,7 +553,7 @@ impl SdEntry {
     /// # Errors:
     ///
     /// `ttl` must not be 0 as this indicates a "stop offering". If ttl
-    /// 0 is passed [`ValueError::TtlZeroIndicatesStopOffering`] as an error
+    /// 0 is passed [`SdValueError::TtlZeroIndicatesStopOffering`] as an error
     /// is returned.
     #[allow(clippy::too_many_arguments)]
     pub fn new_offer_service_entry(

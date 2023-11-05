@@ -37,7 +37,7 @@ impl TpHeader {
     /// # Example:
     ///
     /// ```
-    /// use someip_parse::{TpHeader, ValueError};
+    /// use someip_parse::{TpHeader, err::ValueError};
     ///
     /// // create a header with offset 32 (multiple of 16) and the more_segement flag set
     /// let header = TpHeader::with_offset(32, true).unwrap();

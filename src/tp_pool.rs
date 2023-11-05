@@ -165,10 +165,12 @@ mod tests {
                 // start two streams in parallel
                 (TestPacket::new(1, 0, true, &sequence(1,16)), None),
                 (TestPacket::new(2, 0, true, &sequence(2,32)), None),
-                // stream 1 is done
+                // stream 1 ends
                 (TestPacket::new(1, 16, false, &sequence(1 + 16,16)), Some(sequence(1,32))),
-                // stream 3 which imidiatly terminates
-                (TestPacket::new(3, 0, true, &sequence(3,16*4)), Some(sequence(3, 16*4))),
+                // stream 3 which imidiatly ends
+                (TestPacket::new(3, 0, false, &sequence(3,16*4)), Some(sequence(3, 16*4))),
+                // end stream 2
+                (TestPacket::new(2, 32, false, &sequence(32 + 2,16*4)), Some(sequence(2, 16*6))),
             ];
             for a in actions {
                 let packet = a.0.to_vec();

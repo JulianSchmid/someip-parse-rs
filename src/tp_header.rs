@@ -142,10 +142,14 @@ impl TpHeader {
 
     /// Writes the header to a slice.
     #[inline]
-    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), err::WriteError> {
+    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), err::SliceWriteSpaceError> {
         if slice.len() < TP_HEADER_LENGTH {
-            use err::WriteError::*;
-            Err(UnexpectedEndOfSlice(TP_HEADER_LENGTH))
+            Err(err::SliceWriteSpaceError{
+                required_len: TP_HEADER_LENGTH,
+                len: slice.len(),
+                layer: err::Layer::SomeipTpHeader,
+                layer_start_offset: 0,
+            })
         } else {
             let buffer = self.to_bytes();
             let target = &mut slice[0..4];
@@ -253,7 +257,15 @@ mod tests {
             {
                 //write_to_slice
                 let mut buffer: [u8;TP_HEADER_LENGTH] = [0;TP_HEADER_LENGTH];
-                assert_matches!(header.write_to_slice(&mut buffer[..TP_HEADER_LENGTH-1]), Err(err::WriteError::UnexpectedEndOfSlice(_)));
+                assert_eq!(
+                    header.write_to_slice(&mut buffer[..TP_HEADER_LENGTH-1]),
+                    Err(err::SliceWriteSpaceError{
+                        required_len: TP_HEADER_LENGTH,
+                        len: TP_HEADER_LENGTH - 1,
+                        layer: err::Layer::SomeipTpHeader,
+                        layer_start_offset: 0
+                    })
+                );
 
                 //read_from_slice
                 assert_matches!(TpHeader::read_from_slice(&buffer[..TP_HEADER_LENGTH-1]), Err(err::ReadError::UnexpectedEndOfSlice(_)));

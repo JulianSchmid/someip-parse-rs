@@ -165,7 +165,7 @@ impl<'a> SomeipMsgSlice<'a> {
             Ok(SomeipMsgSlice {
                 tp,
                 // SAFETY: Check is preformed above to ensure slice has at least total length
-                slice: unsafe { from_raw_parts(slice.as_ptr(), total_length) },
+                slice: unsafe { core::slice::from_raw_parts(slice.as_ptr(), total_length) },
             })
         }
     }

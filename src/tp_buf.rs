@@ -268,6 +268,29 @@ impl TpBuf {
 mod test {
     use crate::*;
 
+    #[test]
+    fn debug_clone_eq() {
+        let buf = TpBuf::new(Default::default());
+        let _ = format!("{:?}", buf);
+        assert_eq!(buf, buf.clone());
+        assert_eq!(buf.cmp(&buf), core::cmp::Ordering::Equal);
+        assert_eq!(buf.partial_cmp(&buf), Some(core::cmp::Ordering::Equal));
+
+        use core::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+        let h1 = {
+            let mut h = DefaultHasher::new();
+            buf.hash(&mut h);
+            h.finish()
+        };
+        let h2 = {
+            let mut h = DefaultHasher::new();
+            buf.clone().hash(&mut h);
+            h.finish()
+        };
+        assert_eq!(h1, h2);
+    }
+
     struct TestPacket {
         offset: u32,
         more_segments: bool,

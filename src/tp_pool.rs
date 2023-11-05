@@ -157,6 +157,30 @@ mod tests {
     fn consume() {
         use err::TpReassembleError::*;
 
+        // simple packet forwarding (without TP effect)
+        {
+            // build a non tp packet
+            let header = SomeIpHeader {
+                message_id: 1234,
+                length: 8 + 8 as u32,
+                request_id: 234,
+                interface_version: 1,
+                message_type: MessageType::Notification,
+                return_code: 0,
+                // no tp header
+                tp_header: None,
+            };
+            let mut result = Vec::with_capacity(SOMEIP_HEADER_LENGTH + 8);
+            result.extend_from_slice(&header.base_to_bytes());
+            result.extend_from_slice(&[0;8]);
+            
+            let someip_slice = SomeipMsgSlice::from_slice(&result).unwrap();
+
+            let mut pool: TpPool<()> = TpPool::new(TpBufConfig::new(1024, 2048).unwrap());
+            let result = pool.consume((), someip_slice.clone()).unwrap();
+            assert_eq!(Some(someip_slice), result);
+        }
+
         // normal reconstruction (without additional id)
         {
             let mut pool: TpPool<()> = TpPool::new(TpBufConfig::new(1024, 2048).unwrap());
@@ -185,6 +209,69 @@ mod tests {
                 }
             }
         }
+
+        // normal reconstruction (with additional id)
+        {
+            let mut pool: TpPool<u32> = TpPool::new(TpBufConfig::new(1024, 2048).unwrap());
+
+            // all actions have the same request id have differing id's
+            let actions = [
+                // start two streams in parallel
+                (123, TestPacket::new(1, 0, true, &sequence(1,16)), None),
+                (234, TestPacket::new(1, 0, true, &sequence(2,32)), None),
+                // stream 1 ends
+                (123, TestPacket::new(1, 16, false, &sequence(1 + 16,16)), Some(sequence(1,32))),
+                // stream 3 which imidiatly ends
+                (345, TestPacket::new(1, 0, false, &sequence(3,16*4)), Some(sequence(3, 16*4))),
+                // end stream 2
+                (234, TestPacket::new(1, 32, false, &sequence(32 + 2,16*4)), Some(sequence(2, 16*6))),
+            ];
+            for a in actions {
+                let packet = a.1.to_vec();
+                let slice = SomeipMsgSlice::from_slice(&packet).unwrap();
+                let result = pool.consume(a.0.clone(), slice).unwrap();
+                if let Some(expected_payload) = a.2 {
+                    let msg = result.unwrap();
+                    assert_eq!(msg.to_header(), a.1.result_header(expected_payload.len() as u32));
+                    assert_eq!(msg.payload(), expected_payload);
+                } else {
+                    assert!(result.is_none());
+                }
+            }
+        }
+
+        // error during reconstruction (at start)
+        {
+            let mut pool: TpPool<()> = TpPool::new(TpBufConfig::new(1024, 2048).unwrap());
+
+            // should trigger an error as the payload is not a multiple of 1
+            let packet = TestPacket::new(1, 0, true, &sequence(1,15)).to_vec();
+            let someip_slice = SomeipMsgSlice::from_slice(&packet).unwrap();
+            assert_eq!(
+                pool.consume((), someip_slice).unwrap_err(),
+                UnalignedTpPayloadLen { offset: 0, payload_len: 15 }
+            );
+        }
+
+        // error during reconstruction (after start)
+        {
+            let mut pool: TpPool<()> = TpPool::new(TpBufConfig::new(1024, 2048).unwrap());
+
+            {
+                let packet = TestPacket::new(1, 0, true, &sequence(1,16)).to_vec();
+                let someip_slice = SomeipMsgSlice::from_slice(&packet).unwrap();
+                pool.consume((), someip_slice).unwrap();
+            }
+
+            // should trigger an error as the payload is not a multiple of 1
+            let packet = TestPacket::new(1, 16, true, &sequence(1,15)).to_vec();
+            let someip_slice = SomeipMsgSlice::from_slice(&packet).unwrap();
+            assert_eq!(
+                pool.consume((), someip_slice).unwrap_err(),
+                UnalignedTpPayloadLen { offset: 16, payload_len: 15 }
+            );
+        }
+
     }
 
 }

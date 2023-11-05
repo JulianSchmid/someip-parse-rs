@@ -14,11 +14,16 @@ pub struct SomeipMsgSlice<'a> {
 
 impl<'a> SomeipMsgSlice<'a> {
     #[cfg(target_pointer_width = "64")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::ReadError> {
-        use err::ReadError::*;
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::SomeipSliceError> {
+        use err::{SomeipSliceError::*, SomeipHeaderError::*, *};
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
-            Err(UnexpectedEndOfSlice(slice.len()))
+            Err(Len(LenError {
+                required_len: SOMEIP_HEADER_LENGTH,
+                len: slice.len(),
+                len_source: LenSource::Slice,
+                layer: Layer::SomeipHeader,
+            }))
         } else {
             //check length
             let len = {
@@ -28,13 +33,18 @@ impl<'a> SomeipMsgSlice<'a> {
                 unsafe { get_unchecked_be_u32(slice.as_ptr().add(4)) }
             };
             if len < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
-                return Err(LengthFieldTooSmall(len));
+                return Err(Content(LengthFieldTooSmall(len)));
             }
             //NOTE: In case you want to write a 32 bit version, a check needs to be added, so that
             //      no accidental overflow when adding the 4*2 bytes happens.
             let total_length = (len as usize) + 4 * 2;
             if slice.len() < total_length {
-                return Err(UnexpectedEndOfSlice(slice.len()));
+                return Err(Len(LenError {
+                    required_len: total_length,
+                    len: slice.len(),
+                    len_source: LenSource::SomeipHeaderLength,
+                    layer: Layer::SomeipPayload,
+                }));
             }
             //check protocol version
             let protocol_version = {
@@ -44,7 +54,7 @@ impl<'a> SomeipMsgSlice<'a> {
                 unsafe { *slice.get_unchecked(4 * 3) }
             };
             if SOMEIP_PROTOCOL_VERSION != protocol_version {
-                return Err(UnsupportedProtocolVersion(protocol_version));
+                return Err(Content(UnsupportedProtocolVersion(protocol_version)));
             }
 
             //check message type
@@ -58,13 +68,13 @@ impl<'a> SomeipMsgSlice<'a> {
             //check the length is still ok, in case of a tp flag
             let tp = 0 != message_type & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG;
             if tp && len < SOMEIP_LEN_OFFSET_TO_PAYLOAD + 4 {
-                return Err(LengthFieldTooSmall(len));
+                return Err(Content(LengthFieldTooSmall(len)));
             }
 
             //make sure the message type is known
             match message_type & !(SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG) {
                 0x0 | 0x1 | 0x2 | 0x80 | 0x81 => {}
-                _ => return Err(UnknownMessageType(message_type)),
+                _ => return Err(Content(UnknownMessageType(message_type))),
             }
 
             //all good generate the slice

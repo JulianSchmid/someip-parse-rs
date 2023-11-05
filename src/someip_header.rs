@@ -342,9 +342,16 @@ mod tests {
                 assert_eq!(input, slice.to_header());
 
                 //check that a too small slice triggers an error
-                use err::ReadError::*;
-                assert_matches!(SomeipMsgSlice::from_slice(&buffer[..expected_length-1]), Err(UnexpectedEndOfSlice(_)));
-                assert_matches!(SomeipMsgSlice::from_slice(&buffer[..1]), Err(UnexpectedEndOfSlice(_)));
+                use err::{*, SomeipSliceError::*};
+                assert_eq!(
+                    SomeipMsgSlice::from_slice(&buffer[..expected_length-1]),
+                    Err(Len(LenError {
+                        required_len: expected_length,
+                        len: expected_length - 1,
+                        len_source: LenSource::SomeipHeaderLength,
+                        layer: Layer::SomeipPayload
+                    }))
+                );
             }
         }
     }
@@ -384,7 +391,13 @@ mod tests {
 
             //check that deserialization triggers an error
             assert_matches!(SomeipHeader::read(&mut Cursor::new(&buffer)), Err(UnknownMessageType(_)));
-            assert_matches!(SomeipMsgSlice::from_slice(&buffer), Err(UnknownMessageType(_)));
+            {
+                use err::{SomeipSliceError::*, SomeipHeaderError::*};
+                assert_eq!(
+                    SomeipMsgSlice::from_slice(&buffer),
+                    Err(Content(UnknownMessageType(message_type)))
+                );
+            }
         }
     }
 
@@ -397,10 +410,13 @@ mod tests {
         let mut cursor = Cursor::new(&buffer);
         let result = SomeipHeader::read(&mut cursor);
         assert_matches!(result, Err(err::ReadError::UnsupportedProtocolVersion(0)));
-        assert_matches!(
-            SomeipMsgSlice::from_slice(&buffer[..]),
-            Err(err::ReadError::UnsupportedProtocolVersion(0))
-        );
+        {
+            use err::{SomeipSliceError::*, SomeipHeaderError::*};
+            assert_eq!(
+                SomeipMsgSlice::from_slice(&buffer[..]),
+                Err(Content(UnsupportedProtocolVersion(0)))
+            );
+        }
     }
 
     #[test]
@@ -420,10 +436,13 @@ mod tests {
             let result = SomeipHeader::read(&mut cursor);
             assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(0)));
             //check the from_slice method
-            assert_matches!(
-                SomeipMsgSlice::from_slice(&buffer[..]),
-                Err(err::ReadError::LengthFieldTooSmall(0))
-            );
+            {
+                use err::{SomeipSliceError::*, SomeipHeaderError::*};
+                assert_eq!(
+                    SomeipMsgSlice::from_slice(&buffer[..]),
+                    Err(Content(LengthFieldTooSmall(0)))
+                );
+            }
         }
         //SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
         {
@@ -441,10 +460,13 @@ mod tests {
             let mut cursor = Cursor::new(&buffer);
             let result = SomeipHeader::read(&mut cursor);
             assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(TOO_SMALL)));
-            assert_matches!(
-                SomeipMsgSlice::from_slice(&buffer[..]),
-                Err(err::ReadError::LengthFieldTooSmall(TOO_SMALL))
-            );
+            {
+                use err::{SomeipSliceError::*, SomeipHeaderError::*};
+                assert_eq!(
+                    SomeipMsgSlice::from_slice(&buffer[..]),
+                    Err(Content(LengthFieldTooSmall(TOO_SMALL)))
+                );
+            }
         }
     }
 

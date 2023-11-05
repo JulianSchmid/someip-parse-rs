@@ -17,27 +17,27 @@ impl<'a> SomeipMsgsIterator<'a> {
 }
 
 impl<'a> Iterator for SomeipMsgsIterator<'a> {
-    type Item = Result<SomeipMsgSlice<'a>, err::ReadError>;
+    type Item = Result<SomeipMsgSlice<'a>, err::SomeipSliceError>;
 
-    fn next(&mut self) -> Option<Result<SomeipMsgSlice<'a>, err::ReadError>> {
+    fn next(&mut self) -> Option<Result<SomeipMsgSlice<'a>, err::SomeipSliceError>> {
         if !self.slice.is_empty() {
-            //parse
+            // parse
             let result = SomeipMsgSlice::from_slice(self.slice);
 
-            //move the slice depending on the result
+            // move the slice depending on the result
             match &result {
                 Err(_) => {
-                    //error => move the slice to an len = 0 position so that the iterator ends
+                    // error => move the slice to an len = 0 position so that the iterator ends
                     let len = self.slice.len();
                     self.slice = &self.slice[len..];
                 }
                 Ok(ref value) => {
-                    //by the length just taken by the slice
+                    // by the length just taken by the slice
                     self.slice = &self.slice[value.slice().len()..];
                 }
             }
 
-            //return parse result
+            // return parse result
             Some(result)
         } else {
             None
@@ -49,7 +49,6 @@ impl<'a> Iterator for SomeipMsgsIterator<'a> {
 mod tests {
     use super::*;
     use crate::proptest_generators::*;
-    use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Write;
 
@@ -97,9 +96,23 @@ mod tests {
             let mut iterator = SomeipMsgsIterator::new(&buffer[..len-1]);
 
             //check that an error is generated
-            assert_matches!(iterator.next(), Some(Err(err::ReadError::UnexpectedEndOfSlice(_))));
-            assert_matches!(iterator.next(), None);
-            assert_matches!(iterator.next(), None);
+            use err::{*, SomeipSliceError::*};
+            assert_eq!(iterator.next(), Some(Err(Len(LenError{
+                required_len: len,
+                len: len - 1,
+                len_source: if len - 1 > SOMEIP_HEADER_LENGTH {
+                    LenSource::SomeipHeaderLength
+                } else {
+                    LenSource::Slice
+                },
+                layer: if len - 1 > SOMEIP_HEADER_LENGTH {
+                    Layer::SomeipPayload
+                } else {
+                    Layer::SomeipHeader
+                }
+            }))));
+            assert_eq!(iterator.next(), None);
+            assert_eq!(iterator.next(), None);
         }
     }
 }

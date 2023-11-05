@@ -18,15 +18,15 @@ use crate::*;
 /// # #[derive(Debug)]
 /// # enum Error {
 /// #     TpReassemble(someip_parse::err::TpReassembleError),
-/// #     Parse(someip_parse::err::ReadError),
+/// #     Parse(someip_parse::err::SomeipSliceError),
 /// # }
 /// # impl From<someip_parse::err::TpReassembleError> for Error {
 /// #     fn from(value: someip_parse::err::TpReassembleError) -> Self {
 /// #         Error::TpReassemble(value)
 /// #     }
 /// # }
-/// # impl From<someip_parse::err::ReadError> for Error {
-/// #     fn from(value: someip_parse::err::ReadError) -> Self {
+/// # impl From<someip_parse::err::SomeipSliceError> for Error {
+/// #     fn from(value: someip_parse::err::SomeipSliceError) -> Self {
 /// #         Error::Parse(value)
 /// #     }
 /// # }

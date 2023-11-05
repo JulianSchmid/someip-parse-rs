@@ -1,5 +1,5 @@
 ///Return code contained in a SOME/IP header.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ReturnCode {
     Ok,                    // 0x00
     NotOk,                 // 0x01
@@ -39,7 +39,31 @@ impl From<ReturnCode> for u8 {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn debug_clone_eq() {
+        let return_code = ReturnCode::Ok;
+        let _ = format!("{:?}", return_code);
+        assert_eq!(return_code, return_code.clone());
+        assert_eq!(return_code.cmp(&return_code), core::cmp::Ordering::Equal);
+        assert_eq!(return_code.partial_cmp(&return_code), Some(core::cmp::Ordering::Equal));
+
+        use core::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
+        let h1 = {
+            let mut h = DefaultHasher::new();
+            return_code.hash(&mut h);
+            h.finish()
+        };
+        let h2 = {
+            let mut h = DefaultHasher::new();
+            return_code.clone().hash(&mut h);
+            h.finish()
+        };
+        assert_eq!(h1, h2);
+    }
 
     proptest! {
         #[test]

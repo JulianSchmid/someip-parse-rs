@@ -2,6 +2,7 @@
 name = "someip_parse"
 version = "0.5.0"
 edition = "2021"
+rust-version = "1.60"
 authors = ["Julian Schmid <info@julianschmid.name>"]
 description = "A library for parsing the SOME/IP network protocol (without payload interpretation)."
 repository = "https://github.com/JulianSchmid/someip-parse-rs"

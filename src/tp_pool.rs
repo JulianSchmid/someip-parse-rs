@@ -5,7 +5,7 @@ use std::collections::HashMap;
 /// Pool of buffers to reconstruct multiple SOMEIP TP packet streams in
 /// parallel (re-uses buffers to minimize allocations).
 ///
-/// # Issues to keep in mind:
+/// # This implementation is NOT safe against "Out of Memory" attacks
 ///
 /// If you use the [`TpPool`] in an untrusted environment an attacker could
 /// cause an "out of memory error" by opening up multiple parallel TP streams,
@@ -93,6 +93,13 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn debug_clone_eq() {
+        let pool: TpPool<()> = TpPool::new(Default::default());
+        let _ = format!("{:?}", pool);
+        assert_eq!(pool, pool.clone());
+    }
 
     struct TestPacket {
         request_id: u32,
@@ -196,7 +203,8 @@ mod tests {
                 // stream 3 which imidiatly ends
                 (TestPacket::new(3, 0, false, &sequence(3,16*4)), Some(sequence(3, 16*4))),
                 // end stream 2
-                (TestPacket::new(2, 32, false, &sequence(32 + 2,16*4)), Some(sequence(2, 16*6))),
+                (TestPacket::new(2, 32, true, &sequence(32 + 2,16*4)), None),
+                (TestPacket::new(2, 16*6, false, &sequence(16*6 + 2,16*3)), Some(sequence(2, 16*9))),
             ];
             for a in actions {
                 let packet = a.0.to_vec();
@@ -226,7 +234,8 @@ mod tests {
                 // stream 3 which imidiatly ends
                 (345, TestPacket::new(1, 0, false, &sequence(3,16*4)), Some(sequence(3, 16*4))),
                 // end stream 2
-                (234, TestPacket::new(1, 32, false, &sequence(32 + 2,16*4)), Some(sequence(2, 16*6))),
+                (234, TestPacket::new(1, 32, true, &sequence(32 + 2,16*4)), None),
+                (234, TestPacket::new(1, 16*6, false, &sequence(16*6 + 2,16*3)), Some(sequence(2, 16*9))),
             ];
             for a in actions {
                 let packet = a.1.to_vec();

@@ -36,11 +36,14 @@ mod test {
 
     #[test]
     fn debug_clone_eq() {
-        let section = TpRange{ start: 1, end: 2 };
+        let section = TpRange { start: 1, end: 2 };
         let _ = format!("{:?}", section);
         assert_eq!(section, section.clone());
         assert_eq!(section.cmp(&section), core::cmp::Ordering::Equal);
-        assert_eq!(section.partial_cmp(&section), Some(core::cmp::Ordering::Equal));
+        assert_eq!(
+            section.partial_cmp(&section),
+            Some(core::cmp::Ordering::Equal)
+        );
 
         use core::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;

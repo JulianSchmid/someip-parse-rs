@@ -15,7 +15,7 @@ pub struct SomeipMsgSlice<'a> {
 impl<'a> SomeipMsgSlice<'a> {
     #[cfg(target_pointer_width = "64")]
     pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::SomeipSliceError> {
-        use err::{SomeipSliceError::*, SomeipHeaderError::*, *};
+        use err::{SomeipHeaderError::*, SomeipSliceError::*, *};
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
             Err(Len(LenError {
@@ -87,8 +87,8 @@ impl<'a> SomeipMsgSlice<'a> {
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::ReadError> {
-        use err::ReadError::*;
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::SdReadError> {
+        use err::SdReadError::*;
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
             Err(UnexpectedEndOfSlice(slice.len()))

@@ -48,7 +48,10 @@ mod tests {
         let _ = format!("{:?}", return_code);
         assert_eq!(return_code, return_code.clone());
         assert_eq!(return_code.cmp(&return_code), core::cmp::Ordering::Equal);
-        assert_eq!(return_code.partial_cmp(&return_code), Some(core::cmp::Ordering::Equal));
+        assert_eq!(
+            return_code.partial_cmp(&return_code),
+            Some(core::cmp::Ordering::Equal)
+        );
 
         use core::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;

@@ -1,7 +1,10 @@
 use crate::*;
 
 /// Deprecated use [`SomeipHeader`] instead.
-#[deprecated(since = "0.5.0", note = "Use SomeipHeader instead (renamed, 'i' is lower case now).")]
+#[deprecated(
+    since = "0.5.0",
+    note = "Use SomeipHeader instead (renamed, 'i' is lower case now)."
+)]
 pub type SomeIpHeader = SomeipHeader;
 
 ///SOMEIP header (including tp header if present).
@@ -143,12 +146,14 @@ impl SomeipHeader {
     }
 
     ///Read a header from a byte stream.
-    pub fn read<T: std::io::Read>(reader: &mut T) -> Result<SomeipHeader, err::ReadError> {
-        use err::ReadError::*;
+    pub fn read<T: std::io::Read>(
+        reader: &mut T,
+    ) -> Result<SomeipHeader, err::SomeipHeaderReadError> {
+        use err::{SomeipHeaderError::*, SomeipHeaderReadError::*};
 
         // read the header
         let mut header_bytes: [u8; SOMEIP_HEADER_LENGTH] = [0; SOMEIP_HEADER_LENGTH];
-        reader.read_exact(&mut header_bytes)?;
+        reader.read_exact(&mut header_bytes).map_err(Io)?;
 
         // validate length
         let length = u32::from_be_bytes([
@@ -158,13 +163,13 @@ impl SomeipHeader {
             header_bytes[7],
         ]);
         if length < SOMEIP_LEN_OFFSET_TO_PAYLOAD {
-            return Err(LengthFieldTooSmall(length));
+            return Err(Content(LengthFieldTooSmall(length)));
         }
 
         // validate protocol version
         let protocol_version = header_bytes[12];
         if SOMEIP_PROTOCOL_VERSION != protocol_version {
-            return Err(UnsupportedProtocolVersion(protocol_version));
+            return Err(Content(UnsupportedProtocolVersion(protocol_version)));
         }
 
         // validate message type
@@ -178,7 +183,7 @@ impl SomeipHeader {
                 0x2 => Notification,
                 0x80 => Response,
                 0x81 => Error,
-                _ => return Err(UnknownMessageType(message_type_raw)),
+                _ => return Err(Content(UnknownMessageType(message_type_raw))),
             }
         };
 
@@ -201,7 +206,7 @@ impl SomeipHeader {
             return_code: header_bytes[15],
             //read the tp header if the flag is set
             tp_header: if 0 != message_type_raw & SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG {
-                Some(TpHeader::read(reader)?)
+                Some(TpHeader::read(reader).map_err(Io)?)
             } else {
                 None
             },
@@ -227,8 +232,6 @@ impl Default for SomeipHeader {
 mod tests {
     use super::proptest_generators::*;
     use super::*;
-    use assert_matches::*;
-    use err::ReadError::*;
     use proptest::prelude::*;
     use std::io::{Cursor, Write};
     use MessageType::*;
@@ -281,7 +284,7 @@ mod tests {
                 //check that a too smal cursor results in an io error
                 {
                     let buffer_len = buffer.len();
-                    assert_matches!(SomeipHeader::read(&mut Cursor::new(&buffer[..buffer_len-1])), Err(IoError(_)));
+                    assert!(SomeipHeader::read(&mut Cursor::new(&buffer[..buffer_len-1])).unwrap_err().io_error().is_some());
                 }
             }
         }
@@ -390,14 +393,15 @@ mod tests {
             buffer[14] = message_type;
 
             //check that deserialization triggers an error
-            assert_matches!(SomeipHeader::read(&mut Cursor::new(&buffer)), Err(UnknownMessageType(_)));
-            {
-                use err::{SomeipSliceError::*, SomeipHeaderError::*};
-                assert_eq!(
-                    SomeipMsgSlice::from_slice(&buffer),
-                    Err(Content(UnknownMessageType(message_type)))
-                );
-            }
+            use err::{SomeipSliceError::*, SomeipHeaderError::*};
+            assert_eq!(
+                SomeipHeader::read(&mut Cursor::new(&buffer)).unwrap_err().content_error(),
+                Some(UnknownMessageType(message_type))
+            );
+            assert_eq!(
+                SomeipMsgSlice::from_slice(&buffer),
+                Err(Content(UnknownMessageType(message_type)))
+            );
         }
     }
 
@@ -409,14 +413,15 @@ mod tests {
         buffer[4 * 3] = 0;
         let mut cursor = Cursor::new(&buffer);
         let result = SomeipHeader::read(&mut cursor);
-        assert_matches!(result, Err(err::ReadError::UnsupportedProtocolVersion(0)));
-        {
-            use err::{SomeipSliceError::*, SomeipHeaderError::*};
-            assert_eq!(
-                SomeipMsgSlice::from_slice(&buffer[..]),
-                Err(Content(UnsupportedProtocolVersion(0)))
-            );
-        }
+        use err::{SomeipHeaderError::*, SomeipSliceError::*};
+        assert_eq!(
+            result.unwrap_err().content_error(),
+            Some(UnsupportedProtocolVersion(0))
+        );
+        assert_eq!(
+            SomeipMsgSlice::from_slice(&buffer[..]),
+            Err(Content(UnsupportedProtocolVersion(0)))
+        );
     }
 
     #[test]
@@ -434,15 +439,16 @@ mod tests {
             }
             let mut cursor = Cursor::new(&buffer);
             let result = SomeipHeader::read(&mut cursor);
-            assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(0)));
+            use err::{SomeipHeaderError::*, SomeipSliceError::*};
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(LengthFieldTooSmall(0))
+            );
             //check the from_slice method
-            {
-                use err::{SomeipSliceError::*, SomeipHeaderError::*};
-                assert_eq!(
-                    SomeipMsgSlice::from_slice(&buffer[..]),
-                    Err(Content(LengthFieldTooSmall(0)))
-                );
-            }
+            assert_eq!(
+                SomeipMsgSlice::from_slice(&buffer[..]),
+                Err(Content(LengthFieldTooSmall(0)))
+            );
         }
         //SOMEIP_LEN_OFFSET_TO_PAYLOAD - 1
         {
@@ -459,14 +465,15 @@ mod tests {
             }
             let mut cursor = Cursor::new(&buffer);
             let result = SomeipHeader::read(&mut cursor);
-            assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(TOO_SMALL)));
-            {
-                use err::{SomeipSliceError::*, SomeipHeaderError::*};
-                assert_eq!(
-                    SomeipMsgSlice::from_slice(&buffer[..]),
-                    Err(Content(LengthFieldTooSmall(TOO_SMALL)))
-                );
-            }
+            use err::{SomeipHeaderError::*, SomeipSliceError::*};
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(LengthFieldTooSmall(TOO_SMALL))
+            );
+            assert_eq!(
+                SomeipMsgSlice::from_slice(&buffer[..]),
+                Err(Content(LengthFieldTooSmall(TOO_SMALL)))
+            );
         }
     }
 

@@ -46,7 +46,7 @@ fn main() -> Result<(), Error> {
                 stats.udp += 1;
 
                 //try parsing some ip message
-                for someip_message in SliceIterator::new(eth_slice.payload) {
+                for someip_message in SomeipMsgsIterator::new(eth_slice.payload) {
                     match someip_message {
                         Ok(value) => {
                             stats.someip_message_ok += 1;

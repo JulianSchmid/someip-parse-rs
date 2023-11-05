@@ -1,18 +1,22 @@
 use crate::*;
 
+/// Deprecated use [`SomeipMsgsIterator`] instead.
+#[deprecated(since = "0.5.0", note = "Use SomeipMsgsIterator instead (renamed).")]
+pub type SliceIterator<'a> = SomeipMsgsIterator<'a>;
+
 /// Allows iterating over the someip messages in a udp or tcp payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SliceIterator<'a> {
+pub struct SomeipMsgsIterator<'a> {
     slice: &'a [u8],
 }
 
-impl<'a> SliceIterator<'a> {
-    pub fn new(slice: &'a [u8]) -> SliceIterator<'a> {
-        SliceIterator { slice }
+impl<'a> SomeipMsgsIterator<'a> {
+    pub fn new(slice: &'a [u8]) -> SomeipMsgsIterator<'a> {
+        SomeipMsgsIterator { slice }
     }
 }
 
-impl<'a> Iterator for SliceIterator<'a> {
+impl<'a> Iterator for SomeipMsgsIterator<'a> {
     type Item = Result<SomeipMsgSlice<'a>, err::ReadError>;
 
     fn next(&mut self) -> Option<Result<SomeipMsgSlice<'a>, err::ReadError>> {
@@ -61,7 +65,7 @@ mod tests {
             }
 
             //read message with iterator
-            let actual = SliceIterator::new(&buffer[..]).fold(
+            let actual = SomeipMsgsIterator::new(&buffer[..]).fold(
                 Vec::with_capacity(expected.len()),
                 |mut acc, x| {
                     let x_unwraped = x.unwrap();
@@ -90,7 +94,7 @@ mod tests {
 
             //generate iterator
             let len = buffer.len();
-            let mut iterator = SliceIterator::new(&buffer[..len-1]);
+            let mut iterator = SomeipMsgsIterator::new(&buffer[..len-1]);
 
             //check that an error is generated
             assert_matches!(iterator.next(), Some(Err(err::ReadError::UnexpectedEndOfSlice(_))));

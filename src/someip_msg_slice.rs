@@ -343,8 +343,8 @@ impl<'a> SomeipMsgSlice<'a> {
     }
 
     ///Decode all the fields and copy the results to a SomeIpHeader struct
-    pub fn to_header(&self) -> SomeIpHeader {
-        SomeIpHeader {
+    pub fn to_header(&self) -> SomeipHeader {
+        SomeipHeader {
             message_id: self.message_id(),
             length: self.length(),
             request_id: self.request_id(),

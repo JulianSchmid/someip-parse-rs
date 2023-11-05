@@ -117,7 +117,7 @@ pub struct TpBuf {
     /// Data buffer that should contain the SOMEIP header + reconstructed payload in the end.
     data: Vec<u8>,
     /// Contains the ranges filled with data.
-    sections: Vec<SectionRange>,
+    sections: Vec<TpRange>,
     /// Set to the extended end size.
     end: Option<u32>,
     /// TP config
@@ -217,7 +217,7 @@ impl TpBuf {
         self.data[data_offset..data_offset + payload.len()].clone_from_slice(payload);
 
         // update sections
-        let mut new_section = SectionRange {
+        let mut new_section = TpRange {
             start: tp_header.offset(),
             end: tp_header.offset() + (payload.len() as u32),
         };
@@ -313,7 +313,7 @@ mod test {
         }
 
         fn to_vec(&self) -> Vec<u8> {
-            let header = SomeIpHeader {
+            let header = SomeipHeader {
                 message_id: 1234,
                 length: 8 + 4 + self.payload.len() as u32,
                 request_id: 23,
@@ -333,8 +333,8 @@ mod test {
             result
         }
 
-        fn result_header(payload_length: u32) -> SomeIpHeader {
-            SomeIpHeader {
+        fn result_header(payload_length: u32) -> SomeipHeader {
+            SomeipHeader {
                 message_id: 1234,
                 length: payload_length + 8,
                 request_id: 23,
@@ -361,7 +361,7 @@ mod test {
         let mut actual = TpBuf::new(TpBufConfig::new(1024, 2048).unwrap());
 
         actual.data.push(1);
-        actual.sections.push(SectionRange { start: 2, end: 3 });
+        actual.sections.push(TpRange { start: 2, end: 3 });
         actual.end = Some(123);
 
         actual.clear();

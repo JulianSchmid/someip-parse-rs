@@ -119,7 +119,7 @@ mod tests {
         }
 
         fn to_vec(&self) -> Vec<u8> {
-            let header = SomeIpHeader {
+            let header = SomeipHeader {
                 message_id: 1234,
                 length: 8 + 4 + self.payload.len() as u32,
                 request_id: self.request_id,
@@ -139,8 +139,8 @@ mod tests {
             result
         }
 
-        fn result_header(&self, payload_length: u32) -> SomeIpHeader {
-            SomeIpHeader {
+        fn result_header(&self, payload_length: u32) -> SomeipHeader {
+            SomeipHeader {
                 message_id: 1234,
                 length: payload_length + 8,
                 request_id: self.request_id,
@@ -169,7 +169,7 @@ mod tests {
         // simple packet forwarding (without TP effect)
         {
             // build a non tp packet
-            let header = SomeIpHeader {
+            let header = SomeipHeader {
                 message_id: 1234,
                 length: 8 + 8 as u32,
                 request_id: 234,

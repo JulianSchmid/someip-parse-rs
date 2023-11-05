@@ -30,7 +30,7 @@ fn main() -> Result<(), Error> {
         };
 
         // trying parsing some ip messages located in a udp payload
-        for someip_message in SliceIterator::new(eth_slice.payload) {
+        for someip_message in SomeipMsgsIterator::new(eth_slice.payload) {
             match someip_message {
                 Ok(value) => {
                     if value.is_someip_sd() {

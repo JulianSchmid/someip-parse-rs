@@ -303,7 +303,12 @@ impl<'a> SomeipMsgSlice<'a> {
             // Safe as it is checked in SomeipHeaderSlice::from_slice that the
             // slice has at least SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH len
             // if the tp flag is set.
-            unsafe { core::slice::from_raw_parts(self.slice.as_ptr().add(OFFSET), self.slice.len() - OFFSET) }
+            unsafe {
+                core::slice::from_raw_parts(
+                    self.slice.as_ptr().add(OFFSET),
+                    self.slice.len() - OFFSET,
+                )
+            }
         } else {
             // SAFETY:
             // Safe as it is checked in SomeipHeaderSlice::from_slice that the

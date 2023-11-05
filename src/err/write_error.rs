@@ -22,7 +22,6 @@ impl From<ValueError> for WriteError {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

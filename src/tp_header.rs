@@ -168,14 +168,13 @@ impl TpHeader {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use proptest::prelude::*;
     use crate::proptest_generators::*;
     use assert_matches::*;
+    use proptest::prelude::*;
 
     proptest! {
         #[test]

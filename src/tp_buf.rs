@@ -9,7 +9,7 @@ use crate::*;
 /// as well as matching sender to the buffer.
 ///
 /// In case you want something that also automatically reconstructs multiple TP streams
-/// and can handles multiple TP stream with differing request ids and message id's 
+/// and can handles multiple TP stream with differing request ids and message id's
 /// gracefully use [`crate::TpPool`] instead.
 ///
 /// # Example
@@ -145,7 +145,10 @@ impl TpBuf {
 
     /// Consume a TP SOMEIP slice (caller must ensure that `someip_slice.is_tp()` is `true`).
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-    pub fn consume_tp(&mut self, someip_slice: SomeipMsgSlice) -> Result<(), err::TpReassembleError> {
+    pub fn consume_tp(
+        &mut self,
+        someip_slice: SomeipMsgSlice,
+    ) -> Result<(), err::TpReassembleError> {
         use err::TpReassembleError::*;
 
         assert!(someip_slice.is_tp());

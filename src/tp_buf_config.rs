@@ -25,12 +25,12 @@ impl TpBufConfig {
     }
 
     /// Creates a new config with the given initial allocated and maximum allowed payload size.
-    /// 
+    ///
     /// # Example
-    /// 
-    /// As long as you don't set the max_payload_len to more then 
+    ///
+    /// As long as you don't set the max_payload_len to more then
     /// `TpBufConfig::MAX_TP_PAYLOAD_LEN` (0xFFFFFFFF - 16):
-    /// 
+    ///
     /// ```
     /// use someip_parse::TpBufConfig;
     ///
@@ -43,10 +43,10 @@ impl TpBufConfig {
     ///     TpBufConfig::MAX_TP_PAYLOAD_LEN
     /// ).unwrap();
     /// ```
-    /// 
+    ///
     /// construction will only fail if you set an upper lenght greater
     /// then `TpBufConfig::MAX_TP_PAYLOAD_LEN`:
-    /// 
+    ///
     /// ```
     /// use someip_parse::{TpBufConfig, err::TpBufConfigError::*};
     ///
@@ -94,9 +94,6 @@ mod test {
     fn default() {
         let actual: TpBufConfig = Default::default();
         assert_eq!(0x4000, actual.tp_buffer_start_payload_alloc_len);
-        assert_eq!(
-            TpBufConfig::MAX_TP_PAYLOAD_LEN,
-            actual.tp_max_payload_len
-        );
+        assert_eq!(TpBufConfig::MAX_TP_PAYLOAD_LEN, actual.tp_max_payload_len);
     }
 }

@@ -1,4 +1,3 @@
-
 ///Range errors in fields of the someip & tp header struct. These can occur when serializing or modifying an error.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueError {
@@ -35,7 +34,6 @@ pub enum ValueError {
     /// in read and from_slice functions.
     SdUnknownDiscardableOption(u8),
 }
-
 
 #[cfg(test)]
 mod tests {

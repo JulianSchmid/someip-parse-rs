@@ -326,12 +326,10 @@ impl<'a> SomeipMsgSlice<'a> {
                 // Safe as the slice len is checked to have SOMEIP_HEADER_LENGTH + TP_HEADER_LENGTH
                 // length during SomeIpHeaderSlice::from_slice.
                 unsafe {
-                    TpHeader::from_slice_unchecked(
-                        core::slice::from_raw_parts(
-                            self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH),
-                            self.slice.len() - SOMEIP_HEADER_LENGTH
-                        )
-                    )
+                    TpHeader::from_slice_unchecked(core::slice::from_raw_parts(
+                        self.slice.as_ptr().add(SOMEIP_HEADER_LENGTH),
+                        self.slice.len() - SOMEIP_HEADER_LENGTH,
+                    ))
                 },
             )
         } else {
@@ -356,8 +354,8 @@ impl<'a> SomeipMsgSlice<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
     use crate::MessageType::*;
+    use proptest::prelude::*;
 
     #[test]
     fn debug_write() {

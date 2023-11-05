@@ -101,7 +101,7 @@ impl SomeIpHeader {
     }
 
     ///Serialize the header.
-    pub fn write_raw<T: Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
+    pub fn write_raw<T: std::io::Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
         writer.write_all(&self.base_to_bytes())?;
         if let Some(ref tp) = self.tp_header {
             tp.write(writer)?;
@@ -139,7 +139,7 @@ impl SomeIpHeader {
     }
 
     ///Read a header from a byte stream.
-    pub fn read<T: Read>(reader: &mut T) -> Result<SomeIpHeader, err::ReadError> {
+    pub fn read<T: std::io::Read>(reader: &mut T) -> Result<SomeIpHeader, err::ReadError> {
         use err::ReadError::*;
 
         // read the header
@@ -226,7 +226,7 @@ mod tests {
     use assert_matches::*;
     use err::ReadError::*;
     use proptest::prelude::*;
-    use std::io::Cursor;
+    use std::io::{Cursor, Write};
     use MessageType::*;
 
     const MESSAGE_TYPE_VALUES: &[MessageType; 5] =

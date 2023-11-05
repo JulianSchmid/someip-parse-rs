@@ -1,16 +1,20 @@
 use crate::*;
 
+/// Deprecated use [`SomeipMsgSlice`] instead.
+#[deprecated(since = "0.5.0", note = "Use SomeipMsgSlice instead (renamed).")]
+pub type SomeIpHeaderSlice<'a> = SomeipMsgSlice<'a>;
+
 /// A slice containing an some ip header & payload of that message.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SomeIpHeaderSlice<'a> {
+pub struct SomeipMsgSlice<'a> {
     /// If true a TP header is following the SOME/IP header.
     tp: bool,
     slice: &'a [u8],
 }
 
-impl<'a> SomeIpHeaderSlice<'a> {
+impl<'a> SomeipMsgSlice<'a> {
     #[cfg(target_pointer_width = "64")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeIpHeaderSlice, err::ReadError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::ReadError> {
         use err::ReadError::*;
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
@@ -64,7 +68,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
             }
 
             //all good generate the slice
-            Ok(SomeIpHeaderSlice {
+            Ok(SomeipMsgSlice {
                 tp,
                 // SAFETY: Check is preformed above to ensure slice has at least total length
                 slice: unsafe { from_raw_parts(slice.as_ptr(), total_length) },
@@ -73,7 +77,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeIpHeaderSlice, err::ReadError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::ReadError> {
         use err::ReadError::*;
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
@@ -133,7 +137,7 @@ impl<'a> SomeIpHeaderSlice<'a> {
             }
 
             //all good generate the slice
-            Ok(SomeIpHeaderSlice {
+            Ok(SomeipMsgSlice {
                 tp,
                 // SAFETY: Check is preformed above to ensure slice has at least total length
                 slice: unsafe { from_raw_parts(slice.as_ptr(), total_length) },
@@ -360,7 +364,7 @@ mod tests {
         let buffer: [u8; SOMEIP_HEADER_LENGTH] = [0; SOMEIP_HEADER_LENGTH];
         let _ = format!(
             "{:?}",
-            SomeIpHeaderSlice {
+            SomeipMsgSlice {
                 tp: false,
                 slice: &buffer[..]
             }
@@ -394,7 +398,7 @@ mod tests {
             };
 
             //create the type
-            let slice = SomeIpHeaderSlice {
+            let slice = SomeipMsgSlice {
                 tp: false,
                 slice: &buffer
             };

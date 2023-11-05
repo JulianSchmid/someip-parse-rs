@@ -314,7 +314,7 @@ mod tests {
                 buffer.resize(expected_length + add, 0);
 
                 //from_slice
-                let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+                let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
                 assert_eq!(input.message_id, slice.message_id());
                 assert_eq!(input.length, slice.length());
                 assert_eq!(input.request_id, slice.request_id());
@@ -340,8 +340,8 @@ mod tests {
 
                 //check that a too small slice triggers an error
                 use err::ReadError::*;
-                assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..expected_length-1]), Err(UnexpectedEndOfSlice(_)));
-                assert_matches!(SomeIpHeaderSlice::from_slice(&buffer[..1]), Err(UnexpectedEndOfSlice(_)));
+                assert_matches!(SomeipMsgSlice::from_slice(&buffer[..expected_length-1]), Err(UnexpectedEndOfSlice(_)));
+                assert_matches!(SomeipMsgSlice::from_slice(&buffer[..1]), Err(UnexpectedEndOfSlice(_)));
             }
         }
     }
@@ -381,7 +381,7 @@ mod tests {
 
             //check that deserialization triggers an error
             assert_matches!(SomeIpHeader::read(&mut Cursor::new(&buffer)), Err(UnknownMessageType(_)));
-            assert_matches!(SomeIpHeaderSlice::from_slice(&buffer), Err(UnknownMessageType(_)));
+            assert_matches!(SomeipMsgSlice::from_slice(&buffer), Err(UnknownMessageType(_)));
         }
     }
 
@@ -396,7 +396,7 @@ mod tests {
         let result = SomeIpHeader::read(&mut cursor);
         assert_matches!(result, Err(err::ReadError::UnsupportedProtocolVersion(0)));
         assert_matches!(
-            SomeIpHeaderSlice::from_slice(&buffer[..]),
+            SomeipMsgSlice::from_slice(&buffer[..]),
             Err(err::ReadError::UnsupportedProtocolVersion(0))
         );
     }
@@ -419,7 +419,7 @@ mod tests {
             assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(0)));
             //check the from_slice method
             assert_matches!(
-                SomeIpHeaderSlice::from_slice(&buffer[..]),
+                SomeipMsgSlice::from_slice(&buffer[..]),
                 Err(err::ReadError::LengthFieldTooSmall(0))
             );
         }
@@ -440,7 +440,7 @@ mod tests {
             let result = SomeIpHeader::read(&mut cursor);
             assert_matches!(result, Err(err::ReadError::LengthFieldTooSmall(TOO_SMALL)));
             assert_matches!(
-                SomeIpHeaderSlice::from_slice(&buffer[..]),
+                SomeipMsgSlice::from_slice(&buffer[..]),
                 Err(err::ReadError::LengthFieldTooSmall(TOO_SMALL))
             );
         }
@@ -459,7 +459,7 @@ mod tests {
             let mut buffer = Vec::new();
             header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
-            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(service_id, slice.service_id());
         }
@@ -482,7 +482,7 @@ mod tests {
             let mut buffer = Vec::new();
             header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
-            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(false, slice.is_event());
             assert_eq!(Some(method_id), slice.method_id());
@@ -510,7 +510,7 @@ mod tests {
             let mut buffer = Vec::new();
             header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
-            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(true, slice.is_event());
             assert_eq!(id_with_bit, slice.event_or_method_id());
@@ -534,7 +534,7 @@ mod tests {
             let mut buffer = Vec::new();
             header.write_raw(&mut buffer).unwrap();
             buffer.write(&packet.1[..]).unwrap();
-            let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
             assert_eq!(id > 0x8000, slice.is_event());
             assert_eq!(id, slice.event_or_method_id());
@@ -559,7 +559,7 @@ mod tests {
                 let mut buffer = Vec::new();
                 header.write_raw(&mut buffer).unwrap();
                 buffer.write(&packet.1[..]).unwrap();
-                let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+                let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
                 assert_eq!(true, slice.is_someip_sd());
             }
@@ -568,7 +568,7 @@ mod tests {
                 let mut buffer = Vec::new();
                 packet.0.write_raw(&mut buffer).unwrap();
                 buffer.write(&packet.1[..]).unwrap();
-                let slice = SomeIpHeaderSlice::from_slice(&buffer[..]).unwrap();
+                let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
                 assert_eq!(packet.0.message_id == SD_MESSAGE_ID, slice.is_someip_sd());
             }

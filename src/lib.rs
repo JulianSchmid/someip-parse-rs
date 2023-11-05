@@ -83,8 +83,8 @@ pub use slice_iterator::*;
 mod some_ip_header;
 pub use some_ip_header::*;
 
-mod some_ip_header_slice;
-pub use some_ip_header_slice::*;
+mod someip_msg_slice;
+pub use someip_msg_slice::*;
 
 mod tp_buf_config;
 pub use tp_buf_config::*;

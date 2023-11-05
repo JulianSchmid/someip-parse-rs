@@ -39,8 +39,8 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
     pub fn consume<'a: 'c, 'b: 'c, 'c: 'a + 'b>(
         &'a mut self,
         id: ChannelId,
-        someip_slice: SomeIpHeaderSlice<'b>,
-    ) -> Result<Option<SomeIpHeaderSlice<'c>>, err::TpReassembleError> {
+        someip_slice: SomeipMsgSlice<'b>,
+    ) -> Result<Option<SomeipMsgSlice<'c>>, err::TpReassembleError> {
         if someip_slice.is_tp() {
 
             use std::collections::hash_map::Entry::*;
@@ -91,4 +91,98 @@ impl<ChannelId: Hash + Eq + PartialEq + Clone + Sized> TpPool<ChannelId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct TestPacket {
+        request_id: u32,
+        offset: u32,
+        more_segments: bool,
+        payload: Vec<u8>,
+    }
+
+    impl TestPacket {
+        fn new(request_id: u32, offset: u32, more_segments: bool, payload: &[u8]) -> TestPacket {
+            TestPacket {
+                request_id,
+                offset,
+                more_segments,
+                payload: payload.iter().copied().collect(),
+            }
+        }
+
+        fn to_vec(&self) -> Vec<u8> {
+            let header = SomeIpHeader {
+                message_id: 1234,
+                length: 8 + 4 + self.payload.len() as u32,
+                request_id: self.request_id,
+                interface_version: 1,
+                message_type: MessageType::Notification,
+                return_code: 0,
+                tp_header: {
+                    let mut tp = TpHeader::new(self.more_segments);
+                    tp.set_offset(self.offset).unwrap();
+                    Some(tp)
+                },
+            };
+            let mut result = Vec::with_capacity(SOMEIP_HEADER_LENGTH + 4 + self.payload.len());
+            result.extend_from_slice(&header.base_to_bytes());
+            result.extend_from_slice(&header.tp_header.as_ref().unwrap().to_bytes());
+            result.extend_from_slice(&self.payload);
+            result
+        }
+
+        fn result_header(&self, payload_length: u32) -> SomeIpHeader {
+            SomeIpHeader {
+                message_id: 1234,
+                length: payload_length + 8,
+                request_id: self.request_id,
+                interface_version: 1,
+                message_type: MessageType::Notification,
+                return_code: 0,
+                tp_header: None,
+            }
+        }
+    }
+
+    /// Returns a u8 vec counting up from "start" until len is reached (truncating bits greater then u8).
+    fn sequence(start: usize, len: usize) -> Vec<u8> {
+        let mut result = Vec::with_capacity(len);
+        for i in start..start + len {
+            result.push((i & 0xff) as u8);
+        }
+        result
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn consume() {
+        use err::TpReassembleError::*;
+
+        // normal reconstruction (without additional id)
+        {
+            let mut pool: TpPool<()> = TpPool::new(TpBufConfig::new(1024, 2048).unwrap());
+
+            let actions = [
+                // start two streams in parallel
+                (TestPacket::new(1, 0, true, &sequence(1,16)), None),
+                (TestPacket::new(2, 0, true, &sequence(2,32)), None),
+                // stream 1 is done
+                (TestPacket::new(1, 16, false, &sequence(1 + 16,16)), Some(sequence(1,32))),
+                // stream 3 which imidiatly terminates
+                (TestPacket::new(3, 0, true, &sequence(3,16*4)), Some(sequence(3, 16*4))),
+            ];
+            for a in actions {
+                let packet = a.0.to_vec();
+                let slice = SomeipMsgSlice::from_slice(&packet).unwrap();
+                let result = pool.consume((), slice).unwrap();
+                if let Some(expected_payload) = a.1 {
+                    let msg = result.unwrap();
+                    assert_eq!(msg.to_header(), a.0.result_header(expected_payload.len() as u32));
+                    assert_eq!(msg.payload(), expected_payload);
+                } else {
+                    assert!(result.is_none());
+                }
+            }
+        }
+    }
+
 }

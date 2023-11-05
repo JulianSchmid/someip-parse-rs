@@ -145,7 +145,7 @@ impl TpBuf {
 
     /// Consume a TP SOMEIP slice (caller must ensure that `someip_slice.is_tp()` is `true`).
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-    pub fn consume_tp(&mut self, someip_slice: SomeIpHeaderSlice) -> Result<(), err::TpReassembleError> {
+    pub fn consume_tp(&mut self, someip_slice: SomeipMsgSlice) -> Result<(), err::TpReassembleError> {
         use err::TpReassembleError::*;
 
         assert!(someip_slice.is_tp());
@@ -243,7 +243,7 @@ impl TpBuf {
 
     /// Try finalizing the reconstructed TP packet and return a reference to it
     /// if the stream reconstruction was completed.
-    pub fn try_finalize<'a>(&'a mut self) -> Option<SomeIpHeaderSlice<'a>> {
+    pub fn try_finalize<'a>(&'a mut self) -> Option<SomeipMsgSlice<'a>> {
         if false == self.is_complete() {
             return None;
         }
@@ -257,7 +257,7 @@ impl TpBuf {
             len_insert[2] = len_be[2];
             len_insert[3] = len_be[3];
         }
-        Some(SomeIpHeaderSlice::from_slice(&self.data).unwrap())
+        Some(SomeipMsgSlice::from_slice(&self.data).unwrap())
     }
 }
 
@@ -282,7 +282,7 @@ mod test {
 
         fn send_to_buffer(&self, buffer: &mut TpBuf) -> Result<(), err::TpReassembleError> {
             let packet = self.to_vec();
-            let slice = SomeIpHeaderSlice::from_slice(&packet).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&packet).unwrap();
             buffer.consume_tp(slice)
         }
 
@@ -443,7 +443,7 @@ mod test {
             let test_packet = TestPacket::new(16, false, &sequence(0,16));
 
             let packet = test_packet.to_vec();
-            let slice = SomeIpHeaderSlice::from_slice(&packet).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&packet).unwrap();
             
             assert_eq!(Ok(()), buffer.consume_tp(slice));
         }
@@ -454,7 +454,7 @@ mod test {
             let test_packet = TestPacket::new(48, true, &sequence(0,32 + bad_offset));
 
             let packet = test_packet.to_vec();
-            let slice = SomeIpHeaderSlice::from_slice(&packet).unwrap();
+            let slice = SomeipMsgSlice::from_slice(&packet).unwrap();
             
             assert_eq!(
                 UnalignedTpPayloadLen { offset: 48, payload_len: 32 + bad_offset },

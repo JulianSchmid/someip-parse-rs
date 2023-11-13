@@ -43,7 +43,10 @@ where
         }
     }
 
-    pub fn with_capacity(buf_config: TpBufConfig, initial_bufs_count: usize) -> TpPool<ChannelId, Timestamp> {
+    pub fn with_capacity(
+        buf_config: TpBufConfig,
+        initial_bufs_count: usize,
+    ) -> TpPool<ChannelId, Timestamp> {
         TpPool {
             active: HashMap::with_capacity(initial_bufs_count),
             finished: {
@@ -63,7 +66,7 @@ where
         for _ in 0..additional {
             self.finished.push(TpBuf::new(self.buf_config.clone()));
         }
-        self.active.reserve(additional);
+        self.active.reserve(self.finished.len());
     }
 
     #[inline]

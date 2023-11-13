@@ -193,28 +193,31 @@ impl TpBuf {
         // get enough memory to store a SOMEIP header + tp reassembled payload
         let required_len = SOMEIP_HEADER_LENGTH + (tp_header.offset() as usize) + payload.len();
         if self.data.len() < required_len {
-            if self
-                .data
-                .try_reserve(required_len - self.data.len())
-                .is_err()
-            {
-                return Err(AllocationFailure { len: required_len });
+            if self.data.capacity() < required_len {
+                if self
+                    .data
+                    .try_reserve(required_len - self.data.len())
+                    .is_err()
+                {
+                    return Err(AllocationFailure { len: required_len });
+                }
             }
-            // TODO replace with something faster that does no zero init?
-            self.data.resize(required_len, 0);
+            unsafe {
+                self.data.set_len(required_len);
+            }
         }
 
         if 0 == tp_header.offset() {
             // copy header
             self.data[..SOMEIP_HEADER_LENGTH]
-                .clone_from_slice(&someip_slice.slice()[..SOMEIP_HEADER_LENGTH]);
+                .copy_from_slice(&someip_slice.slice()[..SOMEIP_HEADER_LENGTH]);
             // remove TP flag
             self.data[4 * 3 + 2] &= 0b1101_1111;
         }
 
         // insert new data
         let data_offset = SOMEIP_HEADER_LENGTH + (tp_header.offset() as usize);
-        self.data[data_offset..data_offset + payload.len()].clone_from_slice(payload);
+        self.data[data_offset..data_offset + payload.len()].copy_from_slice(payload);
 
         // update sections
         let mut new_section = TpRange {

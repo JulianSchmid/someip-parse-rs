@@ -193,14 +193,13 @@ impl TpBuf {
         // get enough memory to store a SOMEIP header + tp reassembled payload
         let required_len = SOMEIP_HEADER_LENGTH + (tp_header.offset() as usize) + payload.len();
         if self.data.len() < required_len {
-            if self.data.capacity() < required_len {
-                if self
+            if self.data.capacity() < required_len
+                && self
                     .data
                     .try_reserve(required_len - self.data.len())
                     .is_err()
-                {
-                    return Err(AllocationFailure { len: required_len });
-                }
+            {
+                return Err(AllocationFailure { len: required_len });
             }
             unsafe {
                 self.data.set_len(required_len);

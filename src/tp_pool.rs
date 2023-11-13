@@ -429,6 +429,8 @@ mod tests {
         // discard streams with a timestamp smaller then 125
         pool.retain(|timestamp| *timestamp >= 125);
 
+        assert_eq!(1, pool.active.len());
+        assert_eq!(1, pool.finished.len());
         assert_eq!(125, pool.active_bufs().get(&(3u16, 1u32)).unwrap().1);
     }
 }

@@ -43,12 +43,27 @@ where
         }
     }
 
+    pub fn with_capacity(buf_config: TpBufConfig, initial_bufs_count: usize) -> TpPool<ChannelId, Timestamp> {
+        TpPool {
+            active: HashMap::with_capacity(initial_bufs_count),
+            finished: {
+                let mut v = Vec::with_capacity(initial_bufs_count);
+                for _ in 0..initial_bufs_count {
+                    v.push(TpBuf::new(buf_config.clone()));
+                }
+                v
+            },
+            buf_config,
+        }
+    }
+
     /// Reserves the given number as buffers.
     pub fn reserve(&mut self, additional: usize) {
         self.finished.reserve(additional);
         for _ in 0..additional {
             self.finished.push(TpBuf::new(self.buf_config.clone()));
         }
+        self.active.reserve(additional);
     }
 
     #[inline]
@@ -177,12 +192,21 @@ mod tests {
     }
 
     #[test]
+    fn with_capacity() {
+        let pool = TpPool::<(), ()>::with_capacity(Default::default(), 3);
+        assert_eq!(3, pool.finished_bufs().len());
+        assert!(pool.active.capacity() >= 3);
+    }
+
+    #[test]
     fn reserve() {
         let mut pool = TpPool::<(), ()>::new(Default::default());
         pool.reserve(2);
         assert_eq!(2, pool.finished_bufs().len());
+        assert!(pool.active.capacity() >= 2);
         pool.reserve(3);
         assert_eq!(5, pool.finished_bufs().len());
+        assert!(pool.active.capacity() >= 5);
     }
 
     struct TestPacket {

@@ -119,7 +119,7 @@ mod test {
     #[test]
     fn default() {
         let actual: TpBufConfig = Default::default();
-        assert_eq!(0x4000, actual.tp_buffer_start_payload_alloc_len);
+        assert_eq!(0x40000, actual.tp_buffer_start_payload_alloc_len);
         assert_eq!(TpBufConfig::MAX_TP_PAYLOAD_LEN, actual.tp_max_payload_len);
     }
 

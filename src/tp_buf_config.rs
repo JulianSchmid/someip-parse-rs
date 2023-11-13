@@ -80,7 +80,7 @@ impl TpBufConfig {
 impl core::default::Default for TpBufConfig {
     fn default() -> Self {
         Self {
-            tp_buffer_start_payload_alloc_len: 0x4000,
+            tp_buffer_start_payload_alloc_len: 0x40000,
             tp_max_payload_len: TpBufConfig::MAX_TP_PAYLOAD_LEN,
         }
     }

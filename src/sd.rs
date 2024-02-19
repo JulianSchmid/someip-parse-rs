@@ -326,6 +326,12 @@ impl SdHeader {
     #[inline]
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
+        SdHeader::read_with_flag(reader, false)
+    }
+
+    #[inline]
+    #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+    pub fn read_with_flag<T: Read + Seek>(reader: &mut T, discard_unknown_option: bool) -> Result<Self, SdReadError> {
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
@@ -373,7 +379,7 @@ impl SdHeader {
         options.try_reserve((options_length as usize) / 4)?;
 
         while options_length > 0 {
-            let (read_bytes, option) = SdOption::read(reader)?;
+            let (read_bytes, option) = SdOption::read_with_flag(reader, discard_unknown_option)?;
             options.push(option);
             options_length -= read_bytes as u32;
         }
@@ -947,6 +953,12 @@ impl SdOption {
     /// Read the value from a [`std::io::Read`] source.
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), SdReadError> {
+        SdOption::read_with_flag(reader, false)
+    }
+
+    /// Read the value from a [`std::io::Read`] source.
+    #[inline]
+    pub fn read_with_flag<T: Read + Seek>(reader: &mut T, discard_unknown_option: bool) -> Result<(u16, Self), SdReadError> {
         use self::sd_options::*;
         use self::SdOption::*;
         use SdReadError::*;
@@ -1065,7 +1077,7 @@ impl SdOption {
                 })
             }
             option_type => {
-                if discardable {
+                if discardable || discard_unknown_option {
                     // skip unknown options payload if "discardable"
                     // if length is greater then 1 then we need to skip the rest of the option
                     // (note that we already read length 1 as this contains the "discardable"

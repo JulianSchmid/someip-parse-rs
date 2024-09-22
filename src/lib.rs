@@ -126,7 +126,7 @@ pub const SOMEIP_LEN_OFFSET_TO_PAYLOAD: u32 = 4 * 2; // 2x 32bits
 
 ///Maximum payload length supported by some ip. This is NOT the maximum length that is supported when
 ///sending packets over UDP. This constant is based on the limitation of the length field data type (uint32).
-pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = std::u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
+pub const SOMEIP_MAX_PAYLOAD_LEN: u32 = u32::MAX - SOMEIP_LEN_OFFSET_TO_PAYLOAD;
 
 /// The maximum payload size of an SOMEIP UDP message.
 ///

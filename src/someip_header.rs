@@ -567,7 +567,7 @@ mod tests {
             header.set_method_or_event_id(id);
 
             assert_eq!(id, header.event_or_method_id());
-            assert_eq!(id > 0x8000, header.is_event());
+            assert_eq!(id >= 0x8000, header.is_event());
 
             //serialize and check the slice methods
             let mut buffer = Vec::new();
@@ -575,7 +575,7 @@ mod tests {
             buffer.write(&packet.1[..]).unwrap();
             let slice = SomeipMsgSlice::from_slice(&buffer[..]).unwrap();
 
-            assert_eq!(id > 0x8000, slice.is_event());
+            assert_eq!(id >= 0x8000, slice.is_event());
             assert_eq!(id, slice.event_or_method_id());
         }
     }

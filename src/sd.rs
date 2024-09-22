@@ -331,7 +331,10 @@ impl SdHeader {
 
     #[inline]
     #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-    pub fn read_with_flag<T: Read + Seek>(reader: &mut T, discard_unknown_option: bool) -> Result<Self, SdReadError> {
+    pub fn read_with_flag<T: Read + Seek>(
+        reader: &mut T,
+        discard_unknown_option: bool,
+    ) -> Result<Self, SdReadError> {
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
@@ -958,7 +961,10 @@ impl SdOption {
 
     /// Read the value from a [`std::io::Read`] source.
     #[inline]
-    pub fn read_with_flag<T: Read + Seek>(reader: &mut T, discard_unknown_option: bool) -> Result<(u16, Self), SdReadError> {
+    pub fn read_with_flag<T: Read + Seek>(
+        reader: &mut T,
+        discard_unknown_option: bool,
+    ) -> Result<(u16, Self), SdReadError> {
         use self::sd_options::*;
         use self::SdOption::*;
         use SdReadError::*;

@@ -1608,6 +1608,21 @@ mod tests_sd_option {
             let result = SdOption::read(&mut cursor);
             assert_matches!(result, Err(SdReadError::UnknownSdOptionType(0xFF)));
         }
+        // unknown option type (non discardable, discard option set)
+        {
+            let buffer = [0x00, 0x01, 0xff, 0x00];
+            let mut cursor = std::io::Cursor::new(buffer);
+            let (len, header) = SdOption::read_with_flag(&mut cursor, true).unwrap();
+            assert_eq!(
+                header,
+                UnknownDiscardableOption {
+                    length: 1,
+                    option_type: 0xff,
+                }
+                .into()
+            );
+            assert_eq!(4, len);
+        }
         // unknown option type (discardable)
         {
             let buffer = [0x00, 0x01, 0xff, 0b1000_0000];

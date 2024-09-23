@@ -54,7 +54,7 @@ fn main() -> Result<(), Error> {
 }
 
 #[derive(Debug)]
-enum Error {
+pub enum Error {
     IoError(std::io::Error),
     PcapError(rpcap::PcapError),
 }

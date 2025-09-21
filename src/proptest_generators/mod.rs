@@ -81,7 +81,7 @@ prop_compose! {
         )
     -> sd::SdHeader
     {
-        let mut header = sd::SdHeader::new(reboot, entries, options).unwrap();
+        let mut header = sd::SdHeader::new(reboot, &entries, &options).unwrap();
         header.flags.unicast = unicast;
         header.flags.explicit_initial_data_control = explicit_initial_data_control;
         header

@@ -368,32 +368,30 @@ impl SdHeader {
     /// # Arguments
     ///
     /// * `reboot` - Whether the reboot flag should be set
-    /// * `entries` - Vector of SD entries to include
-    /// * `options` - Vector of SD options to include
+    /// * `entries` - Iterable collection of SD entries to include
+    /// * `options` - Iterable collection of SD options to include
     ///
     /// # Returns
     ///
     /// Returns `Ok(SdHeader)` on success, or `Err(SdValueError)` if the serialized
     /// entries or options exceed the fixed-size buffer limits.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
-    /// use someip_parse::{SdHeader, SdEntry};
+    /// use someip_parse::{SdHeader, SdEntry, SdOption};
     ///
-    /// let entries = vec![
+    /// let entries = [
     ///     SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap()
     /// ];
-    /// let options = vec![];
-    ///
-    /// let header = SdHeader::new(false, entries, options).unwrap();
+    /// let header = SdHeader::new(false, &entries, &[]).unwrap();
     /// ```
     #[inline]
-    pub fn new(
-        reboot: bool,
-        entries: Vec<SdEntry>,
-        options: Vec<SdOption>,
-    ) -> Result<Self, SdValueError> {
+    pub fn new<'a, 'b, E, O>(reboot: bool, entries: E, options: O) -> Result<Self, SdValueError>
+    where
+        E: IntoIterator<Item = &'a SdEntry>,
+        O: IntoIterator<Item = &'b SdOption>,
+    {
         let mut header = Self {
             flags: SdHeaderFlags {
                 reboot,
@@ -436,6 +434,40 @@ impl SdHeader {
         header.options_len = options_pos;
 
         Ok(header)
+    }
+
+    /// Creates a new empty SOMEIP SD header with just flags set.
+    ///
+    /// This is a convenience method for creating headers without any entries or options.
+    ///
+    /// # Arguments
+    ///
+    /// * `reboot` - Whether the reboot flag should be set
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::SdHeader;
+    ///
+    /// let header = SdHeader::empty(false);
+    /// assert!(header.is_entries_empty());
+    /// assert!(header.is_options_empty());
+    /// assert_eq!(header.flags.reboot, false);
+    /// ```
+    #[inline]
+    pub fn empty(reboot: bool) -> Self {
+        Self {
+            flags: SdHeaderFlags {
+                reboot,
+                unicast: true,
+                explicit_initial_data_control: true,
+            },
+            entries_data: [0; 1392],
+            entries_len: 0,
+            options_data: [0; 1392],
+            options_len: 0,
+            discard_unknown_options: false,
+        }
     }
 
     /// Returns entries as a vector by parsing the serialized data.
@@ -1840,6 +1872,19 @@ mod tests_sd_header {
     }
 
     #[test]
+    fn new_into_iter_ref() {
+        let entries = vec![SdEntry::new_offer_service_entry(
+            0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000,
+        ).unwrap()];
+        let options = vec![SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+            ipv4_address: [0; 4],
+            transport_protocol: TransportProtocol::Udp,
+            port: 1234,
+        })];
+        assert!(SdHeader::new(true, &entries, &options).is_ok());
+    }
+
+    #[test]
     fn read() {
         // entries array length too large error
         for len in [sd_entries::MAX_ENTRIES_LEN + 1, u32::MAX] {
@@ -1939,6 +1984,69 @@ mod tests_sd_header {
         // Try to add one more - should fail
         let result = header.add_entry(service_entry);
         assert_matches!(result, Err(SdValueError::SdEntriesArrayTooLarge));
+    }
+
+    #[test]
+    fn new_with_different_iterator_types() {
+        // Test with Vec
+        let entries_vec =
+            vec![
+                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+                    .unwrap(),
+            ];
+        let options_vec: Vec<SdOption> = vec![];
+        let header1 = SdHeader::new(false, &entries_vec, &options_vec).unwrap();
+        assert_eq!(header1.entries_count(), 1);
+
+        // Test with arrays
+        let entries_array =
+            [
+                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x5678, 0x1234, 1, 7200, 0x02000000)
+                    .unwrap(),
+            ];
+        let options_array: [SdOption; 0] = [];
+        let header2 = SdHeader::new(true, &entries_array, &options_array).unwrap();
+        assert_eq!(header2.entries_count(), 1);
+        assert!(header2.flags.reboot);
+
+        // Test with iterators
+        {
+            let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0xABCD, 0xEF01, 1, 1800, 0x03000000)
+                .unwrap();
+            let entry_iter = std::iter::once(&entry);
+            let header3 = SdHeader::new(false, entry_iter, std::iter::empty()).unwrap();
+            assert_eq!(header3.entries_count(), 1);
+        }
+
+        // Test with slice
+        let entries_slice = &[
+            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x9876, 0x5432, 1, 900, 0x04000000)
+                .unwrap(),
+            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1111, 0x2222, 1, 1200, 0x05000000)
+                .unwrap(),
+        ];
+        let header4 =
+            SdHeader::new(false, entries_slice, std::iter::empty()).unwrap();
+        assert_eq!(header4.entries_count(), 2);
+
+        // Test with empty iterators
+        let header5 = SdHeader::new(false, std::iter::empty(), std::iter::empty()).unwrap();
+        assert_eq!(header5.entries_count(), 0);
+        assert!(header5.is_entries_empty());
+        assert!(header5.is_options_empty());
+    }
+
+    #[test]
+    fn empty_constructor() {
+        let header = SdHeader::empty(false);
+        assert!(header.is_entries_empty());
+        assert!(header.is_options_empty());
+        assert_eq!(header.flags.reboot, false);
+        assert_eq!(header.flags.unicast, true);
+        assert_eq!(header.flags.explicit_initial_data_control, true);
+
+        let header_reboot = SdHeader::empty(true);
+        assert_eq!(header_reboot.flags.reboot, true);
     }
 }
 

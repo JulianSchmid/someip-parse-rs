@@ -22,6 +22,12 @@ pub enum SdValueError {
     /// [`crate::sd::SdOption::UnknownDiscardable`] are only intended to be used
     /// in read and from_slice functions.
     SdUnknownDiscardableOption(u8),
+
+    /// The serialized entries array is too large for the fixed-size buffer.
+    SdEntriesArrayTooLarge,
+
+    /// The serialized options array is too large for the fixed-size buffer.
+    SdOptionsArrayTooLarge,
 }
 
 #[cfg(test)]

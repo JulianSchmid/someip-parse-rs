@@ -297,30 +297,403 @@ impl SdHeaderFlags {
 }
 
 /// SOMEIP service discovery header
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+///
+/// This implementation uses fixed-size arrays instead of `Vec` to avoid allocations.
+/// The maximum size is based on the SOMEIP UDP payload limit of 1400 bytes minus
+/// the SOMEIP header size of 8 bytes, giving us 1392 bytes for each array.
+///
+/// # Example
+///
+/// ```
+/// use someip_parse::{SdHeader, SdEntry, SdOption, SdServiceEntryType, TransportProtocol};
+/// use someip_parse::sd_options::Ipv4EndpointOption;
+///
+/// // Create a new header
+/// let mut header = SdHeader::default();
+///
+/// // Add a service entry
+/// let service_entry = SdEntry::new_offer_service_entry(
+///     0, 0, 0, 0,      // option indices and counts
+///     0x1234,          // service ID
+///     0x5678,          // instance ID
+///     1,               // major version
+///     3600,            // TTL
+///     0x01000000       // minor version
+/// ).unwrap();
+///
+/// header.add_entry(service_entry).unwrap();
+///
+/// // Add an IPv4 endpoint option
+/// let endpoint = Ipv4EndpointOption {
+///     ipv4_address: [192, 168, 1, 1],
+///     transport_protocol: TransportProtocol::Tcp,
+///     port: 8080,
+/// };
+/// header.add_option(endpoint.into()).unwrap();
+///
+/// // The header can now be serialized without any allocations
+/// let bytes = header.to_bytes_vec().unwrap();
+/// ```
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdHeader {
     pub flags: SdHeaderFlags,
     // reserved: [u8;3],
     // Length of entries array in bytes
     // length_of_entries: u32,
-    pub entries: Vec<SdEntry>,
+    entries_data: [u8; 1392], // 1400 - 8 (someip header)
+    entries_len: usize,
     // Length of entries array in bytes
     // length_of_options: u32,
-    pub options: Vec<SdOption>,
+    options_data: [u8; 1392], // 1400 - 8 (someip header)
+    options_len: usize,
+    discard_unknown_options: bool,
+}
+
+impl Default for SdHeader {
+    fn default() -> Self {
+        Self {
+            flags: SdHeaderFlags::default(),
+            entries_data: [0; 1392],
+            entries_len: 0,
+            options_data: [0; 1392],
+            options_len: 0,
+            discard_unknown_options: false,
+        }
+    }
 }
 
 impl SdHeader {
+    /// Creates a new SOMEIP SD header with the given entries and options.
+    ///
+    /// # Arguments
+    ///
+    /// * `reboot` - Whether the reboot flag should be set
+    /// * `entries` - Vector of SD entries to include
+    /// * `options` - Vector of SD options to include
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(SdHeader)` on success, or `Err(SdValueError)` if the serialized
+    /// entries or options exceed the fixed-size buffer limits.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdEntry};
+    ///
+    /// let entries = vec![
+    ///     SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap()
+    /// ];
+    /// let options = vec![];
+    ///
+    /// let header = SdHeader::new(false, entries, options).unwrap();
+    /// ```
     #[inline]
-    pub fn new(reboot: bool, entries: Vec<SdEntry>, options: Vec<SdOption>) -> Self {
-        Self {
+    pub fn new(
+        reboot: bool,
+        entries: Vec<SdEntry>,
+        options: Vec<SdOption>,
+    ) -> Result<Self, SdValueError> {
+        let mut header = Self {
             flags: SdHeaderFlags {
                 reboot,
                 unicast: true,
                 explicit_initial_data_control: true,
             },
-            entries,
-            options,
+            entries_data: [0; 1392],
+            entries_len: 0,
+            options_data: [0; 1392],
+            options_len: 0,
+            discard_unknown_options: false,
+        };
+
+        // Serialize entries
+        let mut entries_pos = 0;
+        for entry in entries {
+            let entry_bytes = entry.to_bytes();
+            if entries_pos + entry_bytes.len() > header.entries_data.len() {
+                return Err(SdValueError::SdEntriesArrayTooLarge);
+            }
+            header.entries_data[entries_pos..entries_pos + entry_bytes.len()]
+                .copy_from_slice(&entry_bytes);
+            entries_pos += entry_bytes.len();
         }
+        header.entries_len = entries_pos;
+
+        // Serialize options
+        let mut options_pos = 0;
+        let mut temp_vec = Vec::new();
+        for option in options {
+            temp_vec.clear();
+            option.append_bytes_to_vec(&mut temp_vec)?;
+            if options_pos + temp_vec.len() > header.options_data.len() {
+                return Err(SdValueError::SdOptionsArrayTooLarge);
+            }
+            header.options_data[options_pos..options_pos + temp_vec.len()]
+                .copy_from_slice(&temp_vec);
+            options_pos += temp_vec.len();
+        }
+        header.options_len = options_pos;
+
+        Ok(header)
+    }
+
+    /// Returns entries as a vector by parsing the serialized data.
+    ///
+    /// This method deserializes the entries from the internal fixed-size buffer
+    /// and returns them as a `Vec<SdEntry>`. The parsing is done on-demand,
+    /// so there's no memory overhead when entries are not accessed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdEntry};
+    ///
+    /// let mut header = SdHeader::default();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// header.add_entry(entry.clone()).unwrap();
+    ///
+    /// let entries = header.entries().unwrap();
+    /// assert_eq!(entries.len(), 1);
+    /// assert_eq!(entries[0], entry);
+    /// ```
+    pub fn entries(&self) -> Result<Vec<SdEntry>, SdReadError> {
+        let mut entries = Vec::new();
+        let mut pos = 0;
+
+        while pos + sd_entries::ENTRY_LEN <= self.entries_len {
+            let mut entry_bytes = [0; sd_entries::ENTRY_LEN];
+            entry_bytes.copy_from_slice(&self.entries_data[pos..pos + sd_entries::ENTRY_LEN]);
+
+            let _type_raw = entry_bytes[0];
+            let entry = match _type_raw {
+                0x00 => SdEntry::read_service(SdServiceEntryType::FindService, entry_bytes)?,
+                0x01 => SdEntry::read_service(SdServiceEntryType::OfferService, entry_bytes)?,
+                0x06 => SdEntry::read_entry_group(SdEventGroupEntryType::Subscribe, entry_bytes)?,
+                0x07 => {
+                    SdEntry::read_entry_group(SdEventGroupEntryType::SubscribeAck, entry_bytes)?
+                }
+                _ => return Err(SdReadError::UnknownSdServiceEntryType(_type_raw)),
+            };
+
+            entries.push(entry);
+            pos += sd_entries::ENTRY_LEN;
+        }
+
+        Ok(entries)
+    }
+
+    /// Returns options as a vector by parsing the serialized data.
+    ///
+    /// This method deserializes the options from the internal fixed-size buffer
+    /// and returns them as a `Vec<SdOption>`. The parsing is done on-demand,
+    /// so there's no memory overhead when options are not accessed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdOption, TransportProtocol};
+    /// use someip_parse::sd_options::Ipv4EndpointOption;
+    ///
+    /// let mut header = SdHeader::default();
+    /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+    ///     ipv4_address: [192, 168, 1, 1],
+    ///     transport_protocol: TransportProtocol::Tcp,
+    ///     port: 8080,
+    /// });
+    /// header.add_option(option.clone()).unwrap();
+    ///
+    /// let options = header.options().unwrap();
+    /// assert_eq!(options.len(), 1);
+    /// assert_eq!(options[0], option);
+    /// ```
+    pub fn options(&self) -> Result<Vec<SdOption>, SdReadError> {
+        let mut options = Vec::new();
+        let mut pos = 0;
+
+        while pos < self.options_len {
+            let mut cursor = std::io::Cursor::new(&self.options_data[pos..self.options_len]);
+            let (read_bytes, option) =
+                SdOption::read_with_flag(&mut cursor, self.discard_unknown_options)?;
+            options.push(option);
+            pos += read_bytes as usize;
+        }
+
+        Ok(options)
+    }
+
+    /// Adds an entry to the header.
+    ///
+    /// The entry is immediately serialized and stored in the internal buffer.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The SD entry to add
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on success, or `Err(SdValueError::SdEntriesArrayTooLarge)`
+    /// if adding this entry would exceed the fixed-size buffer limit.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdEntry};
+    ///
+    /// let mut header = SdHeader::default();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    ///
+    /// header.add_entry(entry).unwrap();
+    /// assert_eq!(header.entries_count(), 1);
+    /// ```
+    pub fn add_entry(&mut self, entry: SdEntry) -> Result<(), SdValueError> {
+        let entry_bytes = entry.to_bytes();
+        if self.entries_len + entry_bytes.len() > self.entries_data.len() {
+            return Err(SdValueError::SdEntriesArrayTooLarge);
+        }
+
+        self.entries_data[self.entries_len..self.entries_len + entry_bytes.len()]
+            .copy_from_slice(&entry_bytes);
+        self.entries_len += entry_bytes.len();
+        Ok(())
+    }
+
+    /// Adds an option to the header.
+    ///
+    /// The option is immediately serialized and stored in the internal buffer.
+    ///
+    /// # Arguments
+    ///
+    /// * `option` - The SD option to add
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on success, or `Err(SdValueError::SdOptionsArrayTooLarge)`
+    /// if adding this option would exceed the fixed-size buffer limit.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdOption, TransportProtocol};
+    /// use someip_parse::sd_options::Ipv4EndpointOption;
+    ///
+    /// let mut header = SdHeader::default();
+    /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+    ///     ipv4_address: [192, 168, 1, 1],
+    ///     transport_protocol: TransportProtocol::Tcp,
+    ///     port: 8080,
+    /// });
+    ///
+    /// header.add_option(option).unwrap();
+    /// ```
+    pub fn add_option(&mut self, option: SdOption) -> Result<(), SdValueError> {
+        let mut temp_vec = Vec::new();
+        option.append_bytes_to_vec(&mut temp_vec)?;
+
+        if self.options_len + temp_vec.len() > self.options_data.len() {
+            return Err(SdValueError::SdOptionsArrayTooLarge);
+        }
+
+        self.options_data[self.options_len..self.options_len + temp_vec.len()]
+            .copy_from_slice(&temp_vec);
+        self.options_len += temp_vec.len();
+        Ok(())
+    }
+
+    /// Clears all entries from the header.
+    ///
+    /// This resets the entries length to 0 but does not zero out the buffer data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdEntry};
+    ///
+    /// let mut header = SdHeader::default();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// header.add_entry(entry).unwrap();
+    ///
+    /// assert!(!header.is_entries_empty());
+    /// header.clear_entries();
+    /// assert!(header.is_entries_empty());
+    /// ```
+    pub fn clear_entries(&mut self) {
+        self.entries_len = 0;
+    }
+
+    /// Clears all options from the header.
+    ///
+    /// This resets the options length to 0 but does not zero out the buffer data.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdOption, TransportProtocol};
+    /// use someip_parse::sd_options::Ipv4EndpointOption;
+    ///
+    /// let mut header = SdHeader::default();
+    /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+    ///     ipv4_address: [192, 168, 1, 1],
+    ///     transport_protocol: TransportProtocol::Tcp,
+    ///     port: 8080,
+    /// });
+    /// header.add_option(option).unwrap();
+    ///
+    /// assert!(!header.is_options_empty());
+    /// header.clear_options();
+    /// assert!(header.is_options_empty());
+    /// ```
+    pub fn clear_options(&mut self) {
+        self.options_len = 0;
+    }
+
+    /// Returns the number of entries in the header.
+    ///
+    /// Since each entry has a fixed size of 16 bytes, this is calculated
+    /// by dividing the entries buffer length by the entry size.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::{SdHeader, SdEntry};
+    ///
+    /// let mut header = SdHeader::default();
+    /// assert_eq!(header.entries_count(), 0);
+    ///
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// header.add_entry(entry).unwrap();
+    /// assert_eq!(header.entries_count(), 1);
+    /// ```
+    pub fn entries_count(&self) -> usize {
+        self.entries_len / sd_entries::ENTRY_LEN
+    }
+
+    /// Returns true if there are no entries in the header.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::SdHeader;
+    ///
+    /// let header = SdHeader::default();
+    /// assert!(header.is_entries_empty());
+    /// ```
+    pub fn is_entries_empty(&self) -> bool {
+        self.entries_len == 0
+    }
+
+    /// Returns true if there are no options in the header.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::SdHeader;
+    ///
+    /// let header = SdHeader::default();
+    /// assert!(header.is_options_empty());
+    /// ```
+    pub fn is_options_empty(&self) -> bool {
+        self.options_len == 0
     }
 
     #[inline]
@@ -339,7 +712,7 @@ impl SdHeader {
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
 
-        let num_entries = {
+        let entries_length = {
             let length_entries = u32::from_be_bytes([
                 header_bytes[4],
                 header_bytes[5],
@@ -351,40 +724,39 @@ impl SdHeader {
                 return Err(SdReadError::SdEntriesArrayLengthTooLarge(length_entries));
             }
 
-            // Note this function only supports 32 & 64 bit systems.
-            // `read` has been disabled for 16 bit systems to
-            // make this explicit.
-            (length_entries as usize) / ENTRY_LEN
+            length_entries as usize
         };
-        let entries = {
-            let mut entries = Vec::new();
-            entries.try_reserve(num_entries)?;
-            for _ in 0..num_entries {
-                entries.push(SdEntry::read(reader)?);
+
+        let mut entries_data = [0; 1392];
+        if entries_length > 0 {
+            if entries_length > entries_data.len() {
+                return Err(SdReadError::SdEntriesArrayLengthTooLarge(
+                    entries_length as u32,
+                ));
             }
-            entries
-        };
-
-        let mut options_length = {
-            let mut options_length_bytes: [u8; 4] = [0x00; 4];
-            reader.read_exact(&mut options_length_bytes)?;
-            u32::from_be_bytes(options_length_bytes)
-        };
-
-        if options_length > MAX_OPTIONS_LEN {
-            return Err(SdReadError::SdOptionsArrayLengthTooLarge(options_length));
+            reader.read_exact(&mut entries_data[..entries_length])?;
         }
 
-        let mut options = Vec::new();
-        // pessimistically reserve memory so if we trigger an
-        // allocation failure we trigger it here.
-        // (minimum size of an option is 4 bytes)
-        options.try_reserve((options_length as usize) / 4)?;
+        let options_length = {
+            let mut options_length_bytes: [u8; 4] = [0x00; 4];
+            reader.read_exact(&mut options_length_bytes)?;
+            let len = u32::from_be_bytes(options_length_bytes);
 
-        while options_length > 0 {
-            let (read_bytes, option) = SdOption::read_with_flag(reader, discard_unknown_option)?;
-            options.push(option);
-            options_length -= read_bytes as u32;
+            if len > MAX_OPTIONS_LEN {
+                return Err(SdReadError::SdOptionsArrayLengthTooLarge(len));
+            }
+
+            len as usize
+        };
+
+        let mut options_data = [0; 1392];
+        if options_length > 0 {
+            if options_length > options_data.len() {
+                return Err(SdReadError::SdOptionsArrayLengthTooLarge(
+                    options_length as u32,
+                ));
+            }
+            reader.read_exact(&mut options_data[..options_length])?;
         }
 
         //return result
@@ -396,8 +768,11 @@ impl SdHeader {
                 explicit_initial_data_control: 0
                     != header_bytes[0] & EXPLICIT_INITIAL_DATA_CONTROL_FLAG,
             },
-            entries,
-            options,
+            entries_data,
+            entries_len: entries_length,
+            options_data,
+            options_len: options_length,
+            discard_unknown_options: discard_unknown_option,
         })
     }
 
@@ -428,35 +803,26 @@ impl SdHeader {
     #[inline]
     pub fn header_len(&self) -> usize {
         // 4*3 (flags, entries len & options len)
-        let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
-        4 * 3 + self.entries.len() * ENTRY_LEN + options_len
+        4 * 3 + self.entries_len + self.options_len
     }
 
     /// Writes the header to a slice without checking the slice length.
     #[inline]
     pub fn to_bytes_vec(&self) -> Result<Vec<u8>, SdValueError> {
-        // calculate memory usage
-        let entries_len = self.entries.len() * ENTRY_LEN;
-        let options_len: usize = self.options.iter().map(|o| o.header_len()).sum();
-
         // pre-allocate the resulting buffer (4*3 for flags, entries len & options len)
-        let mut bytes = Vec::with_capacity(4 * 3 + entries_len + options_len);
+        let mut bytes = Vec::with_capacity(4 * 3 + self.entries_len + self.options_len);
 
         // flags & reserved
         bytes.extend_from_slice(&self.flags.to_bytes());
         // entries len
-        bytes.extend_from_slice(&(entries_len as u32).to_be_bytes());
+        bytes.extend_from_slice(&(self.entries_len as u32).to_be_bytes());
 
         // entries
-        for e in &self.entries {
-            bytes.extend_from_slice(&e.to_bytes());
-        }
+        bytes.extend_from_slice(&self.entries_data[..self.entries_len]);
 
         // options len
-        bytes.extend_from_slice(&(options_len as u32).to_be_bytes());
-        for o in &self.options {
-            o.append_bytes_to_vec(&mut bytes)?;
-        }
+        bytes.extend_from_slice(&(self.options_len as u32).to_be_bytes());
+        bytes.extend_from_slice(&self.options_data[..self.options_len]);
 
         Ok(bytes)
     }
@@ -1503,6 +1869,76 @@ mod tests_sd_header {
                 Err(SdReadError::SdOptionsArrayLengthTooLarge(_))
             );
         }
+    }
+
+    #[test]
+    fn new_api_methods() {
+        // Test default header creation
+        let mut header = SdHeader::default();
+        assert!(header.is_entries_empty());
+        assert!(header.is_options_empty());
+        assert_eq!(header.entries_count(), 0);
+
+        // Test adding entries
+        let service_entry =
+            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+                .unwrap();
+
+        header.add_entry(service_entry.clone()).unwrap();
+        assert_eq!(header.entries_count(), 1);
+        assert!(!header.is_entries_empty());
+
+        let entries = header.entries().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0], service_entry);
+
+        // Test adding options
+        use sd_options::*;
+        let ipv4_option = Ipv4EndpointOption {
+            ipv4_address: [192, 168, 1, 1],
+            transport_protocol: TransportProtocol::Tcp,
+            port: 8080,
+        };
+        let sd_option = SdOption::Ipv4Endpoint(ipv4_option.clone());
+
+        header.add_option(sd_option.clone()).unwrap();
+        assert!(!header.is_options_empty());
+
+        let options = header.options().unwrap();
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0], sd_option);
+
+        // Test clearing
+        header.clear_entries();
+        assert!(header.is_entries_empty());
+        assert_eq!(header.entries_count(), 0);
+
+        header.clear_options();
+        assert!(header.is_options_empty());
+
+        // Test that the cleared header produces empty vectors
+        assert_eq!(header.entries().unwrap().len(), 0);
+        assert_eq!(header.options().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn array_size_limits() {
+        let mut header = SdHeader::default();
+
+        // Try to add too many entries (each entry is 16 bytes)
+        let max_entries = 1392 / 16; // 87 entries max
+        let service_entry =
+            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+                .unwrap();
+
+        // Add maximum entries
+        for _ in 0..max_entries {
+            header.add_entry(service_entry.clone()).unwrap();
+        }
+
+        // Try to add one more - should fail
+        let result = header.add_entry(service_entry);
+        assert_matches!(result, Err(SdValueError::SdEntriesArrayTooLarge));
     }
 }
 

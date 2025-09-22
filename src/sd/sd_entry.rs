@@ -1,4 +1,4 @@
-use crate::sd::*;
+use crate::sd::{entries::*, *};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SdEntry {
@@ -6,7 +6,7 @@ pub enum SdEntry {
     Service(ServiceEntry),
 
     /// SOMEIP service discovery entry for an eventgroup.
-    Eventgroup(EventgroupEntry),
+    Eventgroup(EventGroupEntry),
 }
 
 impl From<ServiceEntry> for SdEntry {
@@ -16,9 +16,9 @@ impl From<ServiceEntry> for SdEntry {
     }
 }
 
-impl From<EventgroupEntry> for SdEntry {
+impl From<EventGroupEntry> for SdEntry {
     #[inline]
-    fn from(o: EventgroupEntry) -> Self {
+    fn from(o: EventGroupEntry) -> Self {
         SdEntry::Eventgroup(o)
     }
 }
@@ -26,7 +26,7 @@ impl From<EventgroupEntry> for SdEntry {
 impl SdEntry {
     #[allow(clippy::too_many_arguments)]
     pub fn new_service_entry(
-        _type: SdServiceEntryType,
+        entry_type: SdServiceEntryType,
         index_first_option_run: u8,
         index_second_option_run: u8,
         number_of_options_1: u8,
@@ -45,7 +45,7 @@ impl SdEntry {
             Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Service(ServiceEntry {
-                _type,
+                _type: entry_type,
                 index_first_option_run,
                 index_second_option_run,
                 number_of_options_1,
@@ -160,7 +160,7 @@ impl SdEntry {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new_eventgroup(
-        _type: SdEventGroupEntryType,
+        _type: EventGroupEntryType,
         index_first_option_run: u8,
         index_second_option_run: u8,
         number_of_options_1: u8,
@@ -182,8 +182,8 @@ impl SdEntry {
         } else if number_of_options_2 > 0x0F {
             Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
-            Ok(Self::Eventgroup(EventgroupEntry {
-                _type,
+            Ok(Self::Eventgroup(EventGroupEntry {
+                entry_type: _type,
                 index_first_option_run,
                 index_second_option_run,
                 number_of_options_1,
@@ -201,15 +201,15 @@ impl SdEntry {
 
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
-        let mut entry_bytes: [u8; sd_entries::ENTRY_LEN] = [0; sd_entries::ENTRY_LEN];
+        let mut entry_bytes: [u8; ENTRY_LEN] = [0; ENTRY_LEN];
         reader.read_exact(&mut entry_bytes)?;
 
         let _type_raw = entry_bytes[0];
         match _type_raw {
             0x00 => Self::read_service(SdServiceEntryType::FindService, entry_bytes),
             0x01 => Self::read_service(SdServiceEntryType::OfferService, entry_bytes),
-            0x06 => Self::read_entry_group(SdEventGroupEntryType::Subscribe, entry_bytes),
-            0x07 => Self::read_entry_group(SdEventGroupEntryType::SubscribeAck, entry_bytes),
+            0x06 => Self::read_entry_group(EventGroupEntryType::Subscribe, entry_bytes),
+            0x07 => Self::read_entry_group(EventGroupEntryType::SubscribeAck, entry_bytes),
             _ => Err(SdReadError::UnknownSdServiceEntryType(_type_raw)),
         }
     }
@@ -218,7 +218,7 @@ impl SdEntry {
     #[inline]
     pub fn read_service(
         _type: SdServiceEntryType,
-        entry_bytes: [u8; sd_entries::ENTRY_LEN],
+        entry_bytes: [u8; ENTRY_LEN],
     ) -> Result<Self, SdReadError> {
         //return result
         Ok(Self::Service(ServiceEntry {
@@ -243,11 +243,11 @@ impl SdEntry {
     /// Read an entry group from byte array.
     #[inline]
     pub fn read_entry_group(
-        _type: SdEventGroupEntryType,
-        entry_bytes: [u8; sd_entries::ENTRY_LEN],
+        _type: EventGroupEntryType,
+        entry_bytes: [u8; ENTRY_LEN],
     ) -> Result<Self, SdReadError> {
-        Ok(Self::Eventgroup(EventgroupEntry {
-            _type,
+        Ok(Self::Eventgroup(EventGroupEntry {
+            entry_type: _type,
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
             number_of_options_1: entry_bytes[3] >> 4,
@@ -273,12 +273,12 @@ impl SdEntry {
 
     ///Writes the eventgroup entry to a slice without checking the slice length.
     #[inline]
-    pub fn to_bytes(&self) -> [u8; sd_entries::ENTRY_LEN] {
+    pub fn to_bytes(&self) -> [u8; ENTRY_LEN] {
         match self {
             SdEntry::Eventgroup(e) => {
-                let mut result = [0x00; sd_entries::ENTRY_LEN];
+                let mut result = [0x00; ENTRY_LEN];
 
-                result[0] = e._type.clone() as u8;
+                result[0] = e.entry_type.clone() as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
                 result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);
@@ -311,7 +311,7 @@ impl SdEntry {
                 result
             }
             SdEntry::Service(e) => {
-                let mut result = [0x00; sd_entries::ENTRY_LEN];
+                let mut result = [0x00; ENTRY_LEN];
 
                 result[0] = e._type.clone() as u8;
                 result[1] = e.index_first_option_run;
@@ -370,5 +370,89 @@ mod tests {
             let result = SdEntry::read(&mut cursor).unwrap();
             assert_eq!(service_entry, result);
         }
+    }
+
+    #[test]
+    fn service_entry_read_unknown_service_entry_type() {
+        use assert_matches::*;
+
+        let mut buffer = [0x00; ENTRY_LEN];
+        buffer[0] = 0xFF; // Unknown Type
+        let mut cursor = std::io::Cursor::new(buffer);
+        let result = SdEntry::read(&mut cursor);
+        assert_matches!(result, Err(SdReadError::UnknownSdServiceEntryType(0xFF)));
+    }
+
+    #[test]
+    fn new_service_entry_ttl_too_large() {
+        use assert_matches::*;
+
+        let result = SdEntry::new_service_entry(
+            SdServiceEntryType::OfferService,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0xFFFF_FFFF,
+            0,
+        );
+        assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
+    }
+
+    #[test]
+    fn new_service_entry_number_option1_too_large() {
+        use assert_matches::*;
+
+        let result = SdEntry::new_service_entry(
+            SdServiceEntryType::OfferService,
+            0,
+            0,
+            0xFF,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        );
+        assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0xFF)));
+    }
+
+    #[test]
+    fn new_service_entry_number_option2_too_large() {
+        use assert_matches::*;
+
+        let result = SdEntry::new_service_entry(
+            SdServiceEntryType::OfferService,
+            0,
+            0,
+            0,
+            0xFF,
+            0,
+            0,
+            0,
+            0,
+            0,
+        );
+        assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0xFF)));
+    }
+
+    #[test]
+    fn new_service_find_service_entry_zero_ttl() {
+        use assert_matches::*;
+
+        let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+    }
+
+    #[test]
+    fn new_service_offer_service_entry_zero_ttl() {
+        use assert_matches::*;
+
+        let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
     }
 }

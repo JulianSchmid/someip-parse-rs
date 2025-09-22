@@ -22,6 +22,9 @@ pub use ipv6_sd_endpoint_option::*;
 mod load_balancing_option;
 pub use load_balancing_option::*;
 
+mod transport_protocol;
+pub use transport_protocol::*;
+
 mod unknown_discardable_option;
 pub use unknown_discardable_option::*;
 

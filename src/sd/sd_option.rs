@@ -1,4 +1,4 @@
-use crate::sd::{*, options::*};
+use crate::sd::{options::*, *};
 use arrayvec::ArrayVec;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -614,47 +614,67 @@ impl SdOption {
                 buffer.try_extend_from_slice(&length_bytes).unwrap();
                 buffer.push(CONFIGURATION_TYPE);
                 buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
-                buffer.try_extend_from_slice(&o.configuration_string).unwrap();
+                buffer
+                    .try_extend_from_slice(&o.configuration_string)
+                    .unwrap();
             }
             LoadBalancing(o) => {
-                buffer.try_extend_from_slice(&LOAD_BALANCING_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&LOAD_BALANCING_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(LOAD_BALANCING_TYPE);
                 buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
-                buffer.try_extend_from_slice(&o.priority.to_be_bytes()).unwrap();
-                buffer.try_extend_from_slice(&o.weight.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&o.priority.to_be_bytes())
+                    .unwrap();
+                buffer
+                    .try_extend_from_slice(&o.weight.to_be_bytes())
+                    .unwrap();
             }
             Ipv4Endpoint(o) => {
-                buffer.try_extend_from_slice(&IPV4_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&IPV4_ENDPOINT_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(IPV4_ENDPOINT_TYPE);
                 buffer.push(0x00u8); // Reserved byte
                 append_ip4(&mut buffer, o.ipv4_address, o.transport_protocol, o.port);
             }
             Ipv6Endpoint(o) => {
-                buffer.try_extend_from_slice(&IPV6_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&IPV6_ENDPOINT_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(IPV6_ENDPOINT_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip6(&mut buffer, o.ipv6_address, o.transport_protocol, o.port);
             }
             Ipv4Multicast(o) => {
-                buffer.try_extend_from_slice(&IPV4_MULTICAST_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&IPV4_MULTICAST_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(IPV4_MULTICAST_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip4(&mut buffer, o.ipv4_address, o.transport_protocol, o.port);
             }
             Ipv6Multicast(o) => {
-                buffer.try_extend_from_slice(&IPV6_MULTICAST_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&IPV6_MULTICAST_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(IPV6_MULTICAST_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip6(&mut buffer, o.ipv6_address, o.transport_protocol, o.port);
             }
             Ipv4SdEndpoint(o) => {
-                buffer.try_extend_from_slice(&IPV4_SD_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&IPV4_SD_ENDPOINT_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(IPV4_SD_ENDPOINT_TYPE);
                 buffer.push(0x00u8); // Reserved byte
                 append_ip4(&mut buffer, o.ipv4_address, o.transport_protocol, o.port);
             }
             Ipv6SdEndpoint(o) => {
-                buffer.try_extend_from_slice(&IPV6_SD_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer
+                    .try_extend_from_slice(&IPV6_SD_ENDPOINT_LEN.to_be_bytes())
+                    .unwrap();
                 buffer.push(IPV6_SD_ENDPOINT_TYPE); // Type
                 buffer.push(0x00u8); // Reserved byte
                 append_ip6(&mut buffer, o.ipv6_address, o.transport_protocol, o.port);

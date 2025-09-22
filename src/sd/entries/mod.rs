@@ -1,4 +1,14 @@
-use super::{SdEventGroupEntryType, SdServiceEntryType};
+mod event_group_entry;
+pub use event_group_entry::*;
+
+mod event_group_entry_type;
+pub use event_group_entry_type::*;
+
+mod service_entry;
+pub use service_entry::*;
+
+mod service_entry_type;
+pub use service_entry_type::*;
 
 /// Maximum entry length that is supported by the read & from slice functions.
 ///
@@ -31,43 +41,8 @@ pub const MAX_ENTRIES_LEN: u32 = crate::SOMEIP_MAX_PAYLOAD_LEN_UDP - 4 - 4 - 4;
 ///
 /// See [`crate::sd::MAX_ENTRIES_LEN`] for details on how this value was
 /// calculcated.
-pub const MAX_ENTRIES_LEN_USIZE: usize = crate::sd::MAX_ENTRIES_LEN as usize;
+pub const MAX_ENTRIES_LEN_USIZE: usize = MAX_ENTRIES_LEN as usize;
 
 /// Length of an sd entry (note that all entry types currently have
 /// the same length).
 pub const ENTRY_LEN: usize = 16;
-
-/// SOMEIP service discovery entry for a service.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ServiceEntry {
-    pub _type: SdServiceEntryType,
-    pub index_first_option_run: u8,
-    pub index_second_option_run: u8,
-    pub number_of_options_1: u8,
-    pub number_of_options_2: u8,
-    pub service_id: u16,
-    pub instance_id: u16,
-    pub major_version: u8,
-    pub ttl: u32,
-    pub minor_version: u32,
-}
-
-/// SOMEIP service discovery entry for an eventgroup.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EventgroupEntry {
-    pub _type: SdEventGroupEntryType,
-    pub index_first_option_run: u8,
-    pub index_second_option_run: u8,
-    pub number_of_options_1: u8,
-    pub number_of_options_2: u8,
-    pub service_id: u16,
-    pub instance_id: u16,
-    pub major_version: u8,
-    pub ttl: u32,
-    /// True if initial data shall be sent by server
-    pub initial_data_requested: bool,
-    /// distinguish identical subscribe eventgroups of the same subscriber
-    /// 4 bit
-    pub counter: u8,
-    pub eventgroup_id: u16,
-}

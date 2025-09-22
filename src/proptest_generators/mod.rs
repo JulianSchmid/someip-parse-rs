@@ -88,10 +88,11 @@ prop_compose! {
     }
 }
 
-fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = sd::SdEventGroupEntryType> {
+fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = sd::entries::EventGroupEntryType>
+{
     prop_oneof![
-        Just(sd::SdEventGroupEntryType::Subscribe),
-        Just(sd::SdEventGroupEntryType::SubscribeAck),
+        Just(sd::entries::EventGroupEntryType::Subscribe),
+        Just(sd::entries::EventGroupEntryType::SubscribeAck),
     ]
 }
 
@@ -129,10 +130,10 @@ prop_compose! {
     }
 }
 
-fn someip_sd_service_entry_type_any() -> impl Strategy<Value = sd::SdServiceEntryType> {
+fn someip_sd_service_entry_type_any() -> impl Strategy<Value = sd::entries::SdServiceEntryType> {
     prop_oneof![
-        Just(sd::SdServiceEntryType::FindService),
-        Just(sd::SdServiceEntryType::OfferService),
+        Just(sd::entries::SdServiceEntryType::FindService),
+        Just(sd::entries::SdServiceEntryType::OfferService),
     ]
 }
 
@@ -177,16 +178,16 @@ prop_compose! {
     pub fn someip_sd_transport_protocol_generic_any()(
             generic in 0x12..u8::MAX, // 0x12 skips tcp and udp
         )
-    -> sd::TransportProtocol
+    -> sd::options::TransportProtocol
     {
-        sd::TransportProtocol::Generic(generic)
+        sd::options::TransportProtocol::Generic(generic)
     }
 }
 
-pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = sd::TransportProtocol> {
+pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = sd::options::TransportProtocol> {
     prop_oneof![
-        Just(sd::TransportProtocol::Tcp),
-        Just(sd::TransportProtocol::Udp),
+        Just(sd::options::TransportProtocol::Tcp),
+        Just(sd::options::TransportProtocol::Udp),
         someip_sd_transport_protocol_generic_any(),
     ]
 }

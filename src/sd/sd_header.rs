@@ -1,4 +1,4 @@
-use crate::sd::{*, options::*};
+use crate::sd::{entries::*, options::*, *};
 
 /// SOMEIP service discovery header
 ///
@@ -194,23 +194,21 @@ impl SdHeader {
         let mut entries = Vec::new();
         let mut pos = 0;
 
-        while pos + sd_entries::ENTRY_LEN <= self.entries_len {
-            let mut entry_bytes = [0; sd_entries::ENTRY_LEN];
-            entry_bytes.copy_from_slice(&self.entries_data[pos..pos + sd_entries::ENTRY_LEN]);
+        while pos + ENTRY_LEN <= self.entries_len {
+            let mut entry_bytes = [0; ENTRY_LEN];
+            entry_bytes.copy_from_slice(&self.entries_data[pos..pos + ENTRY_LEN]);
 
             let _type_raw = entry_bytes[0];
             let entry = match _type_raw {
                 0x00 => SdEntry::read_service(SdServiceEntryType::FindService, entry_bytes)?,
                 0x01 => SdEntry::read_service(SdServiceEntryType::OfferService, entry_bytes)?,
-                0x06 => SdEntry::read_entry_group(SdEventGroupEntryType::Subscribe, entry_bytes)?,
-                0x07 => {
-                    SdEntry::read_entry_group(SdEventGroupEntryType::SubscribeAck, entry_bytes)?
-                }
+                0x06 => SdEntry::read_entry_group(EventGroupEntryType::Subscribe, entry_bytes)?,
+                0x07 => SdEntry::read_entry_group(EventGroupEntryType::SubscribeAck, entry_bytes)?,
                 _ => return Err(SdReadError::UnknownSdServiceEntryType(_type_raw)),
             };
 
             entries.push(entry);
-            pos += sd_entries::ENTRY_LEN;
+            pos += ENTRY_LEN;
         }
 
         Ok(entries)
@@ -395,7 +393,7 @@ impl SdHeader {
     /// assert_eq!(header.entries_count(), 1);
     /// ```
     pub fn entries_count(&self) -> usize {
-        self.entries_len / sd_entries::ENTRY_LEN
+        self.entries_len / ENTRY_LEN
     }
 
     /// Returns true if there are no entries in the header.
@@ -611,7 +609,7 @@ mod tests {
     #[test]
     fn read() {
         // entries array length too large error
-        for len in [sd_entries::MAX_ENTRIES_LEN + 1, u32::MAX] {
+        for len in [MAX_ENTRIES_LEN + 1, u32::MAX] {
             let len_be = len.to_be_bytes();
             let buffer = [
                 0, 0, 0, 0, // flags

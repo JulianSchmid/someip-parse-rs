@@ -195,8 +195,8 @@ prop_compose! {
     pub fn someip_sd_option_configuration_any()(
         discardable in any::<bool>(),
         configuration_string in any::<Vec<u8>>(),
-    ) -> sd::ConfigurationOption {
-        sd::ConfigurationOption {
+    ) -> sd::options::ConfigurationOption {
+        sd::options::ConfigurationOption {
             discardable,
             configuration_string
         }
@@ -208,8 +208,8 @@ prop_compose! {
         discardable in any::<bool>(),
         priority in any::<u16>(),
         weight in any::<u16>(),
-    ) -> sd::LoadBalancingOption {
-        sd::LoadBalancingOption { discardable, priority, weight }
+    ) -> sd::options::LoadBalancingOption {
+        sd::options::LoadBalancingOption { discardable, priority, weight }
     }
 }
 
@@ -219,9 +219,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd::Ipv4EndpointOption
+    -> sd::options::Ipv4EndpointOption
     {
-        sd::Ipv4EndpointOption {
+        sd::options::Ipv4EndpointOption {
             ipv4_address,
             transport_protocol,
             port
@@ -235,9 +235,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd::Ipv6EndpointOption
+    -> sd::options::Ipv6EndpointOption
     {
-        sd::Ipv6EndpointOption {
+        sd::options::Ipv6EndpointOption {
             ipv6_address,
             transport_protocol,
             port
@@ -251,9 +251,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd::Ipv4MulticastOption
+    -> sd::options::Ipv4MulticastOption
     {
-        sd::Ipv4MulticastOption {
+        sd::options::Ipv4MulticastOption {
             ipv4_address,
             transport_protocol,
             port
@@ -267,9 +267,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd::Ipv6MulticastOption
+    -> sd::options::Ipv6MulticastOption
     {
-        sd::Ipv6MulticastOption {
+        sd::options::Ipv6MulticastOption {
             ipv6_address,
             transport_protocol,
             port
@@ -283,9 +283,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd::Ipv4SdEndpointOption
+    -> sd::options::Ipv4SdEndpointOption
     {
-        sd::Ipv4SdEndpointOption {
+        sd::options::Ipv4SdEndpointOption {
             ipv4_address,
             transport_protocol,
             port
@@ -299,9 +299,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd::Ipv6SdEndpointOption
+    -> sd::options::Ipv6SdEndpointOption
     {
-        sd::Ipv6SdEndpointOption {
+        sd::options::Ipv6SdEndpointOption {
             ipv6_address,
             transport_protocol,
             port

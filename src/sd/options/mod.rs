@@ -1,4 +1,29 @@
-use crate::sd::*;
+mod configuration_option;
+pub use configuration_option::*;
+
+mod ipv4_endpoint_option;
+pub use ipv4_endpoint_option::*;
+
+mod ipv4_multicast_option;
+pub use ipv4_multicast_option::*;
+
+mod ipv4_sd_endpoint_option;
+pub use ipv4_sd_endpoint_option::*;
+
+mod ipv6_endpoint_option;
+pub use ipv6_endpoint_option::*;
+
+mod ipv6_multicast_option;
+pub use ipv6_multicast_option::*;
+
+mod ipv6_sd_endpoint_option;
+pub use ipv6_sd_endpoint_option::*;
+
+mod load_balancing_option;
+pub use load_balancing_option::*;
+
+mod unknown_discardable_option;
+pub use unknown_discardable_option::*;
 
 /// Maximum length of options array that is supported by the read & from slice functions.
 ///
@@ -81,74 +106,3 @@ pub const IPV6_SD_ENDPOINT_LEN: u16 = 0x0015;
 
 /// Value of the `type` field of an ipv6 sd endpoint sd option.
 pub const IPV6_SD_ENDPOINT_TYPE: u8 = 0x26;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConfigurationOption {
-    /// Shall be set to `true` if the option can be discarded by the receiver.
-    pub discardable: bool,
-    // TODO DNS TXT / DNS-SD format
-    pub configuration_string: Vec<u8>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LoadBalancingOption {
-    /// Shall be set to `true` if the option can be discarded by the receiver.
-    pub discardable: bool,
-    pub priority: u16,
-    pub weight: u16,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ipv4EndpointOption {
-    pub ipv4_address: [u8; 4],
-    pub transport_protocol: TransportProtocol,
-    pub port: u16,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ipv6EndpointOption {
-    pub ipv6_address: [u8; 16],
-    pub transport_protocol: TransportProtocol,
-    pub port: u16,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ipv4MulticastOption {
-    pub ipv4_address: [u8; 4],
-    pub transport_protocol: TransportProtocol,
-    pub port: u16,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ipv6MulticastOption {
-    pub ipv6_address: [u8; 16],
-    pub transport_protocol: TransportProtocol,
-    pub port: u16,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ipv4SdEndpointOption {
-    pub ipv4_address: [u8; 4],
-    pub transport_protocol: TransportProtocol,
-    pub port: u16,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Ipv6SdEndpointOption {
-    pub ipv6_address: [u8; 16],
-    pub transport_protocol: TransportProtocol,
-    pub port: u16,
-}
-
-/// An unknown option that is flagged as "discardable" and
-/// should be ignored by the receiver if not supported.
-///
-/// This option is only intended to be used for reading,
-/// to ensure the option indices are still matching. In case
-/// this option is passed to a write function an error will be
-/// triggered.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UnknownDiscardableOption {
-    pub length: u16,
-    pub option_type: u8,
-}

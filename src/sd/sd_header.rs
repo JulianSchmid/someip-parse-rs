@@ -1,4 +1,4 @@
-use crate::sd::*;
+use crate::sd::{*, options::*};
 
 /// SOMEIP service discovery header
 ///
@@ -9,7 +9,7 @@ use crate::sd::*;
 /// # Example
 ///
 /// ```
-/// use someip_parse::sd::*;
+/// use someip_parse::sd::{*, options::*};
 ///
 /// // Create a new header
 /// let mut header = SdHeader::default();
@@ -123,16 +123,14 @@ impl SdHeader {
 
         // Serialize options
         let mut options_pos = 0;
-        let mut temp_vec = Vec::new();
         for option in options {
-            temp_vec.clear();
-            option.append_bytes_to_vec(&mut temp_vec)?;
-            if options_pos + temp_vec.len() > header.options_data.len() {
+            let option_bytes = option.to_bytes()?;
+            if options_pos + option_bytes.len() > header.options_data.len() {
                 return Err(SdValueError::SdOptionsArrayTooLarge);
             }
-            header.options_data[options_pos..options_pos + temp_vec.len()]
-                .copy_from_slice(&temp_vec);
-            options_pos += temp_vec.len();
+            header.options_data[options_pos..options_pos + option_bytes.len()]
+                .copy_from_slice(&option_bytes);
+            options_pos += option_bytes.len();
         }
         header.options_len = options_pos;
 
@@ -227,7 +225,7 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::*;
+    /// use someip_parse::sd::{*, options::*};
     ///
     /// let mut header = SdHeader::default();
     /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
@@ -308,7 +306,7 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::*;
+    /// use someip_parse::sd::{*, options::*};
     ///
     /// let mut header = SdHeader::default();
     /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
@@ -361,7 +359,7 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::*;
+    /// use someip_parse::sd::{*, options::*};
     ///
     /// let mut header = SdHeader::default();
     /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
@@ -627,7 +625,7 @@ mod tests {
         }
 
         // options array length too large error
-        for len in [sd_options::MAX_OPTIONS_LEN + 1, u32::MAX] {
+        for len in [MAX_OPTIONS_LEN + 1, u32::MAX] {
             let len_be = len.to_be_bytes();
             let buffer = [
                 0, 0, 0, 0, // flags
@@ -664,7 +662,6 @@ mod tests {
         assert_eq!(entries[0], service_entry);
 
         // Test adding options
-        use sd_options::*;
         let ipv4_option = Ipv4EndpointOption {
             ipv4_address: [192, 168, 1, 1],
             transport_protocol: TransportProtocol::Tcp,

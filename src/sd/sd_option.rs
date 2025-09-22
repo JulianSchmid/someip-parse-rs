@@ -1,4 +1,5 @@
-use crate::sd::*;
+use crate::sd::{*, options::*};
+use arrayvec::ArrayVec;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SdOption {
@@ -21,65 +22,65 @@ pub enum SdOption {
     UnknownDiscardable(UnknownDiscardableOption),
 }
 
-impl From<sd_options::ConfigurationOption> for SdOption {
+impl From<options::ConfigurationOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::ConfigurationOption) -> Self {
+    fn from(o: options::ConfigurationOption) -> Self {
         SdOption::Configuration(o)
     }
 }
 
-impl From<sd_options::LoadBalancingOption> for SdOption {
+impl From<options::LoadBalancingOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::LoadBalancingOption) -> Self {
+    fn from(o: options::LoadBalancingOption) -> Self {
         SdOption::LoadBalancing(o)
     }
 }
 
-impl From<sd_options::Ipv4EndpointOption> for SdOption {
+impl From<options::Ipv4EndpointOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::Ipv4EndpointOption) -> Self {
+    fn from(o: options::Ipv4EndpointOption) -> Self {
         SdOption::Ipv4Endpoint(o)
     }
 }
 
-impl From<sd_options::Ipv6EndpointOption> for SdOption {
+impl From<options::Ipv6EndpointOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::Ipv6EndpointOption) -> Self {
+    fn from(o: options::Ipv6EndpointOption) -> Self {
         SdOption::Ipv6Endpoint(o)
     }
 }
 
-impl From<sd_options::Ipv4MulticastOption> for SdOption {
+impl From<options::Ipv4MulticastOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::Ipv4MulticastOption) -> Self {
+    fn from(o: options::Ipv4MulticastOption) -> Self {
         SdOption::Ipv4Multicast(o)
     }
 }
 
-impl From<sd_options::Ipv6MulticastOption> for SdOption {
+impl From<options::Ipv6MulticastOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::Ipv6MulticastOption) -> Self {
+    fn from(o: options::Ipv6MulticastOption) -> Self {
         SdOption::Ipv6Multicast(o)
     }
 }
 
-impl From<sd_options::Ipv4SdEndpointOption> for SdOption {
+impl From<options::Ipv4SdEndpointOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::Ipv4SdEndpointOption) -> Self {
+    fn from(o: options::Ipv4SdEndpointOption) -> Self {
         SdOption::Ipv4SdEndpoint(o)
     }
 }
 
-impl From<sd_options::Ipv6SdEndpointOption> for SdOption {
+impl From<options::Ipv6SdEndpointOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::Ipv6SdEndpointOption) -> Self {
+    fn from(o: options::Ipv6SdEndpointOption) -> Self {
         SdOption::Ipv6SdEndpoint(o)
     }
 }
 
-impl From<sd_options::UnknownDiscardableOption> for SdOption {
+impl From<options::UnknownDiscardableOption> for SdOption {
     #[inline]
-    fn from(o: sd_options::UnknownDiscardableOption) -> Self {
+    fn from(o: options::UnknownDiscardableOption) -> Self {
         SdOption::UnknownDiscardable(o)
     }
 }
@@ -97,7 +98,6 @@ impl SdOption {
         reader: &mut T,
         discard_unknown_option: bool,
     ) -> Result<(u16, Self), SdReadError> {
-        use self::sd_options::*;
         use self::SdOption::*;
         use SdReadError::*;
 
@@ -318,7 +318,6 @@ impl SdOption {
     /// Writes the eventgroup entry to the given writer.
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
-        use self::sd_options::*;
         use self::SdOption::*;
 
         fn write_ipv4<R: Write>(
@@ -472,7 +471,6 @@ impl SdOption {
 
     /// Serializes option and append data to a vec
     pub fn append_bytes_to_vec(&self, buffer: &mut Vec<u8>) -> Result<(), SdValueError> {
-        use self::sd_options::*;
         use self::SdOption::*;
 
         fn append_ip4(
@@ -558,10 +556,119 @@ impl SdOption {
         Ok(())
     }
 
+    /// Serializes option and returns data as an ArrayVec (zero-allocation)
+    ///
+    /// This method provides a zero-allocation alternative to [`append_bytes_to_vec`].
+    /// It returns an [`ArrayVec`] with a fixed capacity instead of appending to a [`Vec`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use someip_parse::sd::{*, options::*};
+    ///
+    /// let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+    ///     ipv4_address: [192, 168, 1, 1],
+    ///     transport_protocol: TransportProtocol::Udp,
+    ///     port: 8080,
+    /// });
+    ///
+    /// // Zero-allocation serialization
+    /// let bytes = option.to_bytes().unwrap();
+    /// assert_eq!(bytes.len(), 12); // 2 bytes length + 1 byte type + 1 byte reserved + 8 bytes data
+    /// ```
+    ///
+    /// [`append_bytes_to_vec`]: SdOption::append_bytes_to_vec
+    pub fn to_bytes(&self) -> Result<ArrayVec<u8, { MAX_OPTIONS_LEN_USIZE }>, SdValueError> {
+        use self::SdOption::*;
+
+        fn append_ip4(
+            buffer: &mut ArrayVec<u8, { MAX_OPTIONS_LEN_USIZE }>,
+            ipv4_address: [u8; 4],
+            transport_protocol: TransportProtocol,
+            port: u16,
+        ) {
+            buffer.try_extend_from_slice(&ipv4_address).unwrap();
+            buffer.push(0x00); // reserved
+            buffer.push(transport_protocol.into());
+            buffer.try_extend_from_slice(&port.to_be_bytes()).unwrap();
+        }
+
+        fn append_ip6(
+            buffer: &mut ArrayVec<u8, { MAX_OPTIONS_LEN_USIZE }>,
+            ipv6_address: [u8; 16],
+            transport_protocol: TransportProtocol,
+            port: u16,
+        ) {
+            buffer.try_extend_from_slice(&ipv6_address).unwrap();
+            buffer.push(0x00); // reserved
+            buffer.push(transport_protocol.into());
+            buffer.try_extend_from_slice(&port.to_be_bytes()).unwrap();
+        }
+
+        let mut buffer = ArrayVec::new();
+
+        match self {
+            Configuration(o) => {
+                // + 1 for reserved byte
+                let length_bytes = (1u16 + o.configuration_string.len() as u16).to_be_bytes();
+                buffer.try_extend_from_slice(&length_bytes).unwrap();
+                buffer.push(CONFIGURATION_TYPE);
+                buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
+                buffer.try_extend_from_slice(&o.configuration_string).unwrap();
+            }
+            LoadBalancing(o) => {
+                buffer.try_extend_from_slice(&LOAD_BALANCING_LEN.to_be_bytes()).unwrap();
+                buffer.push(LOAD_BALANCING_TYPE);
+                buffer.push(if o.discardable { DISCARDABLE_FLAG } else { 0 });
+                buffer.try_extend_from_slice(&o.priority.to_be_bytes()).unwrap();
+                buffer.try_extend_from_slice(&o.weight.to_be_bytes()).unwrap();
+            }
+            Ipv4Endpoint(o) => {
+                buffer.try_extend_from_slice(&IPV4_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer.push(IPV4_ENDPOINT_TYPE);
+                buffer.push(0x00u8); // Reserved byte
+                append_ip4(&mut buffer, o.ipv4_address, o.transport_protocol, o.port);
+            }
+            Ipv6Endpoint(o) => {
+                buffer.try_extend_from_slice(&IPV6_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer.push(IPV6_ENDPOINT_TYPE); // Type
+                buffer.push(0x00u8); // Reserved byte
+                append_ip6(&mut buffer, o.ipv6_address, o.transport_protocol, o.port);
+            }
+            Ipv4Multicast(o) => {
+                buffer.try_extend_from_slice(&IPV4_MULTICAST_LEN.to_be_bytes()).unwrap();
+                buffer.push(IPV4_MULTICAST_TYPE); // Type
+                buffer.push(0x00u8); // Reserved byte
+                append_ip4(&mut buffer, o.ipv4_address, o.transport_protocol, o.port);
+            }
+            Ipv6Multicast(o) => {
+                buffer.try_extend_from_slice(&IPV6_MULTICAST_LEN.to_be_bytes()).unwrap();
+                buffer.push(IPV6_MULTICAST_TYPE); // Type
+                buffer.push(0x00u8); // Reserved byte
+                append_ip6(&mut buffer, o.ipv6_address, o.transport_protocol, o.port);
+            }
+            Ipv4SdEndpoint(o) => {
+                buffer.try_extend_from_slice(&IPV4_SD_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer.push(IPV4_SD_ENDPOINT_TYPE);
+                buffer.push(0x00u8); // Reserved byte
+                append_ip4(&mut buffer, o.ipv4_address, o.transport_protocol, o.port);
+            }
+            Ipv6SdEndpoint(o) => {
+                buffer.try_extend_from_slice(&IPV6_SD_ENDPOINT_LEN.to_be_bytes()).unwrap();
+                buffer.push(IPV6_SD_ENDPOINT_TYPE); // Type
+                buffer.push(0x00u8); // Reserved byte
+                append_ip6(&mut buffer, o.ipv6_address, o.transport_protocol, o.port);
+            }
+            UnknownDiscardable(o) => {
+                return Err(SdValueError::SdUnknownDiscardableOption(o.option_type));
+            }
+        }
+        Ok(buffer)
+    }
+
     /// Length of the serialized header in bytes.
     #[inline]
     pub fn header_len(&self) -> usize {
-        use self::sd_options::*;
         use self::SdOption::*;
 
         3 + match self {
@@ -603,8 +710,38 @@ mod tests {
     }
 
     #[test]
+    fn to_bytes_matches_append_bytes_to_vec() {
+        proptest!(|(option in someip_sd_option_any())| {
+            // Skip UnknownDiscardable options as they return errors in both methods
+            if matches!(option, SdOption::UnknownDiscardable(_)) {
+                return Ok(());
+            }
+
+            // Test append_bytes_to_vec
+            let mut vec_buffer = Vec::new();
+            let append_result = option.append_bytes_to_vec(&mut vec_buffer);
+
+            // Test to_bytes
+            let array_result = option.to_bytes();
+
+            match (append_result, array_result) {
+                (Ok(()), Ok(array_vec)) => {
+                    // Both should succeed and produce identical results
+                    assert_eq!(vec_buffer, array_vec.as_slice());
+                }
+                (Err(e1), Err(e2)) => {
+                    // Both should fail with the same error type
+                    assert_eq!(std::mem::discriminant(&e1), std::mem::discriminant(&e2));
+                }
+                _ => {
+                    panic!("append_bytes_to_vec and to_bytes should have consistent behavior");
+                }
+            }
+        });
+    }
+
+    #[test]
     fn read() {
-        use sd_options::*;
         // too small length error
         {
             let buffer = [0x00, 0x00, IPV4_ENDPOINT_TYPE, 0x00];

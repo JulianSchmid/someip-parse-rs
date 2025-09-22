@@ -88,10 +88,10 @@ prop_compose! {
     }
 }
 
-fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = SdEventGroupEntryType> {
+fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = sd::SdEventGroupEntryType> {
     prop_oneof![
-        Just(SdEventGroupEntryType::Subscribe),
-        Just(SdEventGroupEntryType::SubscribeAck),
+        Just(sd::SdEventGroupEntryType::Subscribe),
+        Just(sd::SdEventGroupEntryType::SubscribeAck),
     ]
 }
 
@@ -129,10 +129,10 @@ prop_compose! {
     }
 }
 
-fn someip_sd_service_entry_type_any() -> impl Strategy<Value = SdServiceEntryType> {
+fn someip_sd_service_entry_type_any() -> impl Strategy<Value = sd::SdServiceEntryType> {
     prop_oneof![
-        Just(SdServiceEntryType::FindService),
-        Just(SdServiceEntryType::OfferService),
+        Just(sd::SdServiceEntryType::FindService),
+        Just(sd::SdServiceEntryType::OfferService),
     ]
 }
 
@@ -177,16 +177,16 @@ prop_compose! {
     pub fn someip_sd_transport_protocol_generic_any()(
             generic in 0x12..u8::MAX, // 0x12 skips tcp and udp
         )
-    -> TransportProtocol
+    -> sd::TransportProtocol
     {
-        TransportProtocol::Generic(generic)
+        sd::TransportProtocol::Generic(generic)
     }
 }
 
-pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = TransportProtocol> {
+pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = sd::TransportProtocol> {
     prop_oneof![
-        Just(TransportProtocol::Tcp),
-        Just(TransportProtocol::Udp),
+        Just(sd::TransportProtocol::Tcp),
+        Just(sd::TransportProtocol::Udp),
         someip_sd_transport_protocol_generic_any(),
     ]
 }
@@ -195,8 +195,8 @@ prop_compose! {
     pub fn someip_sd_option_configuration_any()(
         discardable in any::<bool>(),
         configuration_string in any::<Vec<u8>>(),
-    ) -> sd_options::ConfigurationOption {
-        sd_options::ConfigurationOption {
+    ) -> sd::ConfigurationOption {
+        sd::ConfigurationOption {
             discardable,
             configuration_string
         }
@@ -208,8 +208,8 @@ prop_compose! {
         discardable in any::<bool>(),
         priority in any::<u16>(),
         weight in any::<u16>(),
-    ) -> sd_options::LoadBalancingOption {
-        sd_options::LoadBalancingOption { discardable, priority, weight }
+    ) -> sd::LoadBalancingOption {
+        sd::LoadBalancingOption { discardable, priority, weight }
     }
 }
 
@@ -219,9 +219,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv4EndpointOption
+    -> sd::Ipv4EndpointOption
     {
-        sd_options::Ipv4EndpointOption {
+        sd::Ipv4EndpointOption {
             ipv4_address,
             transport_protocol,
             port
@@ -235,9 +235,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv6EndpointOption
+    -> sd::Ipv6EndpointOption
     {
-        sd_options::Ipv6EndpointOption {
+        sd::Ipv6EndpointOption {
             ipv6_address,
             transport_protocol,
             port
@@ -251,9 +251,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv4MulticastOption
+    -> sd::Ipv4MulticastOption
     {
-        sd_options::Ipv4MulticastOption {
+        sd::Ipv4MulticastOption {
             ipv4_address,
             transport_protocol,
             port
@@ -267,9 +267,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv6MulticastOption
+    -> sd::Ipv6MulticastOption
     {
-        sd_options::Ipv6MulticastOption {
+        sd::Ipv6MulticastOption {
             ipv6_address,
             transport_protocol,
             port
@@ -283,9 +283,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv4SdEndpointOption
+    -> sd::Ipv4SdEndpointOption
     {
-        sd_options::Ipv4SdEndpointOption {
+        sd::Ipv4SdEndpointOption {
             ipv4_address,
             transport_protocol,
             port
@@ -299,9 +299,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv6SdEndpointOption
+    -> sd::Ipv6SdEndpointOption
     {
-        sd_options::Ipv6SdEndpointOption {
+        sd::Ipv6SdEndpointOption {
             ipv6_address,
             transport_protocol,
             port

@@ -372,8 +372,8 @@ mod tests {
         fn unknown_message_type(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
                                 ref input_base in someip_header_any(),
                                 message_type in any::<u8>().prop_filter("message type must be unknown",
-                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| (v == &x ||
-                                                                             (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | v) == x)))
+                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| v == &x ||
+                                                                             (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | v) == x))
             )
         {
             //add the tp header length in case the tp flag is set

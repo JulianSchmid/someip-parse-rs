@@ -75,14 +75,14 @@ mod proptest_generators;
 /// Error types of someip_parse.
 pub mod err;
 
+/// SOMEIP Service Discovery parsing & writing.
+pub mod sd;
+
 mod message_type;
 pub use message_type::*;
 
 mod return_code;
 pub use return_code::*;
-
-mod sd;
-pub use sd::*;
 
 mod tp_range;
 pub use tp_range::*;

@@ -14,7 +14,7 @@ pub struct SomeipMsgSlice<'a> {
 
 impl<'a> SomeipMsgSlice<'a> {
     #[cfg(target_pointer_width = "64")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::SomeipSliceError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice<'a>, err::SomeipSliceError> {
         use err::{SomeipHeaderError::*, SomeipSliceError::*, *};
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {

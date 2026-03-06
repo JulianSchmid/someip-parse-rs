@@ -278,7 +278,7 @@ impl SdEntry {
             SdEntry::Eventgroup(e) => {
                 let mut result = [0x00; ENTRY_LEN];
 
-                result[0] = e.entry_type.clone() as u8;
+                result[0] = e.entry_type as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
                 result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);
@@ -313,7 +313,7 @@ impl SdEntry {
             SdEntry::Service(e) => {
                 let mut result = [0x00; ENTRY_LEN];
 
-                result[0] = e._type.clone() as u8;
+                result[0] = e._type as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
                 result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);

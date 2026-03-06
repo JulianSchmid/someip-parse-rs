@@ -28,7 +28,7 @@ impl EventGroupEntry {
     pub fn to_bytes(&self) -> [u8; ENTRY_LEN] {
         let mut result = [0x00; ENTRY_LEN];
 
-        result[0] = self.entry_type.clone() as u8;
+        result[0] = self.entry_type as u8;
         result[1] = self.index_first_option_run;
         result[2] = self.index_second_option_run;
         result[3] = (self.number_of_options_1 << 4) | (self.number_of_options_2 & 0x0F);

@@ -111,10 +111,10 @@ prop_compose! {
             counter in 0..0x0Fu8,
             eventgroup_id in any::<u16>(),
         )
-    -> sd::SdEntry
+    -> sd::entries::EventGroupEntry
     {
-        sd::SdEntry::new_eventgroup(
-            _type,
+        sd::entries::EventGroupEntry {
+            entry_type: _type,
             index_first_option_run,
             index_second_option_run,
             number_of_options_1,
@@ -126,7 +126,7 @@ prop_compose! {
             initial_data_requested,
             counter,
             eventgroup_id,
-        ).unwrap()
+        }
     }
 }
 
@@ -150,9 +150,9 @@ prop_compose! {
             ttl in 0..0x00FF_FFFFu32,
             minor_version in any::<u32>(),
         )
-    -> sd::SdEntry
+    -> sd::entries::ServiceEntry
     {
-        sd::SdEntry::new_service_entry(
+        sd::entries::ServiceEntry {
             _type,
             index_first_option_run,
             index_second_option_run,
@@ -163,14 +163,14 @@ prop_compose! {
             major_version,
             ttl,
             minor_version,
-        ).unwrap()
+        }
     }
 }
 
 pub fn someip_sd_entry_any() -> impl Strategy<Value = sd::SdEntry> {
     prop_oneof![
-        someip_sd_eventgroup_entry_any(),
-        someip_sd_service_entry_any(),
+        someip_sd_eventgroup_entry_any().prop_map(|e| sd::SdEntry::Eventgroup(e)),
+        someip_sd_service_entry_any().prop_map(|e| sd::SdEntry::Service(e)),
     ]
 }
 

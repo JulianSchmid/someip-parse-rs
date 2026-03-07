@@ -166,12 +166,10 @@ impl SdEntry {
         major_version: u8,
         ttl: u32,
         initial_data_requested: bool,
-        counter: u8,
+        counter: U4Bits,
         eventgroup_id: u16,
     ) -> Result<Self, SdValueError> {
-        if counter > 0x0F {
-            Err(SdValueError::CounterTooLarge(counter))
-        } else if ttl > 0x00FF_FFFF {
+        if ttl > 0x00FF_FFFF {
             Err(SdValueError::TtlTooLarge(ttl))
         } else {
             Ok(Self::Eventgroup(EventGroupEntry {
@@ -252,8 +250,8 @@ impl SdEntry {
             ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
             // skip reserved byte, TODO: should this be verified to be 0x00 ?
             initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
-            // ignore reserved bits, TODO: should this be verified to be 0x00 ?
-            counter: entry_bytes[13] & 0x0F,
+            // Safe: masked value is guaranteed to be <= 0x0F
+            counter: unsafe { U4Bits::new_unchecked(entry_bytes[13] & 0x0F) },
             eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
         }))
     }
@@ -296,7 +294,7 @@ impl SdEntry {
                 if e.initial_data_requested {
                     result[13] |= EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
                 }
-                result[13] |= e.counter & 0x0F;
+                result[13] |= e.counter.value();
 
                 let eventgroup_id_bytes = e.eventgroup_id.to_be_bytes();
                 result[14] = eventgroup_id_bytes[0];

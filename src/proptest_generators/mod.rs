@@ -108,7 +108,7 @@ prop_compose! {
             major_version in any::<u8>(),
             ttl in 0..0x00FF_FFFFu32,
             initial_data_requested in any::<bool>(),
-            counter in 0..0x0Fu8,
+            counter in 0..=0x0Fu8,
             eventgroup_id in any::<u16>(),
         )
     -> sd::entries::EventGroupEntry
@@ -124,7 +124,7 @@ prop_compose! {
             major_version,
             ttl,
             initial_data_requested,
-            counter,
+            counter: sd::entries::U4Bits::try_new(counter).unwrap(),
             eventgroup_id,
         }
     }

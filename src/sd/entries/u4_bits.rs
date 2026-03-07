@@ -9,6 +9,23 @@ impl U4Bits {
     /// U4Bits with value 0.
     pub const ZERO: U4Bits = U4Bits(0);
 
+    pub const N0: U4Bits = U4Bits(0);
+    pub const N1: U4Bits = U4Bits(1);
+    pub const N2: U4Bits = U4Bits(2);
+    pub const N3: U4Bits = U4Bits(3);
+    pub const N4: U4Bits = U4Bits(4);
+    pub const N5: U4Bits = U4Bits(5);
+    pub const N6: U4Bits = U4Bits(6);
+    pub const N7: U4Bits = U4Bits(7);
+    pub const N8: U4Bits = U4Bits(8);
+    pub const N9: U4Bits = U4Bits(9);
+    pub const N10: U4Bits = U4Bits(10);
+    pub const N11: U4Bits = U4Bits(11);
+    pub const N12: U4Bits = U4Bits(12);
+    pub const N13: U4Bits = U4Bits(13);
+    pub const N14: U4Bits = U4Bits(14);
+    pub const N15: U4Bits = U4Bits(15);
+
     /// Maximum value of a 4 bit unsigned integer.
     pub const MAX_U8: u8 = 0b0000_1111;
 
@@ -170,6 +187,23 @@ mod test {
     fn constants() {
         assert_eq!(U4Bits::ZERO.value(), 0);
         assert_eq!(U4Bits::MAX_U8, 0b0000_1111);
+
+        assert_eq!(U4Bits::N0.value(), 0);
+        assert_eq!(U4Bits::N1.value(), 1);
+        assert_eq!(U4Bits::N2.value(), 2);
+        assert_eq!(U4Bits::N3.value(), 3);
+        assert_eq!(U4Bits::N4.value(), 4);
+        assert_eq!(U4Bits::N5.value(), 5);
+        assert_eq!(U4Bits::N6.value(), 6);
+        assert_eq!(U4Bits::N7.value(), 7);
+        assert_eq!(U4Bits::N8.value(), 8);
+        assert_eq!(U4Bits::N9.value(), 9);
+        assert_eq!(U4Bits::N10.value(), 10);
+        assert_eq!(U4Bits::N11.value(), 11);
+        assert_eq!(U4Bits::N12.value(), 12);
+        assert_eq!(U4Bits::N13.value(), 13);
+        assert_eq!(U4Bits::N14.value(), 14);
+        assert_eq!(U4Bits::N15.value(), 15);
     }
 
     proptest! {

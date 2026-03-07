@@ -16,9 +16,8 @@ pub struct EventGroupEntry {
     pub ttl: u32,
     /// True if initial data shall be sent by server
     pub initial_data_requested: bool,
-    /// distinguish identical subscribe eventgroups of the same subscriber
-    /// 4 bit
-    pub counter: u8,
+    /// Distinguish identical subscribe eventgroups of the same subscriber.
+    pub counter: U4Bits,
     pub eventgroup_id: u16,
 }
 
@@ -52,7 +51,7 @@ impl EventGroupEntry {
         if self.initial_data_requested {
             result[13] |= crate::sd::EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
         }
-        result[13] |= self.counter & 0x0F;
+        result[13] |= self.counter.value() & 0x0Fu8;
 
         let eventgroup_id_bytes = self.eventgroup_id.to_be_bytes();
         result[14] = eventgroup_id_bytes[0];
@@ -81,8 +80,8 @@ impl EventGroupEntry {
             // skip reserved byte, TODO: should this be verified to be 0x00 ?
             initial_data_requested: 0
                 != entry_bytes[13] & crate::sd::EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
-            // ignore reserved bits, TODO: should this be verified to be 0x00 ?
-            counter: entry_bytes[13] & 0x0F,
+            // Safe: masked value is guaranteed to be <= 0x0F
+            counter: unsafe { U4Bits::new_unchecked(entry_bytes[13] & 0x0F) },
             eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
         })
     }

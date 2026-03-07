@@ -9,14 +9,14 @@ use crate::sd::{entries::*, options::*, *};
 /// # Example
 ///
 /// ```
-/// use someip_parse::sd::{*, options::*};
+/// use someip_parse::sd::{*, entries::U4Bits, options::*};
 ///
 /// // Create a new header
 /// let mut header = SdHeader::default();
 ///
 /// // Add a service entry
 /// let service_entry = SdEntry::new_offer_service_entry(
-///     0, 0, 0, 0,      // option indices and counts
+///     0, 0, U4Bits::ZERO, U4Bits::ZERO,  // option indices and counts
 ///     0x1234,          // service ID
 ///     0x5678,          // instance ID
 ///     1,               // major version
@@ -82,10 +82,10 @@ impl SdHeader {
     /// # Examples
     ///
     /// ```
-    /// use someip_parse::sd::{SdHeader, SdEntry, SdOption};
+    /// use someip_parse::sd::{SdHeader, SdEntry, SdOption, entries::U4Bits};
     ///
     /// let entries = [
-    ///     SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap()
+    ///     SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap()
     /// ];
     /// let header = SdHeader::new(false, &entries, &[]).unwrap();
     /// ```
@@ -180,10 +180,10 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::{SdHeader, SdEntry};
+    /// use someip_parse::sd::{SdHeader, SdEntry, entries::U4Bits};
     ///
     /// let mut header = SdHeader::default();
-    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
     /// header.add_entry(entry.clone()).unwrap();
     ///
     /// let entries = header.entries().unwrap();
@@ -268,10 +268,10 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::{SdHeader, SdEntry};
+    /// use someip_parse::sd::{SdHeader, SdEntry, entries::U4Bits};
     ///
     /// let mut header = SdHeader::default();
-    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
     ///
     /// header.add_entry(entry).unwrap();
     /// assert_eq!(header.entries_count(), 1);
@@ -336,10 +336,10 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::{SdHeader, SdEntry};
+    /// use someip_parse::sd::{SdHeader, SdEntry, entries::U4Bits};
     ///
     /// let mut header = SdHeader::default();
-    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
     /// header.add_entry(entry).unwrap();
     ///
     /// assert!(!header.is_entries_empty());
@@ -383,12 +383,12 @@ impl SdHeader {
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::{SdHeader, SdEntry};
+    /// use someip_parse::sd::{SdHeader, SdEntry, entries::U4Bits};
     ///
     /// let mut header = SdHeader::default();
     /// assert_eq!(header.entries_count(), 0);
     ///
-    /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
+    /// let entry = SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
     /// header.add_entry(entry).unwrap();
     /// assert_eq!(header.entries_count(), 1);
     /// ```
@@ -586,7 +586,7 @@ mod tests {
     fn new_into_iter_ref() {
         let entries =
             vec![
-                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+                SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000)
                     .unwrap(),
             ];
         let options = vec![SdOption::Ipv4Endpoint(Ipv4EndpointOption {
@@ -648,7 +648,7 @@ mod tests {
 
         // Test adding entries
         let service_entry =
-            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+            SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000)
                 .unwrap();
 
         header.add_entry(service_entry.clone()).unwrap();
@@ -694,7 +694,7 @@ mod tests {
         // Try to add too many entries (each entry is 16 bytes)
         let max_entries = MAX_ENTRIES_LEN_USIZE / 16; // 86 entries max
         let service_entry =
-            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+            SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000)
                 .unwrap();
 
         // Add maximum entries
@@ -712,7 +712,7 @@ mod tests {
         // Test with Vec
         let entries_vec =
             vec![
-                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+                SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1234, 0x5678, 1, 3600, 0x01000000)
                     .unwrap(),
             ];
         let options_vec: Vec<SdOption> = vec![];
@@ -722,7 +722,7 @@ mod tests {
         // Test with arrays
         let entries_array =
             [
-                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x5678, 0x1234, 1, 7200, 0x02000000)
+                SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x5678, 0x1234, 1, 7200, 0x02000000)
                     .unwrap(),
             ];
         let options_array: [SdOption; 0] = [];
@@ -733,7 +733,7 @@ mod tests {
         // Test with iterators
         {
             let entry =
-                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0xABCD, 0xEF01, 1, 1800, 0x03000000)
+                SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0xABCD, 0xEF01, 1, 1800, 0x03000000)
                     .unwrap();
             let entry_iter = std::iter::once(&entry);
             let header3 = SdHeader::new(false, entry_iter, std::iter::empty()).unwrap();
@@ -742,9 +742,9 @@ mod tests {
 
         // Test with slice
         let entries_slice = &[
-            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x9876, 0x5432, 1, 900, 0x04000000)
+            SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x9876, 0x5432, 1, 900, 0x04000000)
                 .unwrap(),
-            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1111, 0x2222, 1, 1200, 0x05000000)
+            SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0x1111, 0x2222, 1, 1200, 0x05000000)
                 .unwrap(),
         ];
         let header4 = SdHeader::new(false, entries_slice, std::iter::empty()).unwrap();

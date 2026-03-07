@@ -10,6 +10,9 @@ pub use service_entry::*;
 mod service_entry_type;
 pub use service_entry_type::*;
 
+mod u4_bits;
+pub use u4_bits::*;
+
 /// Maximum entry length that is supported by the read & from slice functions.
 ///
 /// This constant is used to make sure no attacks with too large length

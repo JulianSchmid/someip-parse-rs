@@ -8,8 +8,8 @@ pub struct EventGroupEntry {
     pub entry_type: EventGroupEntryType,
     pub index_first_option_run: u8,
     pub index_second_option_run: u8,
-    pub number_of_options_1: u8,
-    pub number_of_options_2: u8,
+    pub number_of_options_1: U4Bits,
+    pub number_of_options_2: U4Bits,
     pub service_id: u16,
     pub instance_id: u16,
     pub major_version: u8,
@@ -31,7 +31,7 @@ impl EventGroupEntry {
         result[0] = self.entry_type as u8;
         result[1] = self.index_first_option_run;
         result[2] = self.index_second_option_run;
-        result[3] = (self.number_of_options_1 << 4) | (self.number_of_options_2 & 0x0F);
+        result[3] = ((self.number_of_options_1.value() & 0x0F) << 4) | (self.number_of_options_2.value() & 0x0F);
 
         let service_id_bytes = self.service_id.to_be_bytes();
         result[4] = service_id_bytes[0];
@@ -71,8 +71,9 @@ impl EventGroupEntry {
             entry_type,
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
-            number_of_options_1: entry_bytes[3] >> 4,
-            number_of_options_2: entry_bytes[3] & 0x0F,
+            // Safe: bit-shifted values are guaranteed to be <= 0x0F
+            number_of_options_1: unsafe { U4Bits::new_unchecked(entry_bytes[3] >> 4) },
+            number_of_options_2: unsafe { U4Bits::new_unchecked(entry_bytes[3] & 0x0F) },
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],

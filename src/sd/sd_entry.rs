@@ -29,8 +29,8 @@ impl SdEntry {
         entry_type: SdServiceEntryType,
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
+        number_of_options_1: U4Bits,
+        number_of_options_2: U4Bits,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
@@ -39,10 +39,6 @@ impl SdEntry {
     ) -> Result<Self, SdValueError> {
         if ttl > 0x00FF_FFFF {
             Err(SdValueError::TtlTooLarge(ttl))
-        } else if number_of_options_1 > 0x0F {
-            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
-        } else if number_of_options_2 > 0x0F {
-            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Service(ServiceEntry {
                 _type: entry_type,
@@ -69,8 +65,8 @@ impl SdEntry {
     pub fn new_find_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
+        number_of_options_1: U4Bits,
+        number_of_options_2: U4Bits,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
@@ -106,8 +102,8 @@ impl SdEntry {
     pub fn new_offer_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
+        number_of_options_1: U4Bits,
+        number_of_options_2: U4Bits,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
@@ -137,8 +133,8 @@ impl SdEntry {
     pub fn new_stop_offer_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
+        number_of_options_1: U4Bits,
+        number_of_options_2: U4Bits,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
@@ -160,11 +156,11 @@ impl SdEntry {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new_eventgroup(
-        _type: EventGroupEntryType,
+        entry_type: EventGroupEntryType,
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: u8,
-        number_of_options_2: u8,
+        number_of_options_1: U4Bits,
+        number_of_options_2: U4Bits,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
@@ -177,13 +173,9 @@ impl SdEntry {
             Err(SdValueError::CounterTooLarge(counter))
         } else if ttl > 0x00FF_FFFF {
             Err(SdValueError::TtlTooLarge(ttl))
-        } else if number_of_options_1 > 0x0F {
-            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
-        } else if number_of_options_2 > 0x0F {
-            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Eventgroup(EventGroupEntry {
-                entry_type: _type,
+                entry_type,
                 index_first_option_run,
                 index_second_option_run,
                 number_of_options_1,
@@ -225,8 +217,9 @@ impl SdEntry {
             _type,
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
-            number_of_options_1: entry_bytes[3] >> 4,
-            number_of_options_2: entry_bytes[3] & 0x0F,
+            // Safe: bit-shifted values are guaranteed to be <= 0x0F
+            number_of_options_1: unsafe { U4Bits::new_unchecked(entry_bytes[3] >> 4) },
+            number_of_options_2: unsafe { U4Bits::new_unchecked(entry_bytes[3] & 0x0F) },
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
@@ -250,8 +243,9 @@ impl SdEntry {
             entry_type: _type,
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
-            number_of_options_1: entry_bytes[3] >> 4,
-            number_of_options_2: entry_bytes[3] & 0x0F,
+            // Safe: bit-shifted values are guaranteed to be <= 0x0F
+            number_of_options_1: unsafe { U4Bits::new_unchecked(entry_bytes[3] >> 4) },
+            number_of_options_2: unsafe { U4Bits::new_unchecked(entry_bytes[3] & 0x0F) },
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
@@ -281,7 +275,7 @@ impl SdEntry {
                 result[0] = e.entry_type as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
-                result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);
+                result[3] = (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
 
                 let service_id_bytes = e.service_id.to_be_bytes();
                 result[4] = service_id_bytes[0];
@@ -316,7 +310,7 @@ impl SdEntry {
                 result[0] = e._type as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
-                result[3] = (e.number_of_options_1 << 4) | (e.number_of_options_2 & 0x0F);
+                result[3] = (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
 
                 let service_id_bytes = e.service_id.to_be_bytes();
                 result[4] = service_id_bytes[0];
@@ -391,8 +385,8 @@ mod tests {
             SdServiceEntryType::OfferService,
             0,
             0,
-            0,
-            0,
+            U4Bits::ZERO,
+            U4Bits::ZERO,
             0,
             0,
             0,
@@ -403,48 +397,11 @@ mod tests {
     }
 
     #[test]
-    fn new_service_entry_number_option1_too_large() {
-        use assert_matches::*;
-
-        let result = SdEntry::new_service_entry(
-            SdServiceEntryType::OfferService,
-            0,
-            0,
-            0xFF,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        );
-        assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0xFF)));
-    }
-
-    #[test]
-    fn new_service_entry_number_option2_too_large() {
-        use assert_matches::*;
-
-        let result = SdEntry::new_service_entry(
-            SdServiceEntryType::OfferService,
-            0,
-            0,
-            0,
-            0xFF,
-            0,
-            0,
-            0,
-            0,
-            0,
-        );
-        assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0xFF)));
-    }
-
-    #[test]
     fn new_service_find_service_entry_zero_ttl() {
         use assert_matches::*;
 
-        let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        let result =
+            SdEntry::new_find_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0, 0, 0, 0, 0);
         assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
     }
 
@@ -452,7 +409,8 @@ mod tests {
     fn new_service_offer_service_entry_zero_ttl() {
         use assert_matches::*;
 
-        let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
+        let result =
+            SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0, 0, 0, 0, 0);
         assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
     }
 }

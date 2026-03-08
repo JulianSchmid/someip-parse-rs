@@ -51,12 +51,7 @@ impl<'a> Ipv4SdEndpointSlice<'a> {
     pub fn port(&self) -> u16 {
         // SAFETY:
         // Safe as the slice length is guaranteed to be 9 during construction.
-        unsafe {
-            u16::from_be_bytes([
-                *self.slice.get_unchecked(7),
-                *self.slice.get_unchecked(8),
-            ])
-        }
+        unsafe { u16::from_be_bytes([*self.slice.get_unchecked(7), *self.slice.get_unchecked(8)]) }
     }
 
     #[inline]
@@ -100,33 +95,13 @@ mod test {
 
     #[test]
     fn accessors() {
-        let slice = [
-            0x00,
-            0xc0,
-            0xa8,
-            0x01,
-            0x01,
-            0x00,
-            0x06,
-            0x1f,
-            0x90,
-        ];
+        let slice = [0x00, 0xc0, 0xa8, 0x01, 0x01, 0x00, 0x06, 0x1f, 0x90];
         let s = Ipv4SdEndpointSlice::from_slice(&slice).unwrap();
         assert_eq!(s.ipv4_address(), [0xc0, 0xa8, 0x01, 0x01]);
         assert_eq!(s.transport_protocol(), TransportProtocol::Tcp);
         assert_eq!(s.port(), 8080);
 
-        let slice_udp = [
-            0x00,
-            0x7f,
-            0x00,
-            0x00,
-            0x01,
-            0x00,
-            0x11,
-            0x00,
-            0x50,
-        ];
+        let slice_udp = [0x00, 0x7f, 0x00, 0x00, 0x01, 0x00, 0x11, 0x00, 0x50];
         let s = Ipv4SdEndpointSlice::from_slice(&slice_udp).unwrap();
         assert_eq!(s.ipv4_address(), [0x7f, 0x00, 0x00, 0x01]);
         assert_eq!(s.transport_protocol(), TransportProtocol::Udp);
@@ -135,17 +110,7 @@ mod test {
 
     #[test]
     fn from_conversion() {
-        let slice = [
-            0x00,
-            0xc0,
-            0xa8,
-            0x01,
-            0x01,
-            0x00,
-            0x06,
-            0x1f,
-            0x90,
-        ];
+        let slice = [0x00, 0xc0, 0xa8, 0x01, 0x01, 0x00, 0x06, 0x1f, 0x90];
         let s = Ipv4SdEndpointSlice::from_slice(&slice).unwrap();
         let opt = Ipv4SdEndpointOption::from(s);
         assert_eq!(opt.ipv4_address, [0xc0, 0xa8, 0x01, 0x01]);

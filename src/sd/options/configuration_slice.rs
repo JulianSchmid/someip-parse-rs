@@ -98,8 +98,7 @@ mod test {
         assert!(!opt.discardable);
         assert_eq!(opt.configuration_string.as_slice(), b"foo");
 
-        let s = ConfigurationSlice::from_slice(&[DISCARDABLE_FLAG, 0x62, 0x61, 0x72])
-            .unwrap();
+        let s = ConfigurationSlice::from_slice(&[DISCARDABLE_FLAG, 0x62, 0x61, 0x72]).unwrap();
         let opt = ConfigurationOption::from(s);
         assert!(opt.discardable);
         assert_eq!(opt.configuration_string.as_slice(), b"bar");

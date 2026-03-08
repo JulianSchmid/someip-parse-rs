@@ -51,10 +51,7 @@ impl<'a> Ipv6MulticastSlice<'a> {
         // SAFETY:
         // Safe as the slice length is guaranteed to be 21 during construction.
         unsafe {
-            u16::from_be_bytes([
-                *self.slice.get_unchecked(19),
-                *self.slice.get_unchecked(20),
-            ])
+            u16::from_be_bytes([*self.slice.get_unchecked(19), *self.slice.get_unchecked(20)])
         }
     }
 
@@ -113,7 +110,8 @@ mod test {
         assert_eq!(s.port(), 8080);
 
         let mut slice_udp = [0u8; 21];
-        slice_udp[1..17].copy_from_slice(&[0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
+        slice_udp[1..17]
+            .copy_from_slice(&[0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
         slice_udp[18] = 0x11;
         slice_udp[19] = 0x00;
         slice_udp[20] = 0x50;

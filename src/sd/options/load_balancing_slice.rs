@@ -32,17 +32,13 @@ impl<'a> LoadBalancingSlice<'a> {
     #[inline]
     pub fn priority(&self) -> u16 {
         // SAFETY: slice is guaranteed to have a length of 5 during construction.
-        unsafe {
-            u16::from_be_bytes([*self.slice.get_unchecked(1), *self.slice.get_unchecked(2)])
-        }
+        unsafe { u16::from_be_bytes([*self.slice.get_unchecked(1), *self.slice.get_unchecked(2)]) }
     }
 
     #[inline]
     pub fn weight(&self) -> u16 {
         // SAFETY: slice is guaranteed to have a length of 5 during construction.
-        unsafe {
-            u16::from_be_bytes([*self.slice.get_unchecked(3), *self.slice.get_unchecked(4)])
-        }
+        unsafe { u16::from_be_bytes([*self.slice.get_unchecked(3), *self.slice.get_unchecked(4)]) }
     }
 
     #[inline]
@@ -80,7 +76,8 @@ mod test {
         );
         let s = LoadBalancingSlice::from_slice(&[0x80, 0x00, 0x01, 0x00, 0x02]).unwrap();
         assert_eq!(s.slice(), &[0x80, 0x00, 0x01, 0x00, 0x02]);
-        let s = LoadBalancingSlice::from_slice(&[0x80, 0x00, 0x01, 0x00, 0x02, 0x99, 0x99]).unwrap();
+        let s =
+            LoadBalancingSlice::from_slice(&[0x80, 0x00, 0x01, 0x00, 0x02, 0x99, 0x99]).unwrap();
         assert_eq!(s.slice(), &[0x80, 0x00, 0x01, 0x00, 0x02]);
     }
 

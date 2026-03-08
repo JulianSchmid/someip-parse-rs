@@ -9,7 +9,7 @@ impl<'a> LoadBalancingSlice<'a> {
     pub const LEN: usize = 5;
 
     pub fn from_slice(slice: &'a [u8]) -> Result<LoadBalancingSlice<'a>, err::LenError> {
-        if slice.len() < Self::LEN {
+        if slice.len() != Self::LEN {
             Err(err::LenError {
                 required_len: Self::LEN,
                 len: slice.len(),
@@ -17,9 +17,7 @@ impl<'a> LoadBalancingSlice<'a> {
                 layer: Layer::SdOption,
             })
         } else {
-            Ok(LoadBalancingSlice {
-                slice: &slice[..Self::LEN],
-            })
+            Ok(LoadBalancingSlice { slice })
         }
     }
 
@@ -76,9 +74,9 @@ mod test {
         );
         let s = LoadBalancingSlice::from_slice(&[0x80, 0x00, 0x01, 0x00, 0x02]).unwrap();
         assert_eq!(s.slice(), &[0x80, 0x00, 0x01, 0x00, 0x02]);
-        let s =
-            LoadBalancingSlice::from_slice(&[0x80, 0x00, 0x01, 0x00, 0x02, 0x99, 0x99]).unwrap();
-        assert_eq!(s.slice(), &[0x80, 0x00, 0x01, 0x00, 0x02]);
+        assert!(
+            LoadBalancingSlice::from_slice(&[0x80, 0x00, 0x01, 0x00, 0x02, 0x99, 0x99]).is_err()
+        );
     }
 
     #[test]

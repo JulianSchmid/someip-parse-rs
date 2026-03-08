@@ -6,6 +6,8 @@ pub enum LenSource {
     Slice,
     /// Length field in the SOMEIP header.
     SomeipHeaderLength,
+    /// Length field in a SOMEIP SD option header.
+    SdOptionLength,
 }
 
 #[cfg(test)]

@@ -9,7 +9,7 @@ impl<'a> Ipv4MulticastSlice<'a> {
     pub const LEN: usize = 9;
 
     pub fn from_slice(slice: &'a [u8]) -> Result<Self, err::LenError> {
-        if slice.len() < Self::LEN {
+        if slice.len() != Self::LEN {
             return Err(err::LenError {
                 required_len: Self::LEN,
                 len: slice.len(),
@@ -17,9 +17,7 @@ impl<'a> Ipv4MulticastSlice<'a> {
                 layer: Layer::SdOption,
             });
         }
-        Ok(Self {
-            slice: &slice[..Self::LEN],
-        })
+        Ok(Self { slice })
     }
 
     #[inline]
@@ -88,9 +86,7 @@ mod test {
         let s = Ipv4MulticastSlice::from_slice(&[0u8; 9]).unwrap();
         assert_eq!(s.slice(), &[0u8; 9]);
 
-        let longer = [0u8; 12];
-        let s = Ipv4MulticastSlice::from_slice(&longer).unwrap();
-        assert_eq!(s.slice(), &longer[..9]);
+        assert!(Ipv4MulticastSlice::from_slice(&[0u8; 12]).is_err());
     }
 
     #[test]

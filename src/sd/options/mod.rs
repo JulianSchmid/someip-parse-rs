@@ -52,6 +52,9 @@ pub use transport_protocol::*;
 mod unknown_discardable_option;
 pub use unknown_discardable_option::*;
 
+mod unknown_slice;
+pub use unknown_slice::*;
+
 /// Maximum length of options array that is supported by the read & from slice functions.
 ///
 /// This constant is used to make sure no attacks with large length

@@ -7,6 +7,9 @@ pub use len_error::*;
 mod len_source;
 pub use len_source::*;
 
+mod sd_option_slice_error;
+pub use sd_option_slice_error::*;
+
 mod sd_read_error;
 pub use sd_read_error::*;
 

@@ -19,6 +19,9 @@ pub use sd_header_flags::*;
 mod sd_option;
 pub use sd_option::*;
 
+mod sd_option_slice;
+pub use sd_option_slice::*;
+
 mod sd_option_type;
 pub use sd_option_type::*;
 

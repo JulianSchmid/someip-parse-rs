@@ -35,6 +35,7 @@ impl core::fmt::Display for LenError {
             match self.len_source {
                 Slice => "slice length",
                 SomeipHeaderLength => "length calculated from the SOMEIP header 'length' field",
+                SdOptionLength => "SOMEIP SD option 'length' field",
             }
         };
         write!(
@@ -120,6 +121,7 @@ mod test {
             let len_source_tests = [
                 (Slice, "SOMEIP Header Error: Not enough data to decode 'SOMEIP header'. 2 byte(s) would be required, but only 1 byte(s) are available based on the slice length."),
                 (SomeipHeaderLength, "SOMEIP Header Error: Not enough data to decode 'SOMEIP header'. 2 byte(s) would be required, but only 1 byte(s) are available based on the length calculated from the SOMEIP header 'length' field."),
+                (SdOptionLength, "SOMEIP Header Error: Not enough data to decode 'SOMEIP header'. 2 byte(s) would be required, but only 1 byte(s) are available based on the SOMEIP SD option 'length' field."),
             ];
 
             for test in len_source_tests {

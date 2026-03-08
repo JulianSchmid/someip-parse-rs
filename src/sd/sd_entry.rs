@@ -29,26 +29,34 @@ impl SdEntry {
         entry_type: SdServiceEntryType,
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: U4Bits,
-        number_of_options_2: U4Bits,
+        number_of_options_1: u8,
+        number_of_options_2: u8,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: U24,
+        ttl: u32,
         minor_version: u32,
-    ) -> Self {
-        Self::Service(ServiceEntry {
-            _type: entry_type,
-            index_first_option_run,
-            index_second_option_run,
-            number_of_options_1,
-            number_of_options_2,
-            service_id,
-            instance_id,
-            major_version,
-            ttl,
-            minor_version,
-        })
+    ) -> Result<Self, SdValueError> {
+        if number_of_options_1 > U4Bits::MAX_U8 {
+            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
+        } else if number_of_options_2 > U4Bits::MAX_U8 {
+            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
+        } else if ttl > U24::MAX_U32 {
+            Err(SdValueError::TtlTooLarge(ttl))
+        } else {
+            Ok(Self::Service(ServiceEntry {
+                _type: entry_type,
+                index_first_option_run,
+                index_second_option_run,
+                number_of_options_1: unsafe { U4Bits::new_unchecked(number_of_options_1) },
+                number_of_options_2: unsafe { U4Bits::new_unchecked(number_of_options_2) },
+                service_id,
+                instance_id,
+                major_version,
+                ttl: unsafe { U24::new_unchecked(ttl) },
+                minor_version,
+            }))
+        }
     }
 
     /// Find service instances. Only use when the state of the given service is unknown.
@@ -61,18 +69,18 @@ impl SdEntry {
     pub fn new_find_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: U4Bits,
-        number_of_options_2: U4Bits,
+        number_of_options_1: u8,
+        number_of_options_2: u8,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: U24,
+        ttl: u32,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if ttl.value() == 0 {
+        if ttl == 0 {
             Err(SdValueError::TtlZeroIndicatesStopOffering)
         } else {
-            Ok(Self::new_service_entry(
+            Self::new_service_entry(
                 SdServiceEntryType::FindService,
                 index_first_option_run,
                 index_second_option_run,
@@ -83,11 +91,11 @@ impl SdEntry {
                 major_version,
                 ttl,
                 minor_version,
-            ))
+            )
         }
     }
 
-    /// Createa a service offer entry.
+    /// Create a service offer entry.
     ///
     /// # Errors:
     ///
@@ -98,18 +106,18 @@ impl SdEntry {
     pub fn new_offer_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: U4Bits,
-        number_of_options_2: U4Bits,
+        number_of_options_1: u8,
+        number_of_options_2: u8,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: U24,
+        ttl: u32,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if ttl.value() == 0 {
+        if ttl == 0 {
             Err(SdValueError::TtlZeroIndicatesStopOffering)
         } else {
-            Ok(Self::new_service_entry(
+            Self::new_service_entry(
                 SdServiceEntryType::OfferService,
                 index_first_option_run,
                 index_second_option_run,
@@ -120,7 +128,7 @@ impl SdEntry {
                 major_version,
                 ttl,
                 minor_version,
-            ))
+            )
         }
     }
 
@@ -129,25 +137,31 @@ impl SdEntry {
     pub fn new_stop_offer_service_entry(
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: U4Bits,
-        number_of_options_2: U4Bits,
+        number_of_options_1: u8,
+        number_of_options_2: u8,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
         minor_version: u32,
-    ) -> Self {
-        Self::new_service_entry(
-            SdServiceEntryType::OfferService,
-            index_first_option_run,
-            index_second_option_run,
-            number_of_options_1,
-            number_of_options_2,
-            service_id,
-            instance_id,
-            major_version,
-            U24::ZERO,
-            minor_version,
-        )
+    ) -> Result<Self, SdValueError> {
+        if number_of_options_1 > U4Bits::MAX_U8 {
+            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
+        } else if number_of_options_2 > U4Bits::MAX_U8 {
+            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
+        } else {
+            Ok(Self::Service(ServiceEntry {
+                _type: SdServiceEntryType::OfferService,
+                index_first_option_run,
+                index_second_option_run,
+                number_of_options_1: unsafe { U4Bits::new_unchecked(number_of_options_1) },
+                number_of_options_2: unsafe { U4Bits::new_unchecked(number_of_options_2) },
+                service_id,
+                instance_id,
+                major_version,
+                ttl: U24::ZERO,
+                minor_version,
+            }))
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -155,30 +169,40 @@ impl SdEntry {
         entry_type: EventGroupEntryType,
         index_first_option_run: u8,
         index_second_option_run: u8,
-        number_of_options_1: U4Bits,
-        number_of_options_2: U4Bits,
+        number_of_options_1: u8,
+        number_of_options_2: u8,
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: U24,
+        ttl: u32,
         initial_data_requested: bool,
-        counter: U4Bits,
+        counter: u8,
         eventgroup_id: u16,
-    ) -> Self {
-        Self::Eventgroup(EventGroupEntry {
-            entry_type,
-            index_first_option_run,
-            index_second_option_run,
-            number_of_options_1,
-            number_of_options_2,
-            service_id,
-            instance_id,
-            major_version,
-            ttl,
-            initial_data_requested,
-            counter,
-            eventgroup_id,
-        })
+    ) -> Result<Self, SdValueError> {
+        if number_of_options_1 > U4Bits::MAX_U8 {
+            Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
+        } else if number_of_options_2 > U4Bits::MAX_U8 {
+            Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
+        } else if ttl > U24::MAX_U32 {
+            Err(SdValueError::TtlTooLarge(ttl))
+        } else if counter > U4Bits::MAX_U8 {
+            Err(SdValueError::CounterTooLarge(counter))
+        } else {
+            Ok(Self::Eventgroup(EventGroupEntry {
+                entry_type,
+                index_first_option_run,
+                index_second_option_run,
+                number_of_options_1: unsafe { U4Bits::new_unchecked(number_of_options_1) },
+                number_of_options_2: unsafe { U4Bits::new_unchecked(number_of_options_2) },
+                service_id,
+                instance_id,
+                major_version,
+                ttl: unsafe { U24::new_unchecked(ttl) },
+                initial_data_requested,
+                counter: unsafe { U4Bits::new_unchecked(counter) },
+                eventgroup_id,
+            }))
+        }
     }
 
     #[inline]
@@ -356,6 +380,7 @@ impl SdEntry {
 mod tests {
     use super::*;
     use crate::proptest_generators::*;
+    use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Cursor;
 
@@ -376,48 +401,249 @@ mod tests {
 
     #[test]
     fn service_entry_read_unknown_service_entry_type() {
-        use assert_matches::*;
-
         let mut buffer = [0x00; ENTRY_LEN];
-        buffer[0] = 0xFF; // Unknown Type
+        buffer[0] = 0xFF;
         let mut cursor = std::io::Cursor::new(buffer);
         let result = SdEntry::read(&mut cursor);
         assert_matches!(result, Err(SdReadError::UnknownSdServiceEntryType(0xFF)));
     }
 
     #[test]
-    fn new_service_find_service_entry_zero_ttl() {
-        use assert_matches::*;
-
-        let result = SdEntry::new_find_service_entry(
-            0,
-            0,
-            U4Bits::ZERO,
-            U4Bits::ZERO,
-            0,
-            0,
-            0,
-            U24::ZERO,
-            0,
-        );
-        assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+    fn new_service_entry() {
+        // ok
+        {
+            let result = SdEntry::new_service_entry(
+                SdServiceEntryType::OfferService,
+                0,
+                0,
+                0x0F,
+                0x0F,
+                0,
+                0,
+                0,
+                0x00FF_FFFF,
+                0,
+            );
+            assert!(result.is_ok());
+        }
+        // number_of_options_1 too large
+        {
+            let result = SdEntry::new_service_entry(
+                SdServiceEntryType::OfferService,
+                0,
+                0,
+                0x10,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+        }
+        // number_of_options_2 too large
+        {
+            let result = SdEntry::new_service_entry(
+                SdServiceEntryType::OfferService,
+                0,
+                0,
+                0,
+                0xFF,
+                0,
+                0,
+                0,
+                0,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0xFF)));
+        }
+        // ttl too large
+        {
+            let result = SdEntry::new_service_entry(
+                SdServiceEntryType::OfferService,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0x0100_0000,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::TtlTooLarge(0x0100_0000)));
+        }
     }
 
     #[test]
-    fn new_service_offer_service_entry_zero_ttl() {
-        use assert_matches::*;
+    fn new_find_service_entry() {
+        // ok
+        {
+            let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 1, 0);
+            assert!(result.is_ok());
+        }
+        // zero ttl
+        {
+            let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+        }
+        // ttl too large
+        {
+            let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0xFFFF_FFFF, 0);
+            assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
+        }
+        // number_of_options_1 too large
+        {
+            let result = SdEntry::new_find_service_entry(0, 0, 0x10, 0, 0, 0, 0, 1, 0);
+            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+        }
+        // number_of_options_2 too large
+        {
+            let result = SdEntry::new_find_service_entry(0, 0, 0, 0x10, 0, 0, 0, 1, 0);
+            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+        }
+    }
 
-        let result = SdEntry::new_offer_service_entry(
-            0,
-            0,
-            U4Bits::ZERO,
-            U4Bits::ZERO,
-            0,
-            0,
-            0,
-            U24::ZERO,
-            0,
-        );
-        assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+    #[test]
+    fn new_offer_service_entry() {
+        // ok
+        {
+            let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 1, 0);
+            assert!(result.is_ok());
+        }
+        // zero ttl
+        {
+            let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+        }
+        // ttl too large
+        {
+            let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0xFFFF_FFFF, 0);
+            assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
+        }
+        // number_of_options_1 too large
+        {
+            let result = SdEntry::new_offer_service_entry(0, 0, 0x10, 0, 0, 0, 0, 1, 0);
+            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+        }
+        // number_of_options_2 too large
+        {
+            let result = SdEntry::new_offer_service_entry(0, 0, 0, 0x10, 0, 0, 0, 1, 0);
+            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+        }
+    }
+
+    #[test]
+    fn new_stop_offer_service_entry() {
+        // ok
+        {
+            let result = SdEntry::new_stop_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0);
+            assert!(result.is_ok());
+        }
+        // number_of_options_1 too large
+        {
+            let result = SdEntry::new_stop_offer_service_entry(0, 0, 0x10, 0, 0, 0, 0, 0);
+            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+        }
+        // number_of_options_2 too large
+        {
+            let result = SdEntry::new_stop_offer_service_entry(0, 0, 0, 0x10, 0, 0, 0, 0);
+            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+        }
+    }
+
+    #[test]
+    fn new_eventgroup() {
+        // ok
+        {
+            let result = SdEntry::new_eventgroup(
+                EventGroupEntryType::Subscribe,
+                0,
+                0,
+                0x0F,
+                0x0F,
+                0,
+                0,
+                0,
+                0x00FF_FFFF,
+                false,
+                0x0F,
+                0,
+            );
+            assert!(result.is_ok());
+        }
+        // number_of_options_1 too large
+        {
+            let result = SdEntry::new_eventgroup(
+                EventGroupEntryType::Subscribe,
+                0,
+                0,
+                0x10,
+                0,
+                0,
+                0,
+                0,
+                0,
+                false,
+                0,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+        }
+        // number_of_options_2 too large
+        {
+            let result = SdEntry::new_eventgroup(
+                EventGroupEntryType::Subscribe,
+                0,
+                0,
+                0,
+                0x10,
+                0,
+                0,
+                0,
+                0,
+                false,
+                0,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+        }
+        // ttl too large
+        {
+            let result = SdEntry::new_eventgroup(
+                EventGroupEntryType::Subscribe,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0x0100_0000,
+                false,
+                0,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::TtlTooLarge(0x0100_0000)));
+        }
+        // counter too large
+        {
+            let result = SdEntry::new_eventgroup(
+                EventGroupEntryType::Subscribe,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                false,
+                0x10,
+                0,
+            );
+            assert_matches!(result, Err(SdValueError::CounterTooLarge(0x10)));
+        }
     }
 }

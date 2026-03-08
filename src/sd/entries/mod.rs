@@ -13,8 +13,8 @@ pub use service_entry_type::*;
 mod u24;
 pub use u24::*;
 
-mod u4_bits;
-pub use u4_bits::*;
+mod u4;
+pub use u4::*;
 
 /// Maximum entry length that is supported by the read & from slice functions.
 ///

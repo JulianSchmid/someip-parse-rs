@@ -8,8 +8,8 @@ pub struct EventGroupEntry {
     pub entry_type: EventGroupEntryType,
     pub index_first_option_run: u8,
     pub index_second_option_run: u8,
-    pub number_of_options_1: U4Bits,
-    pub number_of_options_2: U4Bits,
+    pub number_of_options_1: U4,
+    pub number_of_options_2: U4,
     pub service_id: u16,
     pub instance_id: u16,
     pub major_version: u8,
@@ -17,7 +17,7 @@ pub struct EventGroupEntry {
     /// True if initial data shall be sent by server
     pub initial_data_requested: bool,
     /// Distinguish identical subscribe eventgroups of the same subscriber.
-    pub counter: U4Bits,
+    pub counter: U4,
     pub eventgroup_id: u16,
 }
 
@@ -72,8 +72,8 @@ impl EventGroupEntry {
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
             // Safe: bit-shifted values are guaranteed to be <= 0x0F
-            number_of_options_1: unsafe { U4Bits::new_unchecked(entry_bytes[3] >> 4) },
-            number_of_options_2: unsafe { U4Bits::new_unchecked(entry_bytes[3] & 0x0F) },
+            number_of_options_1: unsafe { U4::new_unchecked(entry_bytes[3] >> 4) },
+            number_of_options_2: unsafe { U4::new_unchecked(entry_bytes[3] & 0x0F) },
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
@@ -90,7 +90,7 @@ impl EventGroupEntry {
             initial_data_requested: 0
                 != entry_bytes[13] & crate::sd::EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
             // Safe: masked value is guaranteed to be <= 0x0F
-            counter: unsafe { U4Bits::new_unchecked(entry_bytes[13] & 0x0F) },
+            counter: unsafe { U4::new_unchecked(entry_bytes[13] & 0x0F) },
             eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
         })
     }

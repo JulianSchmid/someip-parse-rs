@@ -37,9 +37,9 @@ impl SdEntry {
         ttl: u32,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if number_of_options_1 > U4Bits::MAX_U8 {
+        if number_of_options_1 > U4::MAX_U8 {
             Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
-        } else if number_of_options_2 > U4Bits::MAX_U8 {
+        } else if number_of_options_2 > U4::MAX_U8 {
             Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else if ttl > U24::MAX_U32 {
             Err(SdValueError::TtlTooLarge(ttl))
@@ -48,8 +48,8 @@ impl SdEntry {
                 _type: entry_type,
                 index_first_option_run,
                 index_second_option_run,
-                number_of_options_1: unsafe { U4Bits::new_unchecked(number_of_options_1) },
-                number_of_options_2: unsafe { U4Bits::new_unchecked(number_of_options_2) },
+                number_of_options_1: unsafe { U4::new_unchecked(number_of_options_1) },
+                number_of_options_2: unsafe { U4::new_unchecked(number_of_options_2) },
                 service_id,
                 instance_id,
                 major_version,
@@ -144,17 +144,17 @@ impl SdEntry {
         major_version: u8,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if number_of_options_1 > U4Bits::MAX_U8 {
+        if number_of_options_1 > U4::MAX_U8 {
             Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
-        } else if number_of_options_2 > U4Bits::MAX_U8 {
+        } else if number_of_options_2 > U4::MAX_U8 {
             Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Service(ServiceEntry {
                 _type: SdServiceEntryType::OfferService,
                 index_first_option_run,
                 index_second_option_run,
-                number_of_options_1: unsafe { U4Bits::new_unchecked(number_of_options_1) },
-                number_of_options_2: unsafe { U4Bits::new_unchecked(number_of_options_2) },
+                number_of_options_1: unsafe { U4::new_unchecked(number_of_options_1) },
+                number_of_options_2: unsafe { U4::new_unchecked(number_of_options_2) },
                 service_id,
                 instance_id,
                 major_version,
@@ -179,27 +179,27 @@ impl SdEntry {
         counter: u8,
         eventgroup_id: u16,
     ) -> Result<Self, SdValueError> {
-        if number_of_options_1 > U4Bits::MAX_U8 {
+        if number_of_options_1 > U4::MAX_U8 {
             Err(SdValueError::NumberOfOption1TooLarge(number_of_options_1))
-        } else if number_of_options_2 > U4Bits::MAX_U8 {
+        } else if number_of_options_2 > U4::MAX_U8 {
             Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else if ttl > U24::MAX_U32 {
             Err(SdValueError::TtlTooLarge(ttl))
-        } else if counter > U4Bits::MAX_U8 {
+        } else if counter > U4::MAX_U8 {
             Err(SdValueError::CounterTooLarge(counter))
         } else {
             Ok(Self::Eventgroup(EventGroupEntry {
                 entry_type,
                 index_first_option_run,
                 index_second_option_run,
-                number_of_options_1: unsafe { U4Bits::new_unchecked(number_of_options_1) },
-                number_of_options_2: unsafe { U4Bits::new_unchecked(number_of_options_2) },
+                number_of_options_1: unsafe { U4::new_unchecked(number_of_options_1) },
+                number_of_options_2: unsafe { U4::new_unchecked(number_of_options_2) },
                 service_id,
                 instance_id,
                 major_version,
                 ttl: unsafe { U24::new_unchecked(ttl) },
                 initial_data_requested,
-                counter: unsafe { U4Bits::new_unchecked(counter) },
+                counter: unsafe { U4::new_unchecked(counter) },
                 eventgroup_id,
             }))
         }
@@ -232,8 +232,8 @@ impl SdEntry {
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
             // Safe: bit-shifted values are guaranteed to be <= 0x0F
-            number_of_options_1: unsafe { U4Bits::new_unchecked(entry_bytes[3] >> 4) },
-            number_of_options_2: unsafe { U4Bits::new_unchecked(entry_bytes[3] & 0x0F) },
+            number_of_options_1: unsafe { U4::new_unchecked(entry_bytes[3] >> 4) },
+            number_of_options_2: unsafe { U4::new_unchecked(entry_bytes[3] & 0x0F) },
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
@@ -266,8 +266,8 @@ impl SdEntry {
             index_first_option_run: entry_bytes[1],
             index_second_option_run: entry_bytes[2],
             // Safe: bit-shifted values are guaranteed to be <= 0x0F
-            number_of_options_1: unsafe { U4Bits::new_unchecked(entry_bytes[3] >> 4) },
-            number_of_options_2: unsafe { U4Bits::new_unchecked(entry_bytes[3] & 0x0F) },
+            number_of_options_1: unsafe { U4::new_unchecked(entry_bytes[3] >> 4) },
+            number_of_options_2: unsafe { U4::new_unchecked(entry_bytes[3] & 0x0F) },
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
@@ -283,7 +283,7 @@ impl SdEntry {
             // skip reserved byte, TODO: should this be verified to be 0x00 ?
             initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
             // Safe: masked value is guaranteed to be <= 0x0F
-            counter: unsafe { U4Bits::new_unchecked(entry_bytes[13] & 0x0F) },
+            counter: unsafe { U4::new_unchecked(entry_bytes[13] & 0x0F) },
             eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
         }))
     }

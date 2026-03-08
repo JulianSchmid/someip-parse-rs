@@ -309,10 +309,7 @@ mod test {
         // debug
         {
             let a = U4BitsTooLargeError { actual: 20 };
-            assert_eq!(
-                format!("{:?}", a),
-                "U4BitsTooLargeError { actual: 20 }"
-            );
+            assert_eq!(format!("{:?}", a), "U4BitsTooLargeError { actual: 20 }");
         }
 
         // ord & partial ord

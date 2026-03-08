@@ -13,7 +13,7 @@ pub struct ServiceEntry {
     pub service_id: u16,
     pub instance_id: u16,
     pub major_version: u8,
-    pub ttl: u32,
+    pub ttl: U24,
     pub minor_version: u32,
 }
 
@@ -26,7 +26,8 @@ impl ServiceEntry {
         result[0] = self._type as u8;
         result[1] = self.index_first_option_run;
         result[2] = self.index_second_option_run;
-        result[3] = ((self.number_of_options_1.value() & 0x0F) << 4) | (self.number_of_options_2.value() & 0x0F);
+        result[3] = ((self.number_of_options_1.value() & 0x0F) << 4)
+            | (self.number_of_options_2.value() & 0x0F);
 
         let service_id_bytes = self.service_id.to_be_bytes();
         result[4] = service_id_bytes[0];
@@ -38,7 +39,7 @@ impl ServiceEntry {
 
         result[8] = self.major_version;
 
-        let ttl_bytes = self.ttl.to_be_bytes();
+        let ttl_bytes = self.ttl.value().to_be_bytes();
         result[9] = ttl_bytes[1];
         result[10] = ttl_bytes[2];
         result[11] = ttl_bytes[3];
@@ -68,7 +69,15 @@ impl ServiceEntry {
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
-            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+            // Safe: leading byte is 0x00, so value is guaranteed to be <= 0x00FF_FFFF
+            ttl: unsafe {
+                U24::new_unchecked(u32::from_be_bytes([
+                    0x00,
+                    entry_bytes[9],
+                    entry_bytes[10],
+                    entry_bytes[11],
+                ]))
+            },
             minor_version: u32::from_be_bytes([
                 entry_bytes[12],
                 entry_bytes[13],

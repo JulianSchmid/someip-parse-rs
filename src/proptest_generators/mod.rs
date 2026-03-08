@@ -106,7 +106,7 @@ prop_compose! {
             service_id in any::<u16>(),
             instance_id in any::<u16>(),
             major_version in any::<u8>(),
-            ttl in 0..0x00FF_FFFFu32,
+            ttl in 0..=0x00FF_FFFFu32,
             initial_data_requested in any::<bool>(),
             counter in 0..=0x0Fu8,
             eventgroup_id in any::<u16>(),
@@ -122,7 +122,7 @@ prop_compose! {
             service_id,
             instance_id,
             major_version,
-            ttl,
+            ttl: sd::entries::U24::try_new(ttl).unwrap(),
             initial_data_requested,
             counter: sd::entries::U4Bits::try_new(counter).unwrap(),
             eventgroup_id,
@@ -147,7 +147,7 @@ prop_compose! {
             service_id in any::<u16>(),
             instance_id in any::<u16>(),
             major_version in any::<u8>(),
-            ttl in 0..0x00FF_FFFFu32,
+            ttl in 0..=0x00FF_FFFFu32,
             minor_version in any::<u32>(),
         )
     -> sd::entries::ServiceEntry
@@ -161,7 +161,7 @@ prop_compose! {
             service_id,
             instance_id,
             major_version,
-            ttl,
+            ttl: sd::entries::U24::try_new(ttl).unwrap(),
             minor_version,
         }
     }

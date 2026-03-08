@@ -10,6 +10,9 @@ pub use service_entry::*;
 mod service_entry_type;
 pub use service_entry_type::*;
 
+mod u24;
+pub use u24::*;
+
 mod u4_bits;
 pub use u4_bits::*;
 

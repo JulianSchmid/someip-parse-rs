@@ -34,25 +34,21 @@ impl SdEntry {
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: u32,
+        ttl: U24,
         minor_version: u32,
-    ) -> Result<Self, SdValueError> {
-        if ttl > 0x00FF_FFFF {
-            Err(SdValueError::TtlTooLarge(ttl))
-        } else {
-            Ok(Self::Service(ServiceEntry {
-                _type: entry_type,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                minor_version,
-            }))
-        }
+    ) -> Self {
+        Self::Service(ServiceEntry {
+            _type: entry_type,
+            index_first_option_run,
+            index_second_option_run,
+            number_of_options_1,
+            number_of_options_2,
+            service_id,
+            instance_id,
+            major_version,
+            ttl,
+            minor_version,
+        })
     }
 
     /// Find service instances. Only use when the state of the given service is unknown.
@@ -70,13 +66,13 @@ impl SdEntry {
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: u32,
+        ttl: U24,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if ttl == 0 {
+        if ttl.value() == 0 {
             Err(SdValueError::TtlZeroIndicatesStopOffering)
         } else {
-            Self::new_service_entry(
+            Ok(Self::new_service_entry(
                 SdServiceEntryType::FindService,
                 index_first_option_run,
                 index_second_option_run,
@@ -87,7 +83,7 @@ impl SdEntry {
                 major_version,
                 ttl,
                 minor_version,
-            )
+            ))
         }
     }
 
@@ -107,13 +103,13 @@ impl SdEntry {
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: u32,
+        ttl: U24,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if ttl == 0 {
+        if ttl.value() == 0 {
             Err(SdValueError::TtlZeroIndicatesStopOffering)
         } else {
-            Self::new_service_entry(
+            Ok(Self::new_service_entry(
                 SdServiceEntryType::OfferService,
                 index_first_option_run,
                 index_second_option_run,
@@ -124,7 +120,7 @@ impl SdEntry {
                 major_version,
                 ttl,
                 minor_version,
-            )
+            ))
         }
     }
 
@@ -139,7 +135,7 @@ impl SdEntry {
         instance_id: u16,
         major_version: u8,
         minor_version: u32,
-    ) -> Result<Self, SdValueError> {
+    ) -> Self {
         Self::new_service_entry(
             SdServiceEntryType::OfferService,
             index_first_option_run,
@@ -149,7 +145,7 @@ impl SdEntry {
             service_id,
             instance_id,
             major_version,
-            0x00,
+            U24::ZERO,
             minor_version,
         )
     }
@@ -164,29 +160,25 @@ impl SdEntry {
         service_id: u16,
         instance_id: u16,
         major_version: u8,
-        ttl: u32,
+        ttl: U24,
         initial_data_requested: bool,
         counter: U4Bits,
         eventgroup_id: u16,
-    ) -> Result<Self, SdValueError> {
-        if ttl > 0x00FF_FFFF {
-            Err(SdValueError::TtlTooLarge(ttl))
-        } else {
-            Ok(Self::Eventgroup(EventGroupEntry {
-                entry_type,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                initial_data_requested,
-                counter,
-                eventgroup_id,
-            }))
-        }
+    ) -> Self {
+        Self::Eventgroup(EventGroupEntry {
+            entry_type,
+            index_first_option_run,
+            index_second_option_run,
+            number_of_options_1,
+            number_of_options_2,
+            service_id,
+            instance_id,
+            major_version,
+            ttl,
+            initial_data_requested,
+            counter,
+            eventgroup_id,
+        })
     }
 
     #[inline]
@@ -221,7 +213,15 @@ impl SdEntry {
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
-            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+            // Safe: leading byte is 0x00, so value is guaranteed to be <= 0x00FF_FFFF
+            ttl: unsafe {
+                U24::new_unchecked(u32::from_be_bytes([
+                    0x00,
+                    entry_bytes[9],
+                    entry_bytes[10],
+                    entry_bytes[11],
+                ]))
+            },
             minor_version: u32::from_be_bytes([
                 entry_bytes[12],
                 entry_bytes[13],
@@ -247,7 +247,15 @@ impl SdEntry {
             service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
             instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
             major_version: entry_bytes[8],
-            ttl: u32::from_be_bytes([0x00, entry_bytes[9], entry_bytes[10], entry_bytes[11]]),
+            // Safe: leading byte is 0x00, so value is guaranteed to be <= 0x00FF_FFFF
+            ttl: unsafe {
+                U24::new_unchecked(u32::from_be_bytes([
+                    0x00,
+                    entry_bytes[9],
+                    entry_bytes[10],
+                    entry_bytes[11],
+                ]))
+            },
             // skip reserved byte, TODO: should this be verified to be 0x00 ?
             initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
             // Safe: masked value is guaranteed to be <= 0x0F
@@ -273,7 +281,8 @@ impl SdEntry {
                 result[0] = e.entry_type as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
-                result[3] = (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
+                result[3] =
+                    (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
 
                 let service_id_bytes = e.service_id.to_be_bytes();
                 result[4] = service_id_bytes[0];
@@ -285,7 +294,7 @@ impl SdEntry {
 
                 result[8] = e.major_version;
 
-                let ttl_bytes = e.ttl.to_be_bytes();
+                let ttl_bytes = e.ttl.value().to_be_bytes();
                 result[9] = ttl_bytes[1];
                 result[10] = ttl_bytes[2];
                 result[11] = ttl_bytes[3];
@@ -308,7 +317,8 @@ impl SdEntry {
                 result[0] = e._type as u8;
                 result[1] = e.index_first_option_run;
                 result[2] = e.index_second_option_run;
-                result[3] = (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
+                result[3] =
+                    (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
 
                 let service_id_bytes = e.service_id.to_be_bytes();
                 result[4] = service_id_bytes[0];
@@ -320,7 +330,7 @@ impl SdEntry {
 
                 result[8] = e.major_version;
 
-                let ttl_bytes = e.ttl.to_be_bytes();
+                let ttl_bytes = e.ttl.value().to_be_bytes();
                 result[9] = ttl_bytes[1];
                 result[10] = ttl_bytes[2];
                 result[11] = ttl_bytes[3];
@@ -376,30 +386,20 @@ mod tests {
     }
 
     #[test]
-    fn new_service_entry_ttl_too_large() {
-        use assert_matches::*;
-
-        let result = SdEntry::new_service_entry(
-            SdServiceEntryType::OfferService,
-            0,
-            0,
-            U4Bits::ZERO,
-            U4Bits::ZERO,
-            0,
-            0,
-            0,
-            0xFFFF_FFFF,
-            0,
-        );
-        assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
-    }
-
-    #[test]
     fn new_service_find_service_entry_zero_ttl() {
         use assert_matches::*;
 
-        let result =
-            SdEntry::new_find_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0, 0, 0, 0, 0);
+        let result = SdEntry::new_find_service_entry(
+            0,
+            0,
+            U4Bits::ZERO,
+            U4Bits::ZERO,
+            0,
+            0,
+            0,
+            U24::ZERO,
+            0,
+        );
         assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
     }
 
@@ -407,8 +407,17 @@ mod tests {
     fn new_service_offer_service_entry_zero_ttl() {
         use assert_matches::*;
 
-        let result =
-            SdEntry::new_offer_service_entry(0, 0, U4Bits::ZERO, U4Bits::ZERO, 0, 0, 0, 0, 0);
+        let result = SdEntry::new_offer_service_entry(
+            0,
+            0,
+            U4Bits::ZERO,
+            U4Bits::ZERO,
+            0,
+            0,
+            0,
+            U24::ZERO,
+            0,
+        );
         assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
     }
 }

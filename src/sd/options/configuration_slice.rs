@@ -8,7 +8,7 @@ pub struct ConfigurationSlice<'a> {
 
 impl<'a> ConfigurationSlice<'a> {
     pub fn from_slice(slice: &'a [u8]) -> Result<Self, err::LenError> {
-        if slice.len() < 1 {
+        if slice.is_empty() {
             return Err(err::LenError {
                 required_len: 1,
                 len: slice.len(),

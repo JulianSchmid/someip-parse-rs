@@ -24,6 +24,9 @@ pub enum SdReadError {
         actual_len: u16,
         option_type: u8,
     },
+    /// Error if a configuration option's length exceeds the maximum
+    /// allowed configuration string size.
+    SdConfigurationOptionLenTooLarge(u16),
 }
 
 impl From<std::io::Error> for SdReadError {
@@ -48,6 +51,7 @@ mod tests {
         for value in [
             IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
             UnexpectedEndOfSlice(0),
+            SdConfigurationOptionLenTooLarge(0),
         ]
         .iter()
         {

@@ -81,9 +81,19 @@ prop_compose! {
         )
     -> sd::SdHeader
     {
-        let mut header = sd::SdHeader::new(reboot, &entries, &options).unwrap();
+        let mut header = sd::SdHeader::empty(reboot);
         header.flags.unicast = unicast;
         header.flags.explicit_initial_data_control = explicit_initial_data_control;
+        for entry in entries {
+            if header.add_entry(entry).is_err() {
+                break;
+            }
+        }
+        for option in options {
+            if header.add_option(option).is_err() {
+                break;
+            }
+        }
         header
     }
 }
@@ -195,11 +205,16 @@ pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = sd::options::
 prop_compose! {
     pub fn someip_sd_option_configuration_any()(
         discardable in any::<bool>(),
-        configuration_string in any::<Vec<u8>>(),
+        configuration_string in proptest::collection::vec(
+            any::<u8>(),
+            0..=sd::options::ConfigurationOption::MAX_CONFIGURATION_STRING_LEN,
+        ),
     ) -> sd::options::ConfigurationOption {
+        let mut arr = arrayvec::ArrayVec::new();
+        arr.try_extend_from_slice(&configuration_string).unwrap();
         sd::options::ConfigurationOption {
             discardable,
-            configuration_string
+            configuration_string: arr,
         }
     }
 }

@@ -131,10 +131,14 @@ impl SdOption {
             // Configuration
             CONFIGURATION_TYPE => {
                 let length_array = (length - 1) as usize;
-                let mut configuration_string = Vec::with_capacity(length_array);
-                reader
-                    .take(length_array as u64)
-                    .read_to_end(&mut configuration_string)?;
+                if length_array > ConfigurationOption::MAX_CONFIGURATION_STRING_LEN {
+                    return Err(SdConfigurationOptionLenTooLarge(length));
+                }
+                let mut configuration_string = ArrayVec::new();
+                unsafe {
+                    configuration_string.set_len(length_array);
+                }
+                reader.read_exact(&mut configuration_string[..length_array])?;
                 Configuration(ConfigurationOption {
                     discardable,
                     configuration_string,
@@ -768,6 +772,18 @@ mod tests {
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
             assert_matches!(result, Err(SdReadError::SdOptionLengthZero));
+        }
+        // configuration option length too large
+        {
+            let too_large = (ConfigurationOption::MAX_CONFIGURATION_STRING_LEN as u16) + 2;
+            let len_be = too_large.to_be_bytes();
+            let buffer = [len_be[0], len_be[1], CONFIGURATION_TYPE, 0x00];
+            let mut cursor = std::io::Cursor::new(buffer);
+            let result = SdOption::read(&mut cursor);
+            assert_matches!(
+                result,
+                Err(SdReadError::SdConfigurationOptionLenTooLarge(v)) if v == too_large
+            );
         }
         // ipv4 length check errors
         for t in [

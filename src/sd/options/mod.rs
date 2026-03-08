@@ -1,26 +1,50 @@
 mod configuration_option;
 pub use configuration_option::*;
 
+mod configuration_slice;
+pub use configuration_slice::*;
+
 mod ipv4_endpoint_option;
 pub use ipv4_endpoint_option::*;
+
+mod ipv4_endpoint_slice;
+pub use ipv4_endpoint_slice::*;
 
 mod ipv4_multicast_option;
 pub use ipv4_multicast_option::*;
 
+mod ipv4_multicast_slice;
+pub use ipv4_multicast_slice::*;
+
 mod ipv4_sd_endpoint_option;
 pub use ipv4_sd_endpoint_option::*;
+
+mod ipv4_sd_endpoint_slice;
+pub use ipv4_sd_endpoint_slice::*;
 
 mod ipv6_endpoint_option;
 pub use ipv6_endpoint_option::*;
 
+mod ipv6_endpoint_slice;
+pub use ipv6_endpoint_slice::*;
+
 mod ipv6_multicast_option;
 pub use ipv6_multicast_option::*;
+
+mod ipv6_multicast_slice;
+pub use ipv6_multicast_slice::*;
 
 mod ipv6_sd_endpoint_option;
 pub use ipv6_sd_endpoint_option::*;
 
+mod ipv6_sd_endpoint_slice;
+pub use ipv6_sd_endpoint_slice::*;
+
 mod load_balancing_option;
 pub use load_balancing_option::*;
+
+mod load_balancing_slice;
+pub use load_balancing_slice::*;
 
 mod transport_protocol;
 pub use transport_protocol::*;

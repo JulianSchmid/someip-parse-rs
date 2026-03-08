@@ -45,7 +45,7 @@ pub const MAX_ENTRIES_LEN: u32 = crate::SOMEIP_MAX_PAYLOAD_LEN_UDP - 4 - 4 - 4;
 /// Maximum entry length that is supported by the read & from slice functions as a
 /// `usize`.
 ///
-/// See [`crate::sd::MAX_ENTRIES_LEN`] for details on how this value was
+/// See [`MAX_ENTRIES_LEN`] for details on how this value was
 /// calculcated.
 pub const MAX_ENTRIES_LEN_USIZE: usize = MAX_ENTRIES_LEN as usize;
 

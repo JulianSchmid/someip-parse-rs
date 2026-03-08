@@ -57,7 +57,7 @@ pub const MAX_OPTIONS_LEN: u32 = crate::SOMEIP_MAX_PAYLOAD_LEN_UDP - 4 - 4 - 4;
 /// Maximum options length that is supported by the read & from slice functions
 /// as a `usize`.
 ///
-/// See [`crate::sd::MAX_OPTIONS_LEN`] for details on how this value was
+/// See [`MAX_OPTIONS_LEN`] for details on how this value was
 /// calculcated.
 pub const MAX_OPTIONS_LEN_USIZE: usize = MAX_OPTIONS_LEN as usize;
 

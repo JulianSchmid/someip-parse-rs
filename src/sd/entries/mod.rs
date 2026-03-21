@@ -1,11 +1,17 @@
 mod event_group_entry;
 pub use event_group_entry::*;
 
+mod event_group_entry_slice;
+pub use event_group_entry_slice::*;
+
 mod event_group_entry_type;
 pub use event_group_entry_type::*;
 
 mod service_entry;
 pub use service_entry::*;
+
+mod service_entry_slice;
+pub use service_entry_slice::*;
 
 mod service_entry_type;
 pub use service_entry_type::*;

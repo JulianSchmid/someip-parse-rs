@@ -214,11 +214,14 @@ impl SdHeader {
         Ok(entries)
     }
 
-    /// Returns options as a vector by parsing the serialized data.
+    /// Returns an iterator over the options by parsing the serialized data.
     ///
-    /// This method deserializes the options from the internal fixed-size buffer
-    /// and returns them as a `Vec<SdOption>`. The parsing is done on-demand,
-    /// so there's no memory overhead when options are not accessed.
+    /// The returned [`SdOptionsCheckedIterator`] yields [`SdOptionSlice`]
+    /// values directly (without `Result`) because the internal buffer
+    /// is guaranteed to contain validly encoded options. Unknown option
+    /// types are returned as [`SdOptionSlice::Unknown`]; use
+    /// [`options::UnknownSlice::discardable`] to decide whether they
+    /// can be safely ignored.
     ///
     /// # Example
     ///
@@ -231,25 +234,14 @@ impl SdHeader {
     ///     transport_protocol: TransportProtocol::Tcp,
     ///     port: 8080,
     /// });
-    /// header.add_option(option.clone()).unwrap();
+    /// header.add_option(option).unwrap();
     ///
-    /// let options = header.options().unwrap();
-    /// assert_eq!(options.len(), 1);
-    /// assert_eq!(options[0], option);
+    /// for opt in header.options() {
+    ///     assert!(matches!(opt, SdOptionSlice::Ipv4Endpoint(_)));
+    /// }
     /// ```
-    pub fn options(&self) -> Result<Vec<SdOption>, SdReadError> {
-        let mut options = Vec::new();
-        let mut pos = 0;
-
-        while pos < self.options_len {
-            let mut cursor = std::io::Cursor::new(&self.options_data[pos..self.options_len]);
-            let (read_bytes, option) =
-                SdOption::read_with_flag(&mut cursor, self.discard_unknown_options)?;
-            options.push(option);
-            pos += read_bytes as usize;
-        }
-
-        Ok(options)
+    pub fn options(&self) -> SdOptionsCheckedIterator<'_> {
+        SdOptionsCheckedIterator::new(&self.options_data[..self.options_len])
     }
 
     /// Adds an entry to the header.
@@ -667,12 +659,19 @@ mod tests {
         };
         let sd_option = SdOption::Ipv4Endpoint(ipv4_option.clone());
 
-        header.add_option(sd_option.clone()).unwrap();
+        header.add_option(sd_option).unwrap();
         assert!(!header.is_options_empty());
 
-        let options = header.options().unwrap();
+        let options: Vec<_> = header.options().collect();
         assert_eq!(options.len(), 1);
-        assert_eq!(options[0], sd_option);
+        match &options[0] {
+            SdOptionSlice::Ipv4Endpoint(s) => {
+                assert_eq!(s.ipv4_address(), ipv4_option.ipv4_address);
+                assert_eq!(s.transport_protocol(), ipv4_option.transport_protocol);
+                assert_eq!(s.port(), ipv4_option.port);
+            }
+            _ => panic!("expected Ipv4Endpoint"),
+        }
 
         // Test clearing
         header.clear_entries();
@@ -682,9 +681,9 @@ mod tests {
         header.clear_options();
         assert!(header.is_options_empty());
 
-        // Test that the cleared header produces empty vectors
+        // Test that the cleared header produces empty results
         assert_eq!(header.entries().unwrap().len(), 0);
-        assert_eq!(header.options().unwrap().len(), 0);
+        assert_eq!(header.options().count(), 0);
     }
 
     #[test]

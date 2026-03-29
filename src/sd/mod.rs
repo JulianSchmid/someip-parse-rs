@@ -25,6 +25,12 @@ pub use sd_option_slice::*;
 mod sd_option_type;
 pub use sd_option_type::*;
 
+mod sd_options_checked_iterator;
+pub use sd_options_checked_iterator::*;
+
+mod sd_options_iterator;
+pub use sd_options_iterator::*;
+
 ///Length of someip sd header, flags + reserved + entries length + options length
 ///excluding entries and options arrays
 pub const MIN_SD_HEADER_LENGTH: usize = 1 + 3 + 4 + 4;

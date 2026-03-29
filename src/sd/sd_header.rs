@@ -171,47 +171,36 @@ impl SdHeader {
         }
     }
 
-    /// Returns entries as a vector by parsing the serialized data.
+    /// Returns an iterator over the entries by parsing the serialized data
+    /// on-demand.
     ///
-    /// This method deserializes the entries from the internal fixed-size buffer
-    /// and returns them as a `Vec<SdEntry>`. The parsing is done on-demand,
-    /// so there's no memory overhead when entries are not accessed.
+    /// The returned [`SdEntriesCheckedIterator`] yields [`SdEntrySlice`]
+    /// values directly (not wrapped in `Result`), since the data stored
+    /// in `SdHeader` is guaranteed to be valid.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal entry data is corrupt, which indicates a
+    /// bug in the serialization logic.
     ///
     /// # Example
     ///
     /// ```
-    /// use someip_parse::sd::{SdHeader, SdEntry};
+    /// use someip_parse::sd::{SdHeader, SdEntry, SdEntrySlice};
     ///
     /// let mut header = SdHeader::default();
     /// let entry = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap();
-    /// header.add_entry(entry.clone()).unwrap();
+    /// header.add_entry(entry).unwrap();
     ///
-    /// let entries = header.entries().unwrap();
-    /// assert_eq!(entries.len(), 1);
-    /// assert_eq!(entries[0], entry);
+    /// assert_eq!(header.entries().count(), 1);
+    /// for entry in header.entries() {
+    ///     assert!(matches!(entry, SdEntrySlice::Service(_)));
+    /// }
     /// ```
-    pub fn entries(&self) -> Result<Vec<SdEntry>, SdReadError> {
-        let mut entries = Vec::new();
-        let mut pos = 0;
-
-        while pos + ENTRY_LEN <= self.entries_len {
-            let mut entry_bytes = [0; ENTRY_LEN];
-            entry_bytes.copy_from_slice(&self.entries_data[pos..pos + ENTRY_LEN]);
-
-            let _type_raw = entry_bytes[0];
-            let entry = match _type_raw {
-                0x00 => SdEntry::read_service(SdServiceEntryType::FindService, entry_bytes)?,
-                0x01 => SdEntry::read_service(SdServiceEntryType::OfferService, entry_bytes)?,
-                0x06 => SdEntry::read_entry_group(EventGroupEntryType::Subscribe, entry_bytes)?,
-                0x07 => SdEntry::read_entry_group(EventGroupEntryType::SubscribeAck, entry_bytes)?,
-                _ => return Err(SdReadError::UnknownSdServiceEntryType(_type_raw)),
-            };
-
-            entries.push(entry);
-            pos += ENTRY_LEN;
-        }
-
-        Ok(entries)
+    pub fn entries(&self) -> SdEntriesCheckedIterator<'_> {
+        // SAFETY: entries_data[..entries_len] is only written to by
+        // add_entry which serialises valid SdEntry values.
+        unsafe { SdEntriesCheckedIterator::new(&self.entries_data[..self.entries_len]) }
     }
 
     /// Returns an iterator over the options by parsing the serialized data.
@@ -241,7 +230,9 @@ impl SdHeader {
     /// }
     /// ```
     pub fn options(&self) -> SdOptionsCheckedIterator<'_> {
-        SdOptionsCheckedIterator::new(&self.options_data[..self.options_len])
+        // SAFETY: options_data[..options_len] is only written to by
+        // add_option which serialises valid SdOption values.
+        unsafe { SdOptionsCheckedIterator::new(&self.options_data[..self.options_len]) }
     }
 
     /// Adds an entry to the header.
@@ -647,9 +638,14 @@ mod tests {
         assert_eq!(header.entries_count(), 1);
         assert!(!header.is_entries_empty());
 
-        let entries = header.entries().unwrap();
+        let entries: Vec<_> = header.entries().collect();
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0], service_entry);
+        match &entries[0] {
+            SdEntrySlice::Service(s) => {
+                assert_eq!(SdEntry::Service(s.to_owned()), service_entry);
+            }
+            _ => panic!("expected Service entry"),
+        }
 
         // Test adding options
         let ipv4_option = Ipv4EndpointOption {
@@ -682,7 +678,7 @@ mod tests {
         assert!(header.is_options_empty());
 
         // Test that the cleared header produces empty results
-        assert_eq!(header.entries().unwrap().len(), 0);
+        assert_eq!(header.entries().count(), 0);
         assert_eq!(header.options().count(), 0);
     }
 

@@ -22,10 +22,13 @@ impl<'a> SdOptionsCheckedIterator<'a> {
     /// Creates a new checked iterator over the SD options contained
     /// in `slice`.
     ///
+    /// # Safety
+    ///
     /// The caller must ensure that `slice` contains validly encoded
-    /// SD options. If this invariant is violated, iteration will panic.
+    /// SD options. If this invariant is violated, iteration will panic
+    /// or cause undefined behavior via internal unchecked operations.
     #[inline]
-    pub fn new(slice: &'a [u8]) -> Self {
+    pub unsafe fn new(slice: &'a [u8]) -> Self {
         Self { slice }
     }
 
@@ -58,7 +61,7 @@ mod tests {
 
     #[test]
     fn empty_slice() {
-        let mut iter = SdOptionsCheckedIterator::new(&[]);
+        let mut iter = unsafe { SdOptionsCheckedIterator::new(&[]) };
         assert_eq!(iter.next(), None);
         assert_eq!(iter.next(), None);
     }
@@ -75,7 +78,7 @@ mod tests {
         data[10] = 0x1f;
         data[11] = 0x90;
 
-        let mut iter = SdOptionsCheckedIterator::new(&data);
+        let mut iter = unsafe { SdOptionsCheckedIterator::new(&data) };
         let opt = iter.next().unwrap();
         match opt {
             SdOptionSlice::Ipv4Endpoint(s) => {
@@ -96,7 +99,7 @@ mod tests {
         data.extend_from_slice(&[0x00, 0x04, CONFIGURATION_TYPE, 0x00, 0x61, 0x62, 0x63]);
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
-        let items: Vec<_> = SdOptionsCheckedIterator::new(&data).collect();
+        let items: Vec<_> = unsafe { SdOptionsCheckedIterator::new(&data) }.collect();
         assert_eq!(items.len(), 3);
 
         assert!(matches!(items[0], SdOptionSlice::LoadBalancing(_)));
@@ -110,7 +113,7 @@ mod tests {
         data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x00, 0x01, 0x00, 0x02]);
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
-        let mut iter = SdOptionsCheckedIterator::new(&data);
+        let mut iter = unsafe { SdOptionsCheckedIterator::new(&data) };
         assert_eq!(iter.rest().len(), 12);
 
         iter.next();
@@ -124,14 +127,14 @@ mod tests {
     #[should_panic(expected = "SdOptionsCheckedIterator: corrupt option data")]
     fn panics_on_invalid_data() {
         let data = [0x00, 0x00, IPV4_ENDPOINT_TYPE];
-        let mut iter = SdOptionsCheckedIterator::new(&data);
+        let mut iter = unsafe { SdOptionsCheckedIterator::new(&data) };
         let _ = iter.next();
     }
 
     #[test]
     fn clone_debug_eq() {
         let data = [0x00, 0x01, 0xFF, 0x00];
-        let iter = SdOptionsCheckedIterator::new(&data);
+        let iter = unsafe { SdOptionsCheckedIterator::new(&data) };
         assert_eq!(iter, iter.clone());
         let _ = format!("{:?}", iter);
     }

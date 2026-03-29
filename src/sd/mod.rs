@@ -7,8 +7,17 @@ pub mod entries;
 /// SOMEIP Service Discovery Options (costants & options data types).
 pub mod options;
 
+mod sd_entries_checked_iterator;
+pub use sd_entries_checked_iterator::*;
+
+mod sd_entries_iterator;
+pub use sd_entries_iterator::*;
+
 mod sd_entry;
 pub use sd_entry::*;
+
+mod sd_entry_slice;
+pub use sd_entry_slice::*;
 
 mod sd_header;
 pub use sd_header::*;

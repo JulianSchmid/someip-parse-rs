@@ -37,10 +37,41 @@ impl<'a> ServiceEntrySlice<'a> {
 
         Ok((
             ServiceEntrySlice {
-                slice: &slice[..ENTRY_LEN],
+                // SAFETY: slice.len() >= ENTRY_LEN is checked above.
+                slice: unsafe { core::slice::from_raw_parts(slice.as_ptr(), ENTRY_LEN) },
             },
-            &slice[ENTRY_LEN..],
+            // SAFETY: slice.len() >= ENTRY_LEN is checked above.
+            unsafe {
+                core::slice::from_raw_parts(slice.as_ptr().add(ENTRY_LEN), slice.len() - ENTRY_LEN)
+            },
         ))
+    }
+
+    /// Create a [`ServiceEntrySlice`] from the beginning of `slice` without checking the length
+    /// or if the type contains a valid field.
+    ///
+    /// # Safety
+    ///
+    /// - The caller must ensure that `slice` is at least [`ENTRY_LEN`] bytes long.
+    /// - The caller must ensure that the type byte (index 0) is 0x00 or 0x01.
+    ///
+    /// Undefined behavior will occur if these conditions are not met.
+    #[inline]
+    pub unsafe fn from_slice_unchecked(slice: &'a [u8]) -> Self {
+        debug_assert!(
+            slice.len() >= ENTRY_LEN,
+            "Slice must be at least {} bytes long but was {}",
+            ENTRY_LEN,
+            slice.len()
+        );
+        debug_assert!(
+            matches!(slice[0], 0x00 | 0x01),
+            "Slice must start with 0x00 or 0x01 but was {}",
+            slice[0]
+        );
+        ServiceEntrySlice {
+            slice: core::slice::from_raw_parts(slice.as_ptr(), ENTRY_LEN),
+        }
     }
 
     /// Returns the underlying byte slice (exactly [`ENTRY_LEN`] bytes).
@@ -60,15 +91,15 @@ impl<'a> ServiceEntrySlice<'a> {
         }
     }
 
-    /// Returns the index into the options array for the first option run.
+    /// Returns the start index of the first options.
     #[inline]
-    pub fn index_first_option_run(&self) -> u8 {
+    pub fn start_index_options_1(&self) -> u8 {
         self.slice[1]
     }
 
-    /// Returns the index into the options array for the second option run.
+    /// Returns the start index of the second options.
     #[inline]
-    pub fn index_second_option_run(&self) -> u8 {
+    pub fn start_index_options_2(&self) -> u8 {
         self.slice[2]
     }
 
@@ -133,9 +164,9 @@ impl<'a> ServiceEntrySlice<'a> {
     #[inline]
     pub fn to_owned(&self) -> ServiceEntry {
         ServiceEntry {
-            _type: self.entry_type(),
-            index_first_option_run: self.index_first_option_run(),
-            index_second_option_run: self.index_second_option_run(),
+            entry_type: self.entry_type(),
+            start_index_options_1: self.start_index_options_1(),
+            start_index_options_2: self.start_index_options_2(),
             number_of_options_1: self.number_of_options_1(),
             number_of_options_2: self.number_of_options_2(),
             service_id: self.service_id(),
@@ -187,9 +218,9 @@ mod tests {
             let (slice, rest) = ServiceEntrySlice::from_slice(&bytes).unwrap();
             assert!(rest.is_empty());
 
-            assert_eq!(slice.entry_type(), entry._type);
-            assert_eq!(slice.index_first_option_run(), entry.index_first_option_run);
-            assert_eq!(slice.index_second_option_run(), entry.index_second_option_run);
+            assert_eq!(slice.entry_type(), entry.entry_type);
+            assert_eq!(slice.start_index_options_1(), entry.start_index_options_1);
+            assert_eq!(slice.start_index_options_2(), entry.start_index_options_2);
             assert_eq!(slice.number_of_options_1(), entry.number_of_options_1);
             assert_eq!(slice.number_of_options_2(), entry.number_of_options_2);
             assert_eq!(slice.service_id(), entry.service_id);

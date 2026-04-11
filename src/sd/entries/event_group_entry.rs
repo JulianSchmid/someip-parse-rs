@@ -1,9 +1,9 @@
-use crate::err::{SdReadError, SdWriteError};
+use crate::err::SdWriteError;
 use crate::sd::entries::*;
 use std::io::Write;
 
 /// SOMEIP service discovery entry for an eventgroup.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct EventGroupEntry {
     pub entry_type: EventGroupEntryType,
     pub index_first_option_run: u8,
@@ -61,40 +61,6 @@ impl EventGroupEntry {
         result
     }
 
-    /// Deserializes an eventgroup entry from bytes.
-    #[inline]
-    pub fn from_bytes(
-        entry_type: EventGroupEntryType,
-        entry_bytes: [u8; ENTRY_LEN],
-    ) -> Result<Self, SdReadError> {
-        Ok(Self {
-            entry_type,
-            index_first_option_run: entry_bytes[1],
-            index_second_option_run: entry_bytes[2],
-            // Safe: bit-shifted values are guaranteed to be <= 0x0F
-            number_of_options_1: unsafe { U4::new_unchecked(entry_bytes[3] >> 4) },
-            number_of_options_2: unsafe { U4::new_unchecked(entry_bytes[3] & 0x0F) },
-            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-            major_version: entry_bytes[8],
-            // Safe: leading byte is 0x00, so value is guaranteed to be <= 0x00FF_FFFF
-            ttl: unsafe {
-                U24::new_unchecked(u32::from_be_bytes([
-                    0x00,
-                    entry_bytes[9],
-                    entry_bytes[10],
-                    entry_bytes[11],
-                ]))
-            },
-            // skip reserved byte, TODO: should this be verified to be 0x00 ?
-            initial_data_requested: 0
-                != entry_bytes[13] & crate::sd::EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
-            // Safe: masked value is guaranteed to be <= 0x0F
-            counter: unsafe { U4::new_unchecked(entry_bytes[13] & 0x0F) },
-            eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
-        })
-    }
-
     /// Writes the eventgroup entry to the given writer.
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
@@ -105,22 +71,18 @@ impl EventGroupEntry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::proptest_generators::*;
-    use crate::sd::SdEntry;
+    use crate::sd::{SdEntry, SdEntrySlice};
     use proptest::prelude::*;
 
     proptest! {
         #[test]
         fn to_bytes_from_bytes_roundtrip(eventgroup_entry in someip_sd_eventgroup_entry_any()) {
-            // Serialize to bytes
             let bytes = eventgroup_entry.to_bytes();
-
-            // Deserialize from bytes
-            let deserialized = EventGroupEntry::from_bytes(eventgroup_entry.entry_type, bytes).unwrap();
-
-            // Should be equal to original
-            assert_eq!(eventgroup_entry, deserialized);
+            assert_eq!(
+                SdEntry::Eventgroup(eventgroup_entry),
+                SdEntrySlice::from_slice(&bytes).unwrap().to_owned()
+            );
         }
     }
 

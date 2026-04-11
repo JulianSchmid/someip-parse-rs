@@ -37,10 +37,41 @@ impl<'a> EventGroupEntrySlice<'a> {
 
         Ok((
             EventGroupEntrySlice {
-                slice: &slice[..ENTRY_LEN],
+                // SAFETY: slice.len() >= ENTRY_LEN is checked above.
+                slice: unsafe { core::slice::from_raw_parts(slice.as_ptr(), ENTRY_LEN) },
             },
-            &slice[ENTRY_LEN..],
+            // SAFETY: slice.len() >= ENTRY_LEN is checked above.
+            unsafe {
+                core::slice::from_raw_parts(slice.as_ptr().add(ENTRY_LEN), slice.len() - ENTRY_LEN)
+            },
         ))
+    }
+
+    /// Create an [`EventGroupEntrySlice`] from the beginning of `slice` without checking the length
+    /// or if the type contains a valid field.
+    ///
+    /// # Safety
+    ///
+    /// - The caller must ensure that `slice` is at least [`ENTRY_LEN`] bytes long.
+    /// - The caller must ensure that the type byte (index 0) is 0x06 or 0x07.
+    ///
+    /// Undefined behavior will occur if these conditions are not met.
+    #[inline]
+    pub unsafe fn from_slice_unchecked(slice: &'a [u8]) -> Self {
+        debug_assert!(
+            slice.len() >= ENTRY_LEN,
+            "Slice must be at least {} bytes long but was {}",
+            ENTRY_LEN,
+            slice.len()
+        );
+        debug_assert!(
+            matches!(slice[0], 0x06 | 0x07),
+            "Slice must start with 0x06 or 0x07 but was {}",
+            slice[0]
+        );
+        EventGroupEntrySlice {
+            slice: core::slice::from_raw_parts(slice.as_ptr(), ENTRY_LEN),
+        }
     }
 
     /// Returns the underlying byte slice (exactly [`ENTRY_LEN`] bytes).
@@ -54,8 +85,8 @@ impl<'a> EventGroupEntrySlice<'a> {
     pub fn entry_type(&self) -> EventGroupEntryType {
         // SAFETY: validated during construction
         match self.slice[0] {
-            0x06 => EventGroupEntryType::Subscribe,
-            0x07 => EventGroupEntryType::SubscribeAck,
+            0x06 => EventGroupEntryType::SubscribeOrStop,
+            0x07 => EventGroupEntryType::SubscribeAckOrNack,
             _ => unreachable!(),
         }
     }
@@ -198,7 +229,7 @@ mod tests {
     #[test]
     fn from_slice_returns_remaining() {
         let mut buf = [0u8; ENTRY_LEN + 4];
-        buf[0] = EventGroupEntryType::Subscribe as u8;
+        buf[0] = EventGroupEntryType::SubscribeOrStop as u8;
         let (_, rest) = EventGroupEntrySlice::from_slice(&buf).unwrap();
         assert_eq!(rest.len(), 4);
     }

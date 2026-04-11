@@ -95,7 +95,16 @@ mod tests {
     #[test]
     fn multiple_options() {
         let mut data = Vec::new();
-        data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x12, 0x34, 0x56, 0x78]);
+        data.extend_from_slice(&[
+            0x00,
+            0x05,
+            LOAD_BALANCING_TYPE,
+            0x00,
+            0x12,
+            0x34,
+            0x56,
+            0x78,
+        ]);
         data.extend_from_slice(&[0x00, 0x04, CONFIGURATION_TYPE, 0x00, 0x61, 0x62, 0x63]);
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
@@ -110,7 +119,16 @@ mod tests {
     #[test]
     fn rest_advances() {
         let mut data = Vec::new();
-        data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x00, 0x01, 0x00, 0x02]);
+        data.extend_from_slice(&[
+            0x00,
+            0x05,
+            LOAD_BALANCING_TYPE,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x02,
+        ]);
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
         let mut iter = unsafe { SdOptionsCheckedIterator::new(&data) };

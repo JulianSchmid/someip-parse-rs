@@ -23,6 +23,13 @@ impl From<EventGroupEntry> for SdEntry {
     }
 }
 
+impl<'a> From<SdEntrySlice<'a>> for SdEntry {
+    #[inline]
+    fn from(s: SdEntrySlice<'a>) -> Self {
+        s.to_owned()
+    }
+}
+
 impl SdEntry {
     #[allow(clippy::too_many_arguments)]
     pub fn new_service_entry(
@@ -45,9 +52,9 @@ impl SdEntry {
             Err(SdValueError::TtlTooLarge(ttl))
         } else {
             Ok(Self::Service(ServiceEntry {
-                _type: entry_type,
-                index_first_option_run,
-                index_second_option_run,
+                entry_type,
+                start_index_options_1: index_first_option_run,
+                start_index_options_2: index_second_option_run,
                 number_of_options_1: unsafe { U4::new_unchecked(number_of_options_1) },
                 number_of_options_2: unsafe { U4::new_unchecked(number_of_options_2) },
                 service_id,
@@ -150,9 +157,9 @@ impl SdEntry {
             Err(SdValueError::NumberOfOption2TooLarge(number_of_options_2))
         } else {
             Ok(Self::Service(ServiceEntry {
-                _type: SdServiceEntryType::OfferService,
-                index_first_option_run,
-                index_second_option_run,
+                entry_type: SdServiceEntryType::OfferService,
+                start_index_options_1: index_first_option_run,
+                start_index_options_2: index_second_option_run,
                 number_of_options_1: unsafe { U4::new_unchecked(number_of_options_1) },
                 number_of_options_2: unsafe { U4::new_unchecked(number_of_options_2) },
                 service_id,
@@ -209,83 +216,19 @@ impl SdEntry {
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
         let mut entry_bytes: [u8; ENTRY_LEN] = [0; ENTRY_LEN];
         reader.read_exact(&mut entry_bytes)?;
-
-        let _type_raw = entry_bytes[0];
-        match _type_raw {
-            0x00 => Self::read_service(SdServiceEntryType::FindService, entry_bytes),
-            0x01 => Self::read_service(SdServiceEntryType::OfferService, entry_bytes),
-            0x06 => Self::read_entry_group(EventGroupEntryType::Subscribe, entry_bytes),
-            0x07 => Self::read_entry_group(EventGroupEntryType::SubscribeAck, entry_bytes),
-            _ => Err(SdReadError::UnknownSdServiceEntryType(_type_raw)),
-        }
+        Self::from_bytes(entry_bytes)
     }
 
-    /// Read a service entry from a byte array.
+    /// Read an entry from a slice.
     #[inline]
-    pub fn read_service(
-        _type: SdServiceEntryType,
-        entry_bytes: [u8; ENTRY_LEN],
-    ) -> Result<Self, SdReadError> {
-        //return result
-        Ok(Self::Service(ServiceEntry {
-            _type,
-            index_first_option_run: entry_bytes[1],
-            index_second_option_run: entry_bytes[2],
-            // Safe: bit-shifted values are guaranteed to be <= 0x0F
-            number_of_options_1: unsafe { U4::new_unchecked(entry_bytes[3] >> 4) },
-            number_of_options_2: unsafe { U4::new_unchecked(entry_bytes[3] & 0x0F) },
-            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-            major_version: entry_bytes[8],
-            // Safe: leading byte is 0x00, so value is guaranteed to be <= 0x00FF_FFFF
-            ttl: unsafe {
-                U24::new_unchecked(u32::from_be_bytes([
-                    0x00,
-                    entry_bytes[9],
-                    entry_bytes[10],
-                    entry_bytes[11],
-                ]))
-            },
-            minor_version: u32::from_be_bytes([
-                entry_bytes[12],
-                entry_bytes[13],
-                entry_bytes[14],
-                entry_bytes[15],
-            ]),
-        }))
+    pub fn from_slice(slice: &[u8]) -> Result<Self, SdReadError> {
+        SdEntrySlice::from_slice(&slice).map(|v| v.to_owned())
     }
 
-    /// Read an entry group from byte array.
+    /// Read an entry from a byte array.
     #[inline]
-    pub fn read_entry_group(
-        _type: EventGroupEntryType,
-        entry_bytes: [u8; ENTRY_LEN],
-    ) -> Result<Self, SdReadError> {
-        Ok(Self::Eventgroup(EventGroupEntry {
-            entry_type: _type,
-            index_first_option_run: entry_bytes[1],
-            index_second_option_run: entry_bytes[2],
-            // Safe: bit-shifted values are guaranteed to be <= 0x0F
-            number_of_options_1: unsafe { U4::new_unchecked(entry_bytes[3] >> 4) },
-            number_of_options_2: unsafe { U4::new_unchecked(entry_bytes[3] & 0x0F) },
-            service_id: u16::from_be_bytes([entry_bytes[4], entry_bytes[5]]),
-            instance_id: u16::from_be_bytes([entry_bytes[6], entry_bytes[7]]),
-            major_version: entry_bytes[8],
-            // Safe: leading byte is 0x00, so value is guaranteed to be <= 0x00FF_FFFF
-            ttl: unsafe {
-                U24::new_unchecked(u32::from_be_bytes([
-                    0x00,
-                    entry_bytes[9],
-                    entry_bytes[10],
-                    entry_bytes[11],
-                ]))
-            },
-            // skip reserved byte, TODO: should this be verified to be 0x00 ?
-            initial_data_requested: 0 != entry_bytes[13] & EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG,
-            // Safe: masked value is guaranteed to be <= 0x0F
-            counter: unsafe { U4::new_unchecked(entry_bytes[13] & 0x0F) },
-            eventgroup_id: u16::from_be_bytes([entry_bytes[14], entry_bytes[15]]),
-        }))
+    pub fn from_bytes(entry_bytes: [u8; ENTRY_LEN]) -> Result<Self, SdReadError> {
+        Self::from_slice(&entry_bytes)
     }
 
     /// Writes the eventgroup entry to the given writer.
@@ -338,9 +281,9 @@ impl SdEntry {
             SdEntry::Service(e) => {
                 let mut result = [0x00; ENTRY_LEN];
 
-                result[0] = e._type as u8;
-                result[1] = e.index_first_option_run;
-                result[2] = e.index_second_option_run;
+                result[0] = e.entry_type as u8;
+                result[1] = e.start_index_options_1;
+                result[2] = e.start_index_options_2;
                 result[3] =
                     (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
 
@@ -558,7 +501,7 @@ mod tests {
         // ok
         {
             let result = SdEntry::new_eventgroup(
-                EventGroupEntryType::Subscribe,
+                EventGroupEntryType::SubscribeOrStop,
                 0,
                 0,
                 0x0F,
@@ -576,7 +519,7 @@ mod tests {
         // number_of_options_1 too large
         {
             let result = SdEntry::new_eventgroup(
-                EventGroupEntryType::Subscribe,
+                EventGroupEntryType::SubscribeOrStop,
                 0,
                 0,
                 0x10,
@@ -594,7 +537,7 @@ mod tests {
         // number_of_options_2 too large
         {
             let result = SdEntry::new_eventgroup(
-                EventGroupEntryType::Subscribe,
+                EventGroupEntryType::SubscribeOrStop,
                 0,
                 0,
                 0,
@@ -612,7 +555,7 @@ mod tests {
         // ttl too large
         {
             let result = SdEntry::new_eventgroup(
-                EventGroupEntryType::Subscribe,
+                EventGroupEntryType::SubscribeOrStop,
                 0,
                 0,
                 0,
@@ -630,7 +573,7 @@ mod tests {
         // counter too large
         {
             let result = SdEntry::new_eventgroup(
-                EventGroupEntryType::Subscribe,
+                EventGroupEntryType::SubscribeOrStop,
                 0,
                 0,
                 0,

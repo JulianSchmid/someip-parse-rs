@@ -47,9 +47,13 @@ impl<'a> Iterator for SdEntriesCheckedIterator<'a> {
             return None;
         }
 
-        let (entry, rest) = SdEntrySlice::from_slice(self.slice)
+        let entry = SdEntrySlice::from_slice(self.slice)
             .expect("SdEntriesCheckedIterator: corrupt entry data");
-        self.slice = rest;
+        let len = entry.slice().len();
+        // SAFETY: len is guaranteed to be less or equal than self.slice.len()
+        self.slice = unsafe {
+            core::slice::from_raw_parts(self.slice.as_ptr().add(len), self.slice.len() - len)
+        };
         Some(entry)
     }
 }

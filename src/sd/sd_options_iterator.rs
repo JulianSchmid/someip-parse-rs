@@ -116,14 +116,22 @@ mod tests {
     fn multiple_options() {
         let mut data = Vec::new();
         // Load balancing: length=5, type=0x02
-        data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x12, 0x34, 0x56, 0x78]);
+        data.extend_from_slice(&[
+            0x00,
+            0x05,
+            LOAD_BALANCING_TYPE,
+            0x00,
+            0x12,
+            0x34,
+            0x56,
+            0x78,
+        ]);
         // Configuration: length=4, type=0x01
         data.extend_from_slice(&[0x00, 0x04, CONFIGURATION_TYPE, 0x00, 0x61, 0x62, 0x63]);
         // Unknown: length=1, type=0xAA
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
-        let items: Vec<_> = SdOptionsIterator::new(&data)
-            .collect::<Vec<_>>();
+        let items: Vec<_> = SdOptionsIterator::new(&data).collect::<Vec<_>>();
         assert_eq!(items.len(), 3);
 
         assert!(matches!(items[0], Ok(SdOptionSlice::LoadBalancing(_))));
@@ -135,7 +143,16 @@ mod tests {
     fn error_stops_iteration() {
         // Valid load balancing followed by truncated data
         let mut data = Vec::new();
-        data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x00, 0x01, 0x00, 0x02]);
+        data.extend_from_slice(&[
+            0x00,
+            0x05,
+            LOAD_BALANCING_TYPE,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x02,
+        ]);
         // Truncated: length says 9 but only 2 bytes of payload
         data.extend_from_slice(&[0x00, 0x09, IPV4_ENDPOINT_TYPE, 0x00, 0x00]);
 
@@ -172,7 +189,16 @@ mod tests {
     #[test]
     fn rest_advances() {
         let mut data = Vec::new();
-        data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x00, 0x01, 0x00, 0x02]);
+        data.extend_from_slice(&[
+            0x00,
+            0x05,
+            LOAD_BALANCING_TYPE,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x02,
+        ]);
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
         let mut iter = SdOptionsIterator::new(&data);

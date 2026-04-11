@@ -101,8 +101,8 @@ prop_compose! {
 fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = sd::entries::EventGroupEntryType>
 {
     prop_oneof![
-        Just(sd::entries::EventGroupEntryType::Subscribe),
-        Just(sd::entries::EventGroupEntryType::SubscribeAck),
+        Just(sd::entries::EventGroupEntryType::SubscribeOrStop),
+        Just(sd::entries::EventGroupEntryType::SubscribeAckOrNack),
     ]
 }
 
@@ -149,9 +149,9 @@ fn someip_sd_service_entry_type_any() -> impl Strategy<Value = sd::entries::SdSe
 
 prop_compose! {
     pub fn someip_sd_service_entry_any()(
-            _type in someip_sd_service_entry_type_any(),
-            index_first_option_run in any::<u8>(),
-            index_second_option_run in any::<u8>(),
+            entry_type in someip_sd_service_entry_type_any(),
+            start_index_options_1 in any::<u8>(),
+            start_index_options_2 in any::<u8>(),
             number_of_options_1 in 0..=0x0Fu8,
             number_of_options_2 in 0..=0x0Fu8,
             service_id in any::<u16>(),
@@ -163,9 +163,9 @@ prop_compose! {
     -> sd::entries::ServiceEntry
     {
         sd::entries::ServiceEntry {
-            _type,
-            index_first_option_run,
-            index_second_option_run,
+            entry_type,
+            start_index_options_1,
+            start_index_options_2,
             number_of_options_1: sd::entries::U4::try_new(number_of_options_1).unwrap(),
             number_of_options_2: sd::entries::U4::try_new(number_of_options_2).unwrap(),
             service_id,

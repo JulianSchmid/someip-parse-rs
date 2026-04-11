@@ -53,8 +53,14 @@ impl<'a> Iterator for SdEntriesIterator<'a> {
         }
 
         match SdEntrySlice::from_slice(self.slice) {
-            Ok((entry, rest)) => {
-                self.slice = rest;
+            Ok(entry) => {
+                let len = entry.slice().len();
+                self.slice = unsafe {
+                    core::slice::from_raw_parts(
+                        self.slice.as_ptr().add(len),
+                        self.slice.len() - len,
+                    )
+                };
                 Some(Ok(entry))
             }
             Err(err) => {
@@ -123,7 +129,7 @@ mod tests {
     fn error_stops_iteration() {
         let mut data = [0u8; ENTRY_LEN + 4];
         data[0] = 0x01; // valid OfferService
-        // bytes 16..19: only 4 bytes, too short for another entry
+                        // bytes 16..19: only 4 bytes, too short for another entry
 
         let mut iter = SdEntriesIterator::new(&data);
         assert!(iter.next().unwrap().is_ok());

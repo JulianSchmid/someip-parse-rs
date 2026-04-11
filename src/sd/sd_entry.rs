@@ -222,7 +222,7 @@ impl SdEntry {
     /// Read an entry from a slice.
     #[inline]
     pub fn from_slice(slice: &[u8]) -> Result<Self, SdReadError> {
-        SdEntrySlice::from_slice(&slice).map(|v| v.to_owned())
+        SdEntrySlice::from_slice(slice).map(|v| v.to_owned())
     }
 
     /// Read an entry from a byte array.

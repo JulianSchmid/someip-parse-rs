@@ -11,32 +11,21 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions/checkout@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
+          components: rustfmt
+      - run: cargo fmt -- --check
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
           components: clippy
-          override: true
-      - uses: actions/checkout@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+      - run: cargo clippy -- -D warnings
 
   test:
     name: cargo build and test
@@ -73,22 +62,18 @@ jobs:
           rust: stable
         - build: win-gnu-stable
           os: windows-latest
-          rust: stable-x86_64-gnu
+          rust: stable-gnu
     steps:
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
 
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@master
       with:
-        profile: minimal
         toolchain: ${{ matrix.rust }}
-        override: true
 
     - name: cargo build
       if: matrix.target == ''
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
+      run: cargo build
 
     - name: install cross
       if: matrix.target != ''
@@ -96,52 +81,28 @@ jobs:
 
     - name: cross build
       if: matrix.target != ''
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: true
-        command: build
-        args: --target ${{ matrix.target }}
+      run: cross build --target ${{ matrix.target }}
 
     - name: cargo test
       if: matrix.target == ''
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
+      run: cargo test
 
     - name: cross test
       if: matrix.target != ''
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: true
-        command: test
-        args: --target ${{ matrix.target }}
+      run: cross test --target ${{ matrix.target }}
 
     - name: cargo build --no-default-features
       if: matrix.target == ''
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --no-default-features
+      run: cargo build --no-default-features
 
     - name: cross build --no-default-features
       if: matrix.target != ''
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: true
-        command: build
-        args: --target ${{ matrix.target }} --no-default-features
+      run: cross build --target ${{ matrix.target }} --no-default-features
 
     - name: cargo test --no-default-features
       if: matrix.target == ''
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --no-default-features
+      run: cargo test --no-default-features
 
     - name: cross test --no-default-features
       if: matrix.target != ''
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: true
-        command: test
-        args: --target ${{ matrix.target }} --no-default-features
+      run: cross test --target ${{ matrix.target }} --no-default-features

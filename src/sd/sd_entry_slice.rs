@@ -236,105 +236,6 @@ mod tests {
     }
 
     #[test]
-    fn service_accessors_delegate_to_service_entry_slice() {
-        let mut buf = [0u8; ENTRY_LEN + 2];
-        buf[0] = 0x01; // OfferService
-        buf[1] = 0x12;
-        buf[2] = 0x34;
-        buf[3] = 0xAB;
-        buf[4] = 0x56;
-        buf[5] = 0x78;
-        buf[6] = 0x9A;
-        buf[7] = 0xBC;
-        buf[8] = 0xDE;
-        buf[9] = 0x01;
-        buf[10] = 0x23;
-        buf[11] = 0x45;
-        buf[12] = 0x67;
-        buf[13] = 0x89;
-        buf[14] = 0xAB;
-        buf[15] = 0xCD;
-        buf[16] = 0xEE;
-        buf[17] = 0xFF;
-
-        let entry = SdEntrySlice::from_slice(&buf).unwrap();
-
-        assert_eq!(entry.slice(), &buf[..ENTRY_LEN]);
-        assert_eq!(entry.number_of_options_1(), U4::N10);
-        assert_eq!(entry.number_of_options_2(), U4::N11);
-        assert_eq!(entry.service_id(), 0x5678);
-        assert_eq!(entry.instance_id(), 0x9ABC);
-        assert_eq!(entry.major_version(), 0xDE);
-        assert_eq!(entry.ttl(), unsafe { U24::new_unchecked(0x012345) });
-        assert_eq!(
-            entry.to_owned(),
-            SdEntry::Service(ServiceEntry {
-                entry_type: SdServiceEntryType::OfferService,
-                start_index_options_1: 0x12,
-                start_index_options_2: 0x34,
-                number_of_options_1: U4::N10,
-                number_of_options_2: U4::N11,
-                service_id: 0x5678,
-                instance_id: 0x9ABC,
-                major_version: 0xDE,
-                ttl: unsafe { U24::new_unchecked(0x012345) },
-                minor_version: 0x6789ABCD,
-            })
-        );
-    }
-
-    #[test]
-    fn eventgroup_accessors_delegate_to_eventgroup_entry_slice() {
-        let mut buf = [0u8; ENTRY_LEN + 3];
-        buf[0] = 0x07; // SubscribeAck
-        buf[1] = 0x11;
-        buf[2] = 0x22;
-        buf[3] = 0xCD;
-        buf[4] = 0x33;
-        buf[5] = 0x44;
-        buf[6] = 0x55;
-        buf[7] = 0x66;
-        buf[8] = 0x77;
-        buf[9] = 0x89;
-        buf[10] = 0xAB;
-        buf[11] = 0xCD;
-        buf[12] = 0x00;
-        buf[13] = 0x8E;
-        buf[14] = 0x12;
-        buf[15] = 0x34;
-        buf[16] = 0xAA;
-        buf[17] = 0xBB;
-        buf[18] = 0xCC;
-
-        let entry = SdEntrySlice::from_slice(&buf).unwrap();
-
-        assert_eq!(entry.slice(), &buf[..ENTRY_LEN]);
-        assert_eq!(entry.number_of_options_1(), U4::N12);
-        assert_eq!(entry.number_of_options_2(), U4::N13);
-        assert_eq!(entry.service_id(), 0x3344);
-        assert_eq!(entry.instance_id(), 0x5566);
-        assert_eq!(entry.major_version(), 0x77);
-        assert_eq!(entry.ttl(), unsafe { U24::new_unchecked(0x89ABCD) });
-        assert_eq!(
-            entry.to_owned(),
-            SdEntry::Eventgroup(EventGroupEntry {
-                entry_type: EventGroupEntryType::SubscribeAckOrNack,
-                index_first_option_run: 0x11,
-                index_second_option_run: 0x22,
-                number_of_options_1: U4::N12,
-                number_of_options_2: U4::N13,
-                service_id: 0x3344,
-                instance_id: 0x5566,
-                major_version: 0x77,
-                ttl: unsafe { U24::new_unchecked(0x89ABCD) },
-                initial_data_requested: true,
-                counter: U4::N14,
-                eventgroup_id: 0x1234,
-            })
-        );
-    }
-
-    #[test]
     fn derived_traits() {
         let buf = [0u8; ENTRY_LEN]; // type 0x00 = FindService
         let a = SdEntrySlice::from_slice(&buf).unwrap();
@@ -379,6 +280,50 @@ mod tests {
                 SdEntrySlice::Eventgroup(e) => assert_eq!(e.to_owned(), entry),
                 _ => panic!("expected Eventgroup variant"),
             }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn service_accessors_and_to_owned(
+            entry in someip_sd_service_entry_any(),
+            trailing in proptest::collection::vec(any::<u8>(), 0..8),
+        ) {
+            let mut bytes = entry.to_bytes().to_vec();
+            bytes.extend_from_slice(&trailing);
+
+            let slice = SdEntrySlice::from_slice(&bytes).unwrap();
+
+            prop_assert_eq!(slice.slice(), &bytes[..ENTRY_LEN]);
+            prop_assert_eq!(slice.number_of_options_1(), entry.number_of_options_1);
+            prop_assert_eq!(slice.number_of_options_2(), entry.number_of_options_2);
+            prop_assert_eq!(slice.service_id(), entry.service_id);
+            prop_assert_eq!(slice.instance_id(), entry.instance_id);
+            prop_assert_eq!(slice.major_version(), entry.major_version);
+            prop_assert_eq!(slice.ttl(), entry.ttl);
+            prop_assert_eq!(slice.to_owned(), SdEntry::Service(entry));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn eventgroup_accessors_and_to_owned(
+            entry in someip_sd_eventgroup_entry_any(),
+            trailing in proptest::collection::vec(any::<u8>(), 0..8),
+        ) {
+            let mut bytes = entry.to_bytes().to_vec();
+            bytes.extend_from_slice(&trailing);
+
+            let slice = SdEntrySlice::from_slice(&bytes).unwrap();
+
+            prop_assert_eq!(slice.slice(), &bytes[..ENTRY_LEN]);
+            prop_assert_eq!(slice.number_of_options_1(), entry.number_of_options_1);
+            prop_assert_eq!(slice.number_of_options_2(), entry.number_of_options_2);
+            prop_assert_eq!(slice.service_id(), entry.service_id);
+            prop_assert_eq!(slice.instance_id(), entry.instance_id);
+            prop_assert_eq!(slice.major_version(), entry.major_version);
+            prop_assert_eq!(slice.ttl(), entry.ttl);
+            prop_assert_eq!(slice.to_owned(), SdEntry::Eventgroup(entry));
         }
     }
 }

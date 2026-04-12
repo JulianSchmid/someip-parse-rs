@@ -1,10 +1,10 @@
 use crate::err::{SdReadError, SdValueError, SdWriteError};
 use std::io::{Read, Seek, Write};
 
-/// SOMEIP Service Discovery Entries (costants & entry data types).
+/// SOMEIP Service Discovery Entries (constants & entry data types).
 pub mod entries;
 
-/// SOMEIP Service Discovery Options (costants & options data types).
+/// SOMEIP Service Discovery Options (constants & options data types).
 pub mod options;
 
 mod sd_entries_checked_iterator;

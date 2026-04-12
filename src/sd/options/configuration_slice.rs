@@ -1,4 +1,4 @@
-use crate::err::{self, Layer, LenSource};
+use crate::{err::{self, Layer, LenSource}, sd::options::ConfigurationOption};
 use arrayvec::ArrayVec;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -11,6 +11,13 @@ impl<'a> ConfigurationSlice<'a> {
         if slice.is_empty() {
             return Err(err::LenError {
                 required_len: 1,
+                len: slice.len(),
+                len_source: LenSource::Slice,
+                layer: Layer::SdOption,
+            });
+        } else if slice.len() > ConfigurationOption::MAX_CONFIGURATION_STRING_LEN {
+            return Err(err::LenError {
+                required_len: ConfigurationOption::MAX_CONFIGURATION_STRING_LEN,
                 len: slice.len(),
                 len_source: LenSource::Slice,
                 layer: Layer::SdOption,
@@ -57,12 +64,24 @@ mod test {
 
     #[test]
     fn from_slice() {
-        assert!(ConfigurationSlice::from_slice(&[]).is_err());
-        let err = ConfigurationSlice::from_slice(&[]).unwrap_err();
-        assert_eq!(err.required_len, 1);
-        assert_eq!(err.len, 0);
-        assert_eq!(err.len_source, LenSource::Slice);
-        assert_eq!(err.layer, Layer::SdOption);
+        // empty slice error
+        {
+            let err = ConfigurationSlice::from_slice(&[]).unwrap_err();
+            assert_eq!(err.required_len, 1);
+            assert_eq!(err.len, 0);
+            assert_eq!(err.len_source, LenSource::Slice);
+            assert_eq!(err.layer, Layer::SdOption);
+        }
+
+        // too long slice error
+        {
+            let data = [0x00; ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1];
+            let err = ConfigurationSlice::from_slice(&data).unwrap_err();
+            assert_eq!(err.required_len, ConfigurationOption::MAX_CONFIGURATION_STRING_LEN);
+            assert_eq!(err.len, ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1);
+            assert_eq!(err.len_source, LenSource::Slice);
+            assert_eq!(err.layer, Layer::SdOption);
+        }
 
         let s = ConfigurationSlice::from_slice(&[0x00]).unwrap();
         assert_eq!(s.configuration_string(), &[] as &[u8]);

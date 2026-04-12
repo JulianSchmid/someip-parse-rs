@@ -1,4 +1,7 @@
-use crate::{err::{self, Layer, LenSource}, sd::options::ConfigurationOption};
+use crate::{
+    err::{self, Layer, LenSource},
+    sd::options::ConfigurationOption,
+};
 use arrayvec::ArrayVec;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -49,7 +52,7 @@ impl<'a> From<ConfigurationSlice<'a>> for super::ConfigurationOption {
         let mut configuration_string = ArrayVec::new();
         configuration_string
             .try_extend_from_slice(s.configuration_string())
-            .unwrap();
+            .expect("Configuration string length exceeds the maximum allowed configuration string size (should not happen, as length is checked in from_slice)");
         Self {
             discardable: s.discardable(),
             configuration_string,
@@ -77,8 +80,14 @@ mod test {
         {
             let data = [0x00; ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1];
             let err = ConfigurationSlice::from_slice(&data).unwrap_err();
-            assert_eq!(err.required_len, ConfigurationOption::MAX_CONFIGURATION_STRING_LEN);
-            assert_eq!(err.len, ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1);
+            assert_eq!(
+                err.required_len,
+                ConfigurationOption::MAX_CONFIGURATION_STRING_LEN
+            );
+            assert_eq!(
+                err.len,
+                ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1
+            );
             assert_eq!(err.len_source, LenSource::Slice);
             assert_eq!(err.layer, Layer::SdOption);
         }

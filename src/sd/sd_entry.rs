@@ -242,74 +242,8 @@ impl SdEntry {
     #[inline]
     pub fn to_bytes(&self) -> [u8; ENTRY_LEN] {
         match self {
-            SdEntry::Eventgroup(e) => {
-                let mut result = [0x00; ENTRY_LEN];
-
-                result[0] = e.entry_type as u8;
-                result[1] = e.index_first_option_run;
-                result[2] = e.index_second_option_run;
-                result[3] =
-                    (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
-
-                let service_id_bytes = e.service_id.to_be_bytes();
-                result[4] = service_id_bytes[0];
-                result[5] = service_id_bytes[1];
-
-                let instance_id_bytes = e.instance_id.to_be_bytes();
-                result[6] = instance_id_bytes[0];
-                result[7] = instance_id_bytes[1];
-
-                result[8] = e.major_version;
-
-                let ttl_bytes = e.ttl.value().to_be_bytes();
-                result[9] = ttl_bytes[1];
-                result[10] = ttl_bytes[2];
-                result[11] = ttl_bytes[3];
-
-                // skip reserved byte, already initialized as 0x00
-                if e.initial_data_requested {
-                    result[13] |= EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
-                }
-                result[13] |= e.counter.value();
-
-                let eventgroup_id_bytes = e.eventgroup_id.to_be_bytes();
-                result[14] = eventgroup_id_bytes[0];
-                result[15] = eventgroup_id_bytes[1];
-
-                result
-            }
-            SdEntry::Service(e) => {
-                let mut result = [0x00; ENTRY_LEN];
-
-                result[0] = e.entry_type as u8;
-                result[1] = e.start_index_options_1;
-                result[2] = e.start_index_options_2;
-                result[3] =
-                    (e.number_of_options_1.value() << 4) | (e.number_of_options_2.value() & 0x0F);
-
-                let service_id_bytes = e.service_id.to_be_bytes();
-                result[4] = service_id_bytes[0];
-                result[5] = service_id_bytes[1];
-
-                let instance_id_bytes = e.instance_id.to_be_bytes();
-                result[6] = instance_id_bytes[0];
-                result[7] = instance_id_bytes[1];
-
-                result[8] = e.major_version;
-
-                let ttl_bytes = e.ttl.value().to_be_bytes();
-                result[9] = ttl_bytes[1];
-                result[10] = ttl_bytes[2];
-                result[11] = ttl_bytes[3];
-
-                let minor_version_bytes = e.minor_version.to_be_bytes();
-                result[12] = minor_version_bytes[0];
-                result[13] = minor_version_bytes[1];
-                result[14] = minor_version_bytes[2];
-                result[15] = minor_version_bytes[3];
-
-                result
-            }
+            SdEntry::Eventgroup(e) => e.to_bytes(),
+            SdEntry::Service(e) => e.to_bytes(),
         }
     }
 

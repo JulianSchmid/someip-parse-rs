@@ -19,6 +19,9 @@ pub use sd_entry::*;
 mod sd_entry_slice;
 pub use sd_entry_slice::*;
 
+mod sd_entry_with_options;
+pub use sd_entry_with_options::*;
+
 mod sd_header;
 pub use sd_header::*;
 
@@ -37,8 +40,14 @@ pub use sd_option_type::*;
 mod sd_options_checked_iterator;
 pub use sd_options_checked_iterator::*;
 
+mod sd_options_index;
+pub use sd_options_index::*;
+
 mod sd_options_iterator;
 pub use sd_options_iterator::*;
+
+mod sd_slice;
+pub use sd_slice::*;
 
 ///Length of someip sd header, flags + reserved + entries length + options length
 ///excluding entries and options arrays

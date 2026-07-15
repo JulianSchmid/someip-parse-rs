@@ -235,6 +235,67 @@ impl SdHeader {
         unsafe { SdOptionsCheckedIterator::new(&self.options_data[..self.options_len]) }
     }
 
+    /// Builds an [`SdOptionsIndex`] over the header's options, allowing O(1)
+    /// access to individual options by their ordinal position.
+    ///
+    /// The returned index borrows the header, so it (and any iterators
+    /// derived from it) must not outlive the header. Combine it with
+    /// [`entries_with_options`](Self::entries_with_options) to iterate over
+    /// entries together with their resolved options:
+    ///
+    /// ```
+    /// use someip_parse::sd::{*, options::*};
+    ///
+    /// let mut header = SdHeader::default();
+    /// header.add_option(SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+    ///     ipv4_address: [192, 168, 1, 1],
+    ///     transport_protocol: TransportProtocol::Udp,
+    ///     port: 1234,
+    /// })).unwrap();
+    /// header.add_entry(
+    ///     // index1=0, index2=0, count1=1, count2=0
+    ///     SdEntry::new_offer_service_entry(0, 0, 1, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap()
+    /// ).unwrap();
+    ///
+    /// let index = header.options_index();
+    /// for entry in header.entries_with_options(&index) {
+    ///     for option in entry.options_run_1() {
+    ///         assert!(matches!(option, SdOptionSlice::Ipv4Endpoint(_)));
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal option data is corrupt, which indicates a bug
+    /// in the serialization logic.
+    pub fn options_index(&self) -> SdOptionsIndex<'_> {
+        SdOptionsIndex::from_slice(&self.options_data[..self.options_len])
+            .expect("SdHeader: corrupt option data")
+    }
+
+    /// Returns an iterator over the entries yielding each entry together with
+    /// access to its resolved options.
+    ///
+    /// The `index` must be obtained from [`options_index`](Self::options_index)
+    /// on the same header. Since the data stored in an [`SdHeader`] is
+    /// guaranteed to be valid, the yielded items are not wrapped in `Result`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal entry data is corrupt, which indicates a bug in
+    /// the serialization logic.
+    pub fn entries_with_options<'s>(
+        &'s self,
+        index: &'s SdOptionsIndex<'s>,
+    ) -> SdEntriesWithOptionsCheckedIterator<'s, 's> {
+        // SAFETY: entries_data[..entries_len] is only written to by
+        // add_entry which serialises valid SdEntry values.
+        unsafe {
+            SdEntriesWithOptionsCheckedIterator::new(&self.entries_data[..self.entries_len], index)
+        }
+    }
+
     /// Adds an entry to the header.
     ///
     /// The entry is immediately serialized and stored in the internal buffer.

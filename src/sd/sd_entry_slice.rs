@@ -75,6 +75,26 @@ impl<'a> SdEntrySlice<'a> {
         }
     }
 
+    /// Returns the ordinal index into the options array for the first
+    /// option run.
+    #[inline]
+    pub fn start_index_options_1(&self) -> u8 {
+        match self {
+            SdEntrySlice::Service(s) => s.start_index_options_1(),
+            SdEntrySlice::Eventgroup(e) => e.index_first_option_run(),
+        }
+    }
+
+    /// Returns the ordinal index into the options array for the second
+    /// option run.
+    #[inline]
+    pub fn start_index_options_2(&self) -> u8 {
+        match self {
+            SdEntrySlice::Service(s) => s.start_index_options_2(),
+            SdEntrySlice::Eventgroup(e) => e.index_second_option_run(),
+        }
+    }
+
     #[inline]
     pub fn number_of_options_1(&self) -> U4 {
         match self {

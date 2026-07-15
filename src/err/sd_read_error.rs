@@ -27,11 +27,19 @@ pub enum SdReadError {
     /// Error if a configuration option's length exceeds the maximum
     /// allowed configuration string size.
     SdConfigurationOptionLenTooLarge(u16),
+    /// Error while decoding an SD option (e.g. when building an option index).
+    SdOption(crate::err::SdOptionSliceError),
 }
 
 impl From<std::io::Error> for SdReadError {
     fn from(err: std::io::Error) -> SdReadError {
         SdReadError::IoError(err)
+    }
+}
+
+impl From<crate::err::SdOptionSliceError> for SdReadError {
+    fn from(err: crate::err::SdOptionSliceError) -> SdReadError {
+        SdReadError::SdOption(err)
     }
 }
 

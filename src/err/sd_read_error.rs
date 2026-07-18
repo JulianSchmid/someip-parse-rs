@@ -4,6 +4,18 @@ pub enum SdReadError {
     IoError(std::io::Error),
     /// Allocation error when trying to reserving memory.
     AllocationError(std::collections::TryReserveError),
+    /// The enclosing SOME/IP message does not use the SD message ID.
+    SdMessageIdInvalid(u32),
+    /// The SOME/IP Client ID of an SD message is not zero.
+    SdClientIdInvalid(u16),
+    /// The SOME/IP Session ID of an SD message is zero.
+    SdSessionIdZero,
+    /// The SOME/IP Interface Version of an SD message is not 1.
+    SdInterfaceVersionInvalid(u8),
+    /// The SOME/IP Message Type of an SD message is not Notification (0x02).
+    SdMessageTypeInvalid(u8),
+    /// The SOME/IP Return Code of an SD message is not E_OK (0x00).
+    SdReturnCodeInvalid(u8),
     /// The slice length was not large enough to contain the header.
     UnexpectedEndOfSlice(usize),
     /// Error when the sd event entry type field contains an unknown value
@@ -14,8 +26,24 @@ pub enum SdReadError {
     UnknownSdOptionType(u8),
     /// Error when the entries array length is greater then [`crate::sd::entries::MAX_ENTRIES_LEN`].
     SdEntriesArrayLengthTooLarge(u32),
+    /// Error when the entries array length is not a multiple of the fixed entry size.
+    SdEntriesArrayLengthInvalid(u32),
     /// Error when the options array length is greater then [`crate::sd::options::MAX_OPTIONS_LEN`].
     SdOptionsArrayLengthTooLarge(u32),
+    /// Error when the complete SOME/IP-SD payload exceeds the UDP payload limit.
+    SdPayloadLengthTooLarge(u32),
+    /// Error when an entry's option run references options outside the options array.
+    SdOptionRunOutOfBounds {
+        run: u8,
+        start_index: u8,
+        number_of_options: u8,
+        options_len: usize,
+    },
+    /// Error when bytes remain after the announced options array.
+    SdPayloadLengthMismatch {
+        expected_len: usize,
+        actual_len: usize,
+    },
     /// Error if the length in an option is zero (minimum valid size is 1).
     SdOptionLengthZero,
     /// Error if the `length` of an option was different then expected.
@@ -58,7 +86,25 @@ mod tests {
         use SdReadError::*;
         for value in [
             IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
+            SdMessageIdInvalid(0),
+            SdClientIdInvalid(1),
+            SdSessionIdZero,
+            SdInterfaceVersionInvalid(0),
+            SdMessageTypeInvalid(0),
+            SdReturnCodeInvalid(1),
             UnexpectedEndOfSlice(0),
+            SdEntriesArrayLengthInvalid(1),
+            SdPayloadLengthTooLarge(crate::SOMEIP_MAX_PAYLOAD_LEN_UDP + 1),
+            SdOptionRunOutOfBounds {
+                run: 1,
+                start_index: 1,
+                number_of_options: 1,
+                options_len: 0,
+            },
+            SdPayloadLengthMismatch {
+                expected_len: 12,
+                actual_len: 13,
+            },
             SdConfigurationOptionLenTooLarge(0),
         ]
         .iter()

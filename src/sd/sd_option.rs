@@ -2,6 +2,9 @@ use crate::sd::{options::*, *};
 use arrayvec::ArrayVec;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+// Keeping Configuration inline is intentional: boxing it would violate the
+// allocation-free SD API.
+#[allow(clippy::large_enum_variant)]
 pub enum SdOption {
     ///Arbitrary configuration strings.
     Configuration(ConfigurationOption),
@@ -139,10 +142,14 @@ impl SdOption {
                     configuration_string.set_len(length_array);
                 }
                 reader.read_exact(&mut configuration_string[..length_array])?;
-                Configuration(ConfigurationOption {
+                let option = ConfigurationOption {
                     discardable,
                     configuration_string,
-                })
+                };
+                option.validate().map_err(|err| {
+                    SdReadError::SdOption(crate::err::SdOptionSliceError::from(err))
+                })?;
+                Configuration(option)
             }
             LOAD_BALANCING_TYPE => {
                 expect_len(LOAD_BALANCING_LEN)?;
@@ -392,6 +399,8 @@ impl SdOption {
 
         match self {
             Configuration(c) => {
+                c.validate()
+                    .map_err(|err| SdWriteError::ValueError(err.into()))?;
                 let len_be = (1u16 + c.configuration_string.len() as u16).to_be_bytes();
                 writer.write_all(&[
                     len_be[0],
@@ -503,6 +512,7 @@ impl SdOption {
 
         match self {
             Configuration(o) => {
+                o.validate()?;
                 // + 1 for reserved byte
                 let length_bytes = (1u16 + o.configuration_string.len() as u16).to_be_bytes();
                 buffer.extend_from_slice(&length_bytes);
@@ -613,6 +623,7 @@ impl SdOption {
 
         match self {
             Configuration(o) => {
+                o.validate()?;
                 // + 1 for reserved byte
                 let length_bytes = (1u16 + o.configuration_string.len() as u16).to_be_bytes();
                 buffer.try_extend_from_slice(&length_bytes).unwrap();

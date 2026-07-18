@@ -17,8 +17,21 @@ pub struct SdEntryWithOptions<'a, 'i> {
 
 impl<'a, 'i> SdEntryWithOptions<'a, 'i> {
     #[inline]
-    pub(crate) fn new(entry: SdEntrySlice<'a>, options: &'i SdOptionsIndex<'a>) -> Self {
-        Self { entry, options }
+    pub(crate) fn new(
+        entry: SdEntrySlice<'a>,
+        options: &'i SdOptionsIndex<'a>,
+    ) -> Result<Self, SdReadError> {
+        options.validate_run(
+            1,
+            entry.start_index_options_1(),
+            entry.number_of_options_1(),
+        )?;
+        options.validate_run(
+            2,
+            entry.start_index_options_2(),
+            entry.number_of_options_2(),
+        )?;
+        Ok(Self { entry, options })
     }
 
     /// Returns the underlying entry.
@@ -62,6 +75,7 @@ impl<'a, 'i> SdEntryWithOptions<'a, 'i> {
 pub struct SdEntriesWithOptionsIterator<'a, 'i> {
     entries: SdEntriesIterator<'a>,
     options: &'i SdOptionsIndex<'a>,
+    failed: bool,
 }
 
 impl<'a, 'i> SdEntriesWithOptionsIterator<'a, 'i> {
@@ -72,6 +86,7 @@ impl<'a, 'i> SdEntriesWithOptionsIterator<'a, 'i> {
         Self {
             entries: SdEntriesIterator::new(entries),
             options,
+            failed: false,
         }
     }
 }
@@ -80,10 +95,18 @@ impl<'a, 'i> Iterator for SdEntriesWithOptionsIterator<'a, 'i> {
     type Item = Result<SdEntryWithOptions<'a, 'i>, SdReadError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.entries.next()? {
-            Ok(entry) => Some(Ok(SdEntryWithOptions::new(entry, self.options))),
-            Err(err) => Some(Err(err)),
+        if self.failed {
+            return None;
         }
+
+        let result = match self.entries.next()? {
+            Ok(entry) => SdEntryWithOptions::new(entry, self.options),
+            Err(err) => Err(err),
+        };
+        if result.is_err() {
+            self.failed = true;
+        }
+        Some(result)
     }
 }
 
@@ -95,8 +118,8 @@ impl<'a, 'i> Iterator for SdEntriesWithOptionsIterator<'a, 'i> {
 ///
 /// # Panics
 ///
-/// If the underlying entry data cannot be decoded, [`next`](Iterator::next)
-/// will panic.
+/// If the underlying entry data cannot be decoded or an option run is out of
+/// bounds, [`next`](Iterator::next) will panic.
 #[derive(Clone, Debug)]
 pub struct SdEntriesWithOptionsCheckedIterator<'a, 'i> {
     entries: SdEntriesCheckedIterator<'a>,
@@ -125,7 +148,10 @@ impl<'a, 'i> Iterator for SdEntriesWithOptionsCheckedIterator<'a, 'i> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let entry = self.entries.next()?;
-        Some(SdEntryWithOptions::new(entry, self.options))
+        Some(
+            SdEntryWithOptions::new(entry, self.options)
+                .expect("SdEntriesWithOptionsCheckedIterator: invalid option run"),
+        )
     }
 }
 
@@ -219,6 +245,37 @@ mod tests {
             Some(Err(SdReadError::UnexpectedEndOfSlice(_)))
         ));
         assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn rejects_out_of_bounds_option_run() {
+        let options = options_data();
+        let index = SdOptionsIndex::from_slice(&options).unwrap();
+        let entries = service_entry(2, 2, 0, 0);
+        let mut iter = SdEntriesWithOptionsIterator::new(&entries, &index);
+
+        assert!(matches!(
+            iter.next(),
+            Some(Err(SdReadError::SdOptionRunOutOfBounds {
+                run: 1,
+                start_index: 2,
+                number_of_options: 2,
+                options_len: 3,
+            }))
+        ));
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn ignores_nonzero_index_for_empty_run() {
+        let index = SdOptionsIndex::from_slice(&[]).unwrap();
+        let entries = service_entry(u8::MAX, 0, u8::MAX, 0);
+        let item = SdEntriesWithOptionsIterator::new(&entries, &index)
+            .next()
+            .unwrap()
+            .unwrap();
+        assert_eq!(item.options_run_1().count(), 0);
+        assert_eq!(item.options_run_2().count(), 0);
     }
 
     #[test]

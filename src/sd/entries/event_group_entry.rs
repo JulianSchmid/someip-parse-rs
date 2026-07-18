@@ -14,7 +14,10 @@ pub struct EventGroupEntry {
     pub instance_id: u16,
     pub major_version: u8,
     pub ttl: U24,
-    /// True if initial data shall be sent by server
+    /// Legacy Initial Data Requested flag removed in AUTOSAR R21-11.
+    ///
+    /// The value is retained for source compatibility, but serializers always
+    /// write the corresponding reserved bit as 0.
     pub initial_data_requested: bool,
     /// Distinguish identical subscribe eventgroups of the same subscriber.
     pub counter: U4,
@@ -48,10 +51,8 @@ impl EventGroupEntry {
         result[10] = ttl_bytes[2];
         result[11] = ttl_bytes[3];
 
-        // skip reserved byte, already initialized as 0x00
-        if self.initial_data_requested {
-            result[13] |= crate::sd::EVENT_ENTRY_INITIAL_DATA_REQUESTED_FLAG;
-        }
+        // The 12 bits preceding the counter are reserved in AUTOSAR R23-11
+        // and stay at their initialized value of 0.
         result[13] |= self.counter.value() & 0x0Fu8;
 
         let eventgroup_id_bytes = self.eventgroup_id.to_be_bytes();
@@ -95,5 +96,24 @@ mod tests {
 
             assert_eq!(eventgroup_bytes, sd_entry_bytes);
         }
+    }
+
+    #[test]
+    fn removed_initial_data_flag_is_not_serialized() {
+        let entry = crate::sd::entries::EventGroupEntry {
+            entry_type: crate::sd::entries::EventGroupEntryType::SubscribeOrStop,
+            index_first_option_run: 0,
+            index_second_option_run: 0,
+            number_of_options_1: crate::sd::entries::U4::ZERO,
+            number_of_options_2: crate::sd::entries::U4::ZERO,
+            service_id: 1,
+            instance_id: 2,
+            major_version: 1,
+            ttl: crate::sd::entries::U24::ZERO,
+            initial_data_requested: true,
+            counter: crate::sd::entries::U4::N1,
+            eventgroup_id: 3,
+        };
+        assert_eq!(entry.to_bytes()[13], 1);
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     err::{self, Layer, LenSource},
-    sd::options::ConfigurationOption,
+    sd::options::{ConfigurationOption, SdConfigurationStringError},
 };
 use arrayvec::ArrayVec;
 
@@ -18,9 +18,9 @@ impl<'a> ConfigurationSlice<'a> {
                 len_source: LenSource::Slice,
                 layer: Layer::SdOption,
             });
-        } else if slice.len() > ConfigurationOption::MAX_CONFIGURATION_STRING_LEN {
+        } else if slice.len() > ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1 {
             return Err(err::LenError {
-                required_len: ConfigurationOption::MAX_CONFIGURATION_STRING_LEN,
+                required_len: ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1,
                 len: slice.len(),
                 len_source: LenSource::Slice,
                 layer: Layer::SdOption,
@@ -39,6 +39,12 @@ impl<'a> ConfigurationSlice<'a> {
     pub fn configuration_string(&self) -> &'a [u8] {
         // SAFETY: from_slice guarantees slice.len() >= 1, so offset 1 is valid and len - 1 is the remaining length.
         unsafe { core::slice::from_raw_parts(self.slice.as_ptr().add(1), self.slice.len() - 1) }
+    }
+
+    /// Validates the DNS-SD format of the configuration string.
+    #[inline]
+    pub fn validate(&self) -> Result<(), SdConfigurationStringError> {
+        ConfigurationOption::validate_configuration_string(self.configuration_string())
     }
 
     #[inline]
@@ -78,57 +84,67 @@ mod test {
 
         // too long slice error
         {
-            let data = [0x00; ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1];
+            let data = [0x00; ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 2];
             let err = ConfigurationSlice::from_slice(&data).unwrap_err();
             assert_eq!(
                 err.required_len,
-                ConfigurationOption::MAX_CONFIGURATION_STRING_LEN
+                ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1
             );
             assert_eq!(
                 err.len,
-                ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1
+                ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 2
             );
             assert_eq!(err.len_source, LenSource::Slice);
             assert_eq!(err.layer, Layer::SdOption);
         }
 
-        let s = ConfigurationSlice::from_slice(&[0x00]).unwrap();
-        assert_eq!(s.configuration_string(), &[] as &[u8]);
-        assert_eq!(s.slice(), &[0x00]);
+        let data = [0x00; ConfigurationOption::MAX_CONFIGURATION_STRING_LEN + 1];
+        let s = ConfigurationSlice::from_slice(&data).unwrap();
+        assert_eq!(
+            s.configuration_string().len(),
+            ConfigurationOption::MAX_CONFIGURATION_STRING_LEN
+        );
 
-        let s = ConfigurationSlice::from_slice(&[0x80, 0x61, 0x62, 0x63]).unwrap();
-        assert_eq!(s.configuration_string(), b"abc");
-        assert_eq!(s.slice(), &[0x80, 0x61, 0x62, 0x63]);
+        let s = ConfigurationSlice::from_slice(&[0x00, 0x00]).unwrap();
+        assert_eq!(s.configuration_string(), &[0x00]);
+        assert_eq!(s.slice(), &[0x00, 0x00]);
+        s.validate().unwrap();
+
+        let s = ConfigurationSlice::from_slice(&[0x80, 0x03, 0x61, 0x62, 0x63, 0x00]).unwrap();
+        assert_eq!(s.configuration_string(), b"\x03abc\0");
+        assert_eq!(s.slice(), &[0x80, 0x03, 0x61, 0x62, 0x63, 0x00]);
+        s.validate().unwrap();
     }
 
     #[test]
     fn accessors() {
-        let s = ConfigurationSlice::from_slice(&[0x00]).unwrap();
+        let s = ConfigurationSlice::from_slice(&[0x00, 0x00]).unwrap();
         assert!(!s.discardable());
-        assert_eq!(s.configuration_string(), &[] as &[u8]);
-        assert_eq!(s.slice(), &[0x00]);
+        assert_eq!(s.configuration_string(), &[0x00]);
+        assert_eq!(s.slice(), &[0x00, 0x00]);
 
-        let s = ConfigurationSlice::from_slice(&[DISCARDABLE_FLAG]).unwrap();
+        let s = ConfigurationSlice::from_slice(&[DISCARDABLE_FLAG, 0x00]).unwrap();
         assert!(s.discardable());
-        assert_eq!(s.configuration_string(), &[] as &[u8]);
-        assert_eq!(s.slice(), &[DISCARDABLE_FLAG]);
+        assert_eq!(s.configuration_string(), &[0x00]);
+        assert_eq!(s.slice(), &[DISCARDABLE_FLAG, 0x00]);
 
-        let s = ConfigurationSlice::from_slice(&[0x7f, 0x78, 0x79]).unwrap();
+        let s = ConfigurationSlice::from_slice(&[0x7f, 0x02, 0x78, 0x79, 0x00]).unwrap();
         assert!(!s.discardable());
-        assert_eq!(s.configuration_string(), b"xy");
-        assert_eq!(s.slice(), &[0x7f, 0x78, 0x79]);
+        assert_eq!(s.configuration_string(), b"\x02xy\0");
+        assert_eq!(s.slice(), &[0x7f, 0x02, 0x78, 0x79, 0x00]);
     }
 
     #[test]
     fn from_conversion() {
-        let s = ConfigurationSlice::from_slice(&[0x00, 0x66, 0x6f, 0x6f]).unwrap();
+        let s = ConfigurationSlice::from_slice(&[0x00, 0x03, 0x66, 0x6f, 0x6f, 0x00]).unwrap();
         let opt = ConfigurationOption::from(s);
         assert!(!opt.discardable);
-        assert_eq!(opt.configuration_string.as_slice(), b"foo");
+        assert_eq!(opt.configuration_string.as_slice(), b"\x03foo\0");
 
-        let s = ConfigurationSlice::from_slice(&[DISCARDABLE_FLAG, 0x62, 0x61, 0x72]).unwrap();
+        let s = ConfigurationSlice::from_slice(&[DISCARDABLE_FLAG, 0x03, 0x62, 0x61, 0x72, 0x00])
+            .unwrap();
         let opt = ConfigurationOption::from(s);
         assert!(opt.discardable);
-        assert_eq!(opt.configuration_string.as_slice(), b"bar");
+        assert_eq!(opt.configuration_string.as_slice(), b"\x03bar\0");
     }
 }

@@ -1,5 +1,5 @@
 use crate::err::SdReadError;
-use crate::sd::SdEntrySlice;
+use crate::sd::{entries::ENTRY_LEN, SdEntrySlice};
 
 /// Iterator over SD entries in a byte slice, yielding [`SdEntrySlice`]
 /// values.
@@ -9,6 +9,9 @@ use crate::sd::SdEntrySlice;
 ///
 /// On the first error the iterator yields the error and then stops
 /// (subsequent calls to [`next`](Iterator::next) return `None`).
+///
+/// Unknown entry types are skipped as required by PRS_SOMEIPSD_00841, so the
+/// number of yielded items can be smaller than `slice.len() / ENTRY_LEN`.
 ///
 /// # Example
 ///
@@ -48,24 +51,36 @@ impl<'a> Iterator for SdEntriesIterator<'a> {
     type Item = Result<SdEntrySlice<'a>, SdReadError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.slice.is_empty() {
-            return None;
-        }
-
-        match SdEntrySlice::from_slice(self.slice) {
-            Ok(entry) => {
-                let len = entry.slice().len();
-                self.slice = unsafe {
-                    core::slice::from_raw_parts(
-                        self.slice.as_ptr().add(len),
-                        self.slice.len() - len,
-                    )
-                };
-                Some(Ok(entry))
+        loop {
+            if self.slice.is_empty() {
+                return None;
             }
-            Err(err) => {
-                self.slice = &self.slice[self.slice.len()..];
-                Some(Err(err))
+
+            match SdEntrySlice::from_slice(self.slice) {
+                Ok(entry) => {
+                    let len = entry.slice().len();
+                    self.slice = unsafe {
+                        core::slice::from_raw_parts(
+                            self.slice.as_ptr().add(len),
+                            self.slice.len() - len,
+                        )
+                    };
+                    return Some(Ok(entry));
+                }
+                Err(SdReadError::UnknownSdServiceEntryType(_)) if self.slice.len() >= ENTRY_LEN => {
+                    // AUTOSAR PRS_SOMEIPSD_00841 requires receivers to ignore
+                    // entries of unknown type and continue with later entries.
+                    self.slice = unsafe {
+                        core::slice::from_raw_parts(
+                            self.slice.as_ptr().add(ENTRY_LEN),
+                            self.slice.len() - ENTRY_LEN,
+                        )
+                    };
+                }
+                Err(err) => {
+                    self.slice = &self.slice[self.slice.len()..];
+                    return Some(Err(err));
+                }
             }
         }
     }
@@ -142,17 +157,15 @@ mod tests {
     }
 
     #[test]
-    fn error_unknown_type() {
-        let mut data = [0u8; ENTRY_LEN * 2];
+    fn ignores_unknown_type_and_continues() {
+        let mut data = [0u8; ENTRY_LEN * 3];
         data[0] = 0x01; // valid OfferService
         data[ENTRY_LEN] = 0xFF; // unknown type
+        data[ENTRY_LEN * 2] = 0x06; // valid Subscribe
 
         let mut iter = SdEntriesIterator::new(&data);
         assert!(iter.next().unwrap().is_ok());
-
-        let err = iter.next().unwrap().unwrap_err();
-        assert!(matches!(err, SdReadError::UnknownSdServiceEntryType(0xFF)));
-
+        assert!(matches!(iter.next(), Some(Ok(SdEntrySlice::Eventgroup(_)))));
         assert!(iter.rest().is_empty());
         assert!(iter.next().is_none());
     }

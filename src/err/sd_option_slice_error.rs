@@ -10,6 +10,12 @@ pub enum SdOptionSliceError {
     /// Error if the `length` field of an option is zero
     /// (minimum valid size is 1).
     OptionLengthZero,
+
+    /// Error if an options array is too large to be indexed.
+    OptionsArrayLengthTooLarge { len: usize, max_len: usize },
+
+    /// Error in a Configuration Option's DNS-SD formatted string.
+    ConfigurationString(crate::sd::options::SdConfigurationStringError),
 }
 
 impl core::fmt::Display for SdOptionSliceError {
@@ -21,6 +27,11 @@ impl core::fmt::Display for SdOptionSliceError {
                 f,
                 "SOMEIP SD Option Error: The 'length' field of the option is zero (minimum valid size is 1)."
             ),
+            OptionsArrayLengthTooLarge { len, max_len } => write!(
+                f,
+                "SOMEIP SD Option Error: The options array length of {len} bytes exceeds the maximum supported length of {max_len} bytes."
+            ),
+            ConfigurationString(err) => err.fmt(f),
         }
     }
 }
@@ -30,7 +41,8 @@ impl std::error::Error for SdOptionSliceError {
         use SdOptionSliceError::*;
         match self {
             Len(err) => Some(err),
-            OptionLengthZero => None,
+            ConfigurationString(err) => Some(err),
+            OptionLengthZero | OptionsArrayLengthTooLarge { .. } => None,
         }
     }
 }
@@ -41,6 +53,12 @@ impl From<LenError> for SdOptionSliceError {
     }
 }
 
+impl From<crate::sd::options::SdConfigurationStringError> for SdOptionSliceError {
+    fn from(err: crate::sd::options::SdConfigurationStringError) -> Self {
+        SdOptionSliceError::ConfigurationString(err)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::SdOptionSliceError::*;
@@ -48,8 +66,8 @@ mod tests {
 
     #[test]
     fn debug() {
-        let err = OptionLengthZero;
-        assert_eq!("OptionLengthZero", format!("{:?}", err));
+        assert_eq!("OptionLengthZero", format!("{:?}", OptionLengthZero));
+        let _ = format!("{:?}", OptionsArrayLengthTooLarge { len: 2, max_len: 1 });
     }
 
     #[test]
@@ -81,6 +99,16 @@ mod tests {
             format!("{}", OptionLengthZero),
             "SOMEIP SD Option Error: The 'length' field of the option is zero (minimum valid size is 1)."
         );
+        assert_eq!(
+            format!(
+                "{}",
+                OptionsArrayLengthTooLarge {
+                    len: 2,
+                    max_len: 1
+                }
+            ),
+            "SOMEIP SD Option Error: The options array length of 2 bytes exceeds the maximum supported length of 1 bytes."
+        );
         {
             let err = LenError {
                 required_len: 4,
@@ -97,6 +125,9 @@ mod tests {
         use std::error::Error;
 
         assert!(OptionLengthZero.source().is_none());
+        assert!(OptionsArrayLengthTooLarge { len: 2, max_len: 1 }
+            .source()
+            .is_none());
         assert!(Len(LenError {
             required_len: 4,
             layer: Layer::SdOption,

@@ -47,7 +47,7 @@ impl<'a> Iterator for SdOptionsCheckedIterator<'a> {
             return None;
         }
 
-        let (option, rest) = SdOptionSlice::from_slice(self.slice)
+        let (option, rest) = SdOptionSlice::from_validated_slice(self.slice)
             .expect("SdOptionsCheckedIterator: corrupt option data");
         self.slice = rest;
         Some(option)
@@ -105,7 +105,17 @@ mod tests {
             0x56,
             0x78,
         ]);
-        data.extend_from_slice(&[0x00, 0x04, CONFIGURATION_TYPE, 0x00, 0x61, 0x62, 0x63]);
+        data.extend_from_slice(&[
+            0x00,
+            0x06,
+            CONFIGURATION_TYPE,
+            0x00,
+            0x03,
+            0x61,
+            0x62,
+            0x63,
+            0x00,
+        ]);
         data.extend_from_slice(&[0x00, 0x01, 0xAA, 0x80]);
 
         let items: Vec<_> = unsafe { SdOptionsCheckedIterator::new(&data) }.collect();

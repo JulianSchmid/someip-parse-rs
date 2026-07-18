@@ -75,7 +75,6 @@ prop_compose! {
     pub fn sd_header_any()(
         reboot in any::<bool>(),
         unicast in any::<bool>(),
-        explicit_initial_data_control in any::<bool>(),
         entries in prop::collection::vec(someip_sd_entry_any(), 0..10),
         options in prop::collection::vec(someip_sd_option_any(), 0..10),
         )
@@ -83,8 +82,20 @@ prop_compose! {
     {
         let mut header = sd::SdHeader::empty(reboot);
         header.flags.unicast = unicast;
-        header.flags.explicit_initial_data_control = explicit_initial_data_control;
-        for entry in entries {
+        for mut entry in entries {
+            // Entries and options are generated independently. Keep the
+            // generic header strategy valid by making both option runs empty;
+            // option-reference behavior has dedicated strategies/tests.
+            match &mut entry {
+                sd::SdEntry::Service(entry) => {
+                    entry.number_of_options_1 = sd::entries::U4::ZERO;
+                    entry.number_of_options_2 = sd::entries::U4::ZERO;
+                }
+                sd::SdEntry::Eventgroup(entry) => {
+                    entry.number_of_options_1 = sd::entries::U4::ZERO;
+                    entry.number_of_options_2 = sd::entries::U4::ZERO;
+                }
+            }
             if header.add_entry(entry).is_err() {
                 break;
             }
@@ -117,7 +128,6 @@ prop_compose! {
             instance_id in any::<u16>(),
             major_version in any::<u8>(),
             ttl in 0..=0x00FF_FFFFu32,
-            initial_data_requested in any::<bool>(),
             counter in 0..=0x0Fu8,
             eventgroup_id in any::<u16>(),
         )
@@ -133,7 +143,7 @@ prop_compose! {
             instance_id,
             major_version,
             ttl: sd::entries::U24::try_new(ttl).unwrap(),
-            initial_data_requested,
+            initial_data_requested: false,
             counter: sd::entries::U4::try_new(counter).unwrap(),
             eventgroup_id,
         }
@@ -205,13 +215,21 @@ pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = sd::options::
 prop_compose! {
     pub fn someip_sd_option_configuration_any()(
         discardable in any::<bool>(),
-        configuration_string in proptest::collection::vec(
-            any::<u8>(),
-            0..=sd::options::ConfigurationOption::MAX_CONFIGURATION_STRING_LEN,
+        values in proptest::collection::vec(
+            proptest::collection::vec(any::<u8>(), 0..=64),
+            0..=8,
         ),
     ) -> sd::options::ConfigurationOption {
         let mut arr = arrayvec::ArrayVec::new();
-        arr.try_extend_from_slice(&configuration_string).unwrap();
+        for value in values {
+            // Every generated item uses the valid key "k" and an optional,
+            // arbitrary value.
+            arr.push((2 + value.len()) as u8);
+            arr.try_extend_from_slice(b"k=").unwrap();
+            arr.try_extend_from_slice(&value).unwrap();
+        }
+        // PRS_SOMEIPSD_00279 requires a zero-length terminator.
+        arr.push(0);
         sd::options::ConfigurationOption {
             discardable,
             configuration_string: arr,

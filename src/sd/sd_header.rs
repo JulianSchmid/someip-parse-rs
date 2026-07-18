@@ -3,8 +3,8 @@ use crate::sd::{entries::*, options::*, *};
 /// SOMEIP service discovery header
 ///
 /// This implementation uses fixed-size arrays instead of `Vec` to avoid allocations.
-/// The maximum size is based on the SOMEIP UDP payload limit of 1400 bytes minus
-/// the SOMEIP header size of 8 bytes, giving us 1392 bytes for each array.
+/// The combined serialized SD payload is limited to the supported SOME/IP UDP payload
+/// size of 1400 bytes.
 ///
 /// # Example
 ///
@@ -99,7 +99,7 @@ impl SdHeader {
             flags: SdHeaderFlags {
                 reboot,
                 unicast: true,
-                explicit_initial_data_control: true,
+                explicit_initial_data_control: false,
             },
             entries_data: [0; MAX_ENTRIES_LEN_USIZE],
             entries_len: 0,
@@ -125,7 +125,10 @@ impl SdHeader {
         let mut options_pos = 0;
         for option in options {
             let option_bytes = option.to_bytes()?;
-            if options_pos + option_bytes.len() > header.options_data.len() {
+            if options_pos + option_bytes.len() > header.options_data.len()
+                || MIN_SD_HEADER_LENGTH + header.entries_len + options_pos + option_bytes.len()
+                    > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP as usize
+            {
                 return Err(SdValueError::SdOptionsArrayTooLarge);
             }
             header.options_data[options_pos..options_pos + option_bytes.len()]
@@ -134,6 +137,7 @@ impl SdHeader {
         }
         header.options_len = options_pos;
 
+        header.validate_option_runs()?;
         Ok(header)
     }
 
@@ -161,7 +165,7 @@ impl SdHeader {
             flags: SdHeaderFlags {
                 reboot,
                 unicast: true,
-                explicit_initial_data_control: true,
+                explicit_initial_data_control: false,
             },
             entries_data: [0; MAX_ENTRIES_LEN_USIZE],
             entries_len: 0,
@@ -259,6 +263,7 @@ impl SdHeader {
     ///
     /// let index = header.options_index();
     /// for entry in header.entries_with_options(&index) {
+    ///     let entry = entry.unwrap();
     ///     for option in entry.options_run_1() {
     ///         assert!(matches!(option, SdOptionSlice::Ipv4Endpoint(_)));
     ///     }
@@ -278,22 +283,43 @@ impl SdHeader {
     /// access to its resolved options.
     ///
     /// The `index` must be obtained from [`options_index`](Self::options_index)
-    /// on the same header. Since the data stored in an [`SdHeader`] is
-    /// guaranteed to be valid, the yielded items are not wrapped in `Result`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the internal entry data is corrupt, which indicates a bug in
-    /// the serialization logic.
+    /// on the same header. Invalid option-run references are returned as
+    /// [`SdReadError::SdOptionRunOutOfBounds`].
     pub fn entries_with_options<'s>(
         &'s self,
         index: &'s SdOptionsIndex<'s>,
-    ) -> SdEntriesWithOptionsCheckedIterator<'s, 's> {
-        // SAFETY: entries_data[..entries_len] is only written to by
-        // add_entry which serialises valid SdEntry values.
-        unsafe {
-            SdEntriesWithOptionsCheckedIterator::new(&self.entries_data[..self.entries_len], index)
+    ) -> SdEntriesWithOptionsIterator<'s, 's> {
+        SdEntriesWithOptionsIterator::new(&self.entries_data[..self.entries_len], index)
+    }
+
+    fn validate_option_runs(&self) -> Result<(), SdValueError> {
+        let options_len = self.options_index().len();
+        for entry in self.entries() {
+            for (run, start_index, number_of_options) in [
+                (
+                    1,
+                    entry.start_index_options_1(),
+                    entry.number_of_options_1().value(),
+                ),
+                (
+                    2,
+                    entry.start_index_options_2(),
+                    entry.number_of_options_2().value(),
+                ),
+            ] {
+                if number_of_options != 0
+                    && usize::from(start_index) + usize::from(number_of_options) > options_len
+                {
+                    return Err(SdValueError::SdOptionRunOutOfBounds {
+                        run,
+                        start_index,
+                        number_of_options,
+                        options_len,
+                    });
+                }
+            }
         }
+        Ok(())
     }
 
     /// Adds an entry to the header.
@@ -322,7 +348,10 @@ impl SdHeader {
     /// ```
     pub fn add_entry(&mut self, entry: SdEntry) -> Result<(), SdValueError> {
         let entry_bytes = entry.to_bytes();
-        if self.entries_len + entry_bytes.len() > self.entries_data.len() {
+        if self.entries_len + entry_bytes.len() > self.entries_data.len()
+            || MIN_SD_HEADER_LENGTH + self.entries_len + entry_bytes.len() + self.options_len
+                > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP as usize
+        {
             return Err(SdValueError::SdEntriesArrayTooLarge);
         }
 
@@ -360,16 +389,18 @@ impl SdHeader {
     /// header.add_option(option).unwrap();
     /// ```
     pub fn add_option(&mut self, option: SdOption) -> Result<(), SdValueError> {
-        let mut temp_vec = Vec::new();
-        option.append_bytes_to_vec(&mut temp_vec)?;
+        let option_bytes = option.to_bytes()?;
 
-        if self.options_len + temp_vec.len() > self.options_data.len() {
+        if self.options_len + option_bytes.len() > self.options_data.len()
+            || MIN_SD_HEADER_LENGTH + self.entries_len + self.options_len + option_bytes.len()
+                > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP as usize
+        {
             return Err(SdValueError::SdOptionsArrayTooLarge);
         }
 
-        self.options_data[self.options_len..self.options_len + temp_vec.len()]
-            .copy_from_slice(&temp_vec);
-        self.options_len += temp_vec.len();
+        self.options_data[self.options_len..self.options_len + option_bytes.len()]
+            .copy_from_slice(&option_bytes);
+        self.options_len += option_bytes.len();
         Ok(())
     }
 
@@ -495,6 +526,9 @@ impl SdHeader {
             if length_entries > MAX_ENTRIES_LEN {
                 return Err(SdReadError::SdEntriesArrayLengthTooLarge(length_entries));
             }
+            if length_entries % ENTRY_LEN as u32 != 0 {
+                return Err(SdReadError::SdEntriesArrayLengthInvalid(length_entries));
+            }
 
             length_entries as usize
         };
@@ -517,6 +551,10 @@ impl SdHeader {
             if len > MAX_OPTIONS_LEN {
                 return Err(SdReadError::SdOptionsArrayLengthTooLarge(len));
             }
+            let payload_len = MIN_SD_HEADER_LENGTH as u32 + entries_length as u32 + len;
+            if payload_len > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP {
+                return Err(SdReadError::SdPayloadLengthTooLarge(payload_len));
+            }
 
             len as usize
         };
@@ -529,6 +567,36 @@ impl SdHeader {
                 ));
             }
             reader.read_exact(&mut options_data[..options_length])?;
+        }
+
+        // Validate the complete options array before exposing infallible
+        // iterators over the internal data.
+        let options_index = SdOptionsIndex::from_slice(&options_data[..options_length])?;
+        for option_index in 0..options_index.len() {
+            let option = options_index
+                .get(option_index)
+                .expect("option index built from the same options array");
+            if let SdOptionSlice::Unknown(unknown) = option {
+                if !unknown.discardable() && !discard_unknown_option {
+                    return Err(SdReadError::UnknownSdOptionType(unknown.option_type()));
+                }
+            }
+        }
+
+        // PRS_SOMEIPSD_00130 requires every non-empty referenced option run
+        // to exist. Checking here keeps the owned checked iterator infallible.
+        for entry in SdEntriesIterator::new(&entries_data[..entries_length]) {
+            let entry = entry?;
+            options_index.validate_run(
+                1,
+                entry.start_index_options_1(),
+                entry.number_of_options_1(),
+            )?;
+            options_index.validate_run(
+                2,
+                entry.start_index_options_2(),
+                entry.number_of_options_2(),
+            )?;
         }
 
         //return result
@@ -550,24 +618,34 @@ impl SdHeader {
     /// Writes the header to the given writer.
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
-        writer.write_all(&self.to_bytes_vec()?)?;
+        self.validate_option_runs()?;
+        writer.write_all(&self.flags.to_bytes())?;
+        writer.write_all(&(self.entries_len as u32).to_be_bytes())?;
+        writer.write_all(&self.entries_data[..self.entries_len])?;
+        writer.write_all(&(self.options_len as u32).to_be_bytes())?;
+        writer.write_all(&self.options_data[..self.options_len])?;
         Ok(())
     }
 
     /// Writes the header to a slice.
     #[inline]
     pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), SdWriteError> {
-        let buffer = self.to_bytes_vec()?;
-        if slice.len() < buffer.len() {
+        self.validate_option_runs()?;
+        let required_len = self.header_len();
+        if slice.len() < required_len {
             use crate::err::SdWriteError::*;
-            Err(UnexpectedEndOfSlice(buffer.len()))
-        } else {
-            // TODO figure out a better way
-            for (idx, b) in buffer.iter().enumerate() {
-                slice[idx] = *b;
-            }
-            Ok(())
+            return Err(UnexpectedEndOfSlice(required_len));
         }
+
+        slice[..4].copy_from_slice(&self.flags.to_bytes());
+        slice[4..8].copy_from_slice(&(self.entries_len as u32).to_be_bytes());
+        let options_len_offset = 8 + self.entries_len;
+        slice[8..options_len_offset].copy_from_slice(&self.entries_data[..self.entries_len]);
+        slice[options_len_offset..options_len_offset + 4]
+            .copy_from_slice(&(self.options_len as u32).to_be_bytes());
+        slice[options_len_offset + 4..required_len]
+            .copy_from_slice(&self.options_data[..self.options_len]);
+        Ok(())
     }
 
     /// Length of the serialized header in bytes.
@@ -580,6 +658,7 @@ impl SdHeader {
     /// Writes the header to a slice without checking the slice length.
     #[inline]
     pub fn to_bytes_vec(&self) -> Result<Vec<u8>, SdValueError> {
+        self.validate_option_runs()?;
         // pre-allocate the resulting buffer (4*3 for flags, entries len & options len)
         let mut bytes = Vec::with_capacity(4 * 3 + self.entries_len + self.options_len);
 
@@ -651,6 +730,29 @@ mod tests {
     }
 
     #[test]
+    fn write_rejects_out_of_bounds_option_runs() {
+        let entry =
+            SdEntry::new_offer_service_entry(0, 0, 1, 0, 0x1234, 0x5678, 1, 3600, 0).unwrap();
+        assert_matches!(
+            SdHeader::new(false, [&entry], std::iter::empty()),
+            Err(SdValueError::SdOptionRunOutOfBounds { .. })
+        );
+
+        let mut header = SdHeader::default();
+        header.add_entry(entry).unwrap();
+        assert_matches!(
+            header.to_bytes_vec(),
+            Err(SdValueError::SdOptionRunOutOfBounds { .. })
+        );
+        assert_matches!(
+            header.write(&mut Vec::new()),
+            Err(SdWriteError::ValueError(
+                SdValueError::SdOptionRunOutOfBounds { .. }
+            ))
+        );
+    }
+
+    #[test]
     fn read() {
         // entries array length too large error
         for len in [MAX_ENTRIES_LEN + 1, u32::MAX] {
@@ -678,6 +780,87 @@ mod tests {
             assert_matches!(
                 SdHeader::read(&mut cursor),
                 Err(SdReadError::SdOptionsArrayLengthTooLarge(_))
+            );
+        }
+
+        // Entry arrays consist exclusively of 16-byte entries.
+        {
+            let buffer = [
+                0, 0, 0, 0, // flags
+                0, 0, 0, 1, // invalid entries array length
+                0, // entry data
+                0, 0, 0, 0, // options array length
+            ];
+            assert_matches!(
+                SdHeader::read(&mut Cursor::new(buffer)),
+                Err(SdReadError::SdEntriesArrayLengthInvalid(1))
+            );
+        }
+
+        // Options are validated before infallible iterators can access them.
+        {
+            let buffer = [
+                0,
+                0,
+                0,
+                0, // flags
+                0,
+                0,
+                0,
+                0, // entries array length
+                0,
+                0,
+                0,
+                5, // options array length
+                0,
+                9,
+                IPV4_ENDPOINT_TYPE,
+                0,
+                0, // truncated option
+            ];
+            assert_matches!(
+                SdHeader::read(&mut Cursor::new(buffer)),
+                Err(SdReadError::SdOption(_))
+            );
+        }
+
+        // An unknown option can only be ignored by default when its
+        // discardable flag is set.
+        {
+            let buffer = [
+                0, 0, 0, 0, // flags
+                0, 0, 0, 0, // entries array length
+                0, 0, 0, 4, // options array length
+                0, 1, 0xaa, 0, // unknown, non-discardable option
+            ];
+            assert_matches!(
+                SdHeader::read(&mut Cursor::new(buffer)),
+                Err(SdReadError::UnknownSdOptionType(0xaa))
+            );
+            assert!(SdHeader::read_with_flag(&mut Cursor::new(buffer), true).is_ok());
+        }
+
+        // Referenced option runs must fit in the options array.
+        {
+            let mut buffer = [0u8; 28];
+            buffer[4..8].copy_from_slice(&(ENTRY_LEN as u32).to_be_bytes());
+            buffer[8] = 0x01; // OfferService
+            buffer[11] = 0x10; // first run references one option
+            assert_matches!(
+                SdHeader::read(&mut Cursor::new(buffer)),
+                Err(SdReadError::SdOptionRunOutOfBounds { .. })
+            );
+        }
+
+        // The entries and options limits apply to their combined payload.
+        {
+            let entries_len = MAX_ENTRIES_LEN_USIZE - (MAX_ENTRIES_LEN_USIZE % ENTRY_LEN);
+            let mut buffer = vec![0; 8 + entries_len];
+            buffer[4..8].copy_from_slice(&(entries_len as u32).to_be_bytes());
+            buffer.extend_from_slice(&(ENTRY_LEN as u32).to_be_bytes());
+            assert_matches!(
+                SdHeader::read(&mut Cursor::new(buffer)),
+                Err(SdReadError::SdPayloadLengthTooLarge(_))
             );
         }
     }
@@ -761,6 +944,22 @@ mod tests {
         // Try to add one more - should fail
         let result = header.add_entry(service_entry);
         assert_matches!(result, Err(SdValueError::SdEntriesArrayTooLarge));
+
+        // Exactly 1400 payload bytes are supported, but no more.
+        let endpoint = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+            ipv4_address: [127, 0, 0, 1],
+            transport_protocol: TransportProtocol::Udp,
+            port: 30490,
+        });
+        header.add_option(endpoint.clone()).unwrap();
+        assert_eq!(
+            header.header_len(),
+            crate::SOMEIP_MAX_PAYLOAD_LEN_UDP as usize
+        );
+        assert_matches!(
+            header.add_option(endpoint),
+            Err(SdValueError::SdOptionsArrayTooLarge)
+        );
     }
 
     #[test]
@@ -820,7 +1019,7 @@ mod tests {
         assert!(header.is_options_empty());
         assert_eq!(header.flags.reboot, false);
         assert_eq!(header.flags.unicast, true);
-        assert_eq!(header.flags.explicit_initial_data_control, true);
+        assert_eq!(header.flags.explicit_initial_data_control, false);
 
         let header_reboot = SdHeader::empty(true);
         assert_eq!(header_reboot.flags.reboot, true);

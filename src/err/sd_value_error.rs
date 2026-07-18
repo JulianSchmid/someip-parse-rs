@@ -28,6 +28,23 @@ pub enum SdValueError {
 
     /// The serialized options array is too large for the fixed-size buffer.
     SdOptionsArrayTooLarge,
+
+    /// Error in a Configuration Option's DNS-SD formatted string.
+    SdConfigurationString(crate::sd::options::SdConfigurationStringError),
+
+    /// An entry references options outside the header's options array.
+    SdOptionRunOutOfBounds {
+        run: u8,
+        start_index: u8,
+        number_of_options: u8,
+        options_len: usize,
+    },
+}
+
+impl From<crate::sd::options::SdConfigurationStringError> for SdValueError {
+    fn from(err: crate::sd::options::SdConfigurationStringError) -> Self {
+        SdValueError::SdConfigurationString(err)
+    }
 }
 
 #[cfg(test)]

@@ -1,4 +1,7 @@
-use crate::sd::SdEntrySlice;
+use crate::{
+    err::SdReadError,
+    sd::{entries::ENTRY_LEN, SdEntrySlice},
+};
 
 /// Iterator over SD entries in a byte slice that has already been
 /// validated, yielding [`SdEntrySlice`] values directly.
@@ -7,6 +10,8 @@ use crate::sd::SdEntrySlice;
 /// wrap items in `Result`. It is intended for slices whose contents
 /// are guaranteed to decode without errors (e.g. data that was
 /// previously serialized by [`super::SdHeader`]).
+///
+/// Unknown entry types are skipped as required by PRS_SOMEIPSD_00841.
 ///
 /// # Panics
 ///
@@ -43,18 +48,34 @@ impl<'a> Iterator for SdEntriesCheckedIterator<'a> {
     type Item = SdEntrySlice<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.slice.is_empty() {
-            return None;
-        }
+        loop {
+            if self.slice.is_empty() {
+                return None;
+            }
 
-        let entry = SdEntrySlice::from_slice(self.slice)
-            .expect("SdEntriesCheckedIterator: corrupt entry data");
-        let len = entry.slice().len();
-        // SAFETY: len is guaranteed to be less or equal than self.slice.len()
-        self.slice = unsafe {
-            core::slice::from_raw_parts(self.slice.as_ptr().add(len), self.slice.len() - len)
-        };
-        Some(entry)
+            match SdEntrySlice::from_slice(self.slice) {
+                Ok(entry) => {
+                    let len = entry.slice().len();
+                    // SAFETY: len is guaranteed to be less or equal than self.slice.len()
+                    self.slice = unsafe {
+                        core::slice::from_raw_parts(
+                            self.slice.as_ptr().add(len),
+                            self.slice.len() - len,
+                        )
+                    };
+                    return Some(entry);
+                }
+                Err(SdReadError::UnknownSdServiceEntryType(_)) if self.slice.len() >= ENTRY_LEN => {
+                    self.slice = unsafe {
+                        core::slice::from_raw_parts(
+                            self.slice.as_ptr().add(ENTRY_LEN),
+                            self.slice.len() - ENTRY_LEN,
+                        )
+                    };
+                }
+                Err(_) => panic!("SdEntriesCheckedIterator: corrupt entry data"),
+            }
+        }
     }
 }
 
@@ -122,10 +143,19 @@ mod tests {
     }
 
     #[test]
+    fn ignores_unknown_type() {
+        let mut data = [0u8; ENTRY_LEN * 2];
+        data[0] = 0xFF;
+        data[ENTRY_LEN] = 0x01;
+        let mut iter = unsafe { SdEntriesCheckedIterator::new(&data) };
+        assert!(matches!(iter.next(), Some(SdEntrySlice::Service(_))));
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
     #[should_panic(expected = "SdEntriesCheckedIterator: corrupt entry data")]
-    fn panics_on_invalid_data() {
-        let mut data = [0u8; ENTRY_LEN];
-        data[0] = 0xFF; // unknown type
+    fn panics_on_truncated_data() {
+        let data = [0u8; ENTRY_LEN - 1];
         let mut iter = unsafe { SdEntriesCheckedIterator::new(&data) };
         let _ = iter.next();
     }

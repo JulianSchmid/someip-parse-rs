@@ -71,7 +71,7 @@ impl SdEntry {
     /// * `instance_id` - Set to 0xFFFF if all instances should be returned.
     /// * `major_version` - Set to 0xFF if any version should be returned.
     /// * `minor_version` - Set to 0xFFFF_FFFF if any version should be returned.
-    /// * `ttl` - Must not be 0 as this indicates a "stop offering".
+    /// * `ttl` - Ignored by receivers and retained only for backward compatibility.
     #[allow(clippy::too_many_arguments)]
     pub fn new_find_service_entry(
         index_first_option_run: u8,
@@ -84,22 +84,18 @@ impl SdEntry {
         ttl: u32,
         minor_version: u32,
     ) -> Result<Self, SdValueError> {
-        if ttl == 0 {
-            Err(SdValueError::TtlZeroIndicatesStopOffering)
-        } else {
-            Self::new_service_entry(
-                SdServiceEntryType::FindService,
-                index_first_option_run,
-                index_second_option_run,
-                number_of_options_1,
-                number_of_options_2,
-                service_id,
-                instance_id,
-                major_version,
-                ttl,
-                minor_version,
-            )
-        }
+        Self::new_service_entry(
+            SdServiceEntryType::FindService,
+            index_first_option_run,
+            index_second_option_run,
+            number_of_options_1,
+            number_of_options_2,
+            service_id,
+            instance_id,
+            major_version,
+            ttl,
+            minor_version,
+        )
     }
 
     /// Create a service offer entry.
@@ -360,10 +356,10 @@ mod tests {
             let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 1, 0);
             assert!(result.is_ok());
         }
-        // zero ttl
+        // TTL is unused for FindService and may be zero.
         {
             let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
-            assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+            assert_eq!(result.unwrap().to_bytes()[9..12], [0, 0, 0]);
         }
         // ttl too large
         {

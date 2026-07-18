@@ -101,6 +101,22 @@ impl<'a> SdOptionSlice<'a> {
     pub fn from_slice(
         slice: &'a [u8],
     ) -> Result<(SdOptionSlice<'a>, &'a [u8]), SdOptionSliceError> {
+        Self::from_slice_impl(slice, true)
+    }
+
+    /// Decodes an option whose complete options array has already been
+    /// validated. This avoids re-scanning Configuration Option strings during
+    /// indexed lookups.
+    pub(crate) fn from_validated_slice(
+        slice: &'a [u8],
+    ) -> Result<(SdOptionSlice<'a>, &'a [u8]), SdOptionSliceError> {
+        Self::from_slice_impl(slice, false)
+    }
+
+    fn from_slice_impl(
+        slice: &'a [u8],
+        validate_configuration: bool,
+    ) -> Result<(SdOptionSlice<'a>, &'a [u8]), SdOptionSliceError> {
         if slice.len() < 3 {
             return Err(SdOptionSliceError::Len(err::LenError {
                 required_len: 3,
@@ -144,9 +160,13 @@ impl<'a> SdOptionSlice<'a> {
         };
 
         let option = match type_raw {
-            CONFIGURATION_TYPE => SdOptionSlice::Configuration(
-                ConfigurationSlice::from_slice(payload).map_err(map_len_err)?,
-            ),
+            CONFIGURATION_TYPE => {
+                let configuration = ConfigurationSlice::from_slice(payload).map_err(map_len_err)?;
+                if validate_configuration {
+                    configuration.validate()?;
+                }
+                SdOptionSlice::Configuration(configuration)
+            }
             LOAD_BALANCING_TYPE => SdOptionSlice::LoadBalancing(
                 LoadBalancingSlice::from_slice(payload).map_err(map_len_err)?,
             ),
@@ -359,29 +379,51 @@ mod tests {
 
     #[test]
     fn from_slice_configuration() {
-        // minimal: length=1, just the reserved byte
-        let data = [0x00, 0x01, CONFIGURATION_TYPE, 0x00];
+        // minimal: reserved byte followed by the required terminator
+        let data = [0x00, 0x02, CONFIGURATION_TYPE, 0x00, 0x00];
         let (opt, rest) = SdOptionSlice::from_slice(&data).unwrap();
         assert!(rest.is_empty());
         match opt {
             SdOptionSlice::Configuration(s) => {
                 assert!(!s.discardable());
-                assert_eq!(s.configuration_string(), &[] as &[u8]);
+                assert_eq!(s.configuration_string(), &[0x00]);
             }
             _ => panic!("expected Configuration"),
         }
 
         // with payload and extra trailing bytes
-        let data = [0x00, 0x04, CONFIGURATION_TYPE, 0x80, 0x61, 0x62, 0x63, 0xAA];
+        let data = [
+            0x00,
+            0x06,
+            CONFIGURATION_TYPE,
+            0x80,
+            0x03,
+            0x61,
+            0x62,
+            0x63,
+            0x00,
+            0xAA,
+        ];
         let (opt, rest) = SdOptionSlice::from_slice(&data).unwrap();
         assert_eq!(rest, &[0xAA]);
         match opt {
             SdOptionSlice::Configuration(s) => {
                 assert!(s.discardable());
-                assert_eq!(s.configuration_string(), b"abc");
+                assert_eq!(s.configuration_string(), b"\x03abc\0");
             }
             _ => panic!("expected Configuration"),
         }
+    }
+
+    #[test]
+    fn from_slice_configuration_rejects_invalid_dns_sd_format() {
+        let data = [0x00, 0x01, CONFIGURATION_TYPE, 0x00];
+        assert!(matches!(
+            SdOptionSlice::from_slice(&data),
+            Err(SdOptionSliceError::ConfigurationString(
+                SdConfigurationStringError::MissingTerminator
+            ))
+        ));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::err::SdOptionSliceError;
+use crate::err::{SdOptionSliceError, SdReadError};
 use crate::sd::entries::U4;
 use crate::sd::{options::MAX_OPTIONS_LEN_USIZE, SdOptionSlice};
 use arrayvec::ArrayVec;
@@ -53,8 +53,16 @@ impl<'a> SdOptionsIndex<'a> {
     ///
     /// Returns an [`SdOptionSliceError`] if any option in the slice cannot
     /// be decoded (e.g. truncated data or an option with a zero length
-    /// field).
+    /// field), or if the slice is larger than the maximum SOME/IP-SD
+    /// options array.
     pub fn from_slice(options: &'a [u8]) -> Result<Self, SdOptionSliceError> {
+        if options.len() > MAX_OPTIONS_LEN_USIZE {
+            return Err(SdOptionSliceError::OptionsArrayLengthTooLarge {
+                len: options.len(),
+                max_len: MAX_OPTIONS_LEN_USIZE,
+            });
+        }
+
         let mut offsets = ArrayVec::new();
         let mut rest = options;
         while !rest.is_empty() {
@@ -62,8 +70,14 @@ impl<'a> SdOptionsIndex<'a> {
             let offset = (options.len() - rest.len()) as u16;
             // The capacity is derived from the minimum option size, so as
             // long as `options.len() <= MAX_OPTIONS_LEN_USIZE` this can not
-            // overflow. `push` is used to guard against misuse regardless.
-            offsets.push(offset);
+            // overflow. Keep this fallible to avoid turning a future change
+            // to either invariant into a panic on untrusted input.
+            offsets.try_push(offset).map_err(|_| {
+                SdOptionSliceError::OptionsArrayLengthTooLarge {
+                    len: options.len(),
+                    max_len: MAX_OPTIONS_LEN_USIZE,
+                }
+            })?;
 
             let (_option, next) = SdOptionSlice::from_slice(rest)?;
             rest = next;
@@ -97,7 +111,7 @@ impl<'a> SdOptionsIndex<'a> {
         // SAFETY (logical): every offset stored in `offsets` was produced
         // by a successful `SdOptionSlice::from_slice` in `from_slice`, so
         // re-parsing from that offset can not fail.
-        let (option, _rest) = SdOptionSlice::from_slice(&self.options[offset..])
+        let (option, _rest) = SdOptionSlice::from_validated_slice(&self.options[offset..])
             .expect("SdOptionsIndex: corrupt option data");
         Some(option)
     }
@@ -114,6 +128,23 @@ impl<'a> SdOptionsIndex<'a> {
             index: self,
             next: usize::from(start),
             remaining: count.value(),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn validate_run(&self, run: u8, start: u8, count: U4) -> Result<(), SdReadError> {
+        let count = count.value();
+        // PRS_SOMEIPSD_00834: a zero-length run is ignored even if its
+        // index is non-zero.
+        if count == 0 || usize::from(start) + usize::from(count) <= self.len() {
+            Ok(())
+        } else {
+            Err(SdReadError::SdOptionRunOutOfBounds {
+                run,
+                start_index: start,
+                number_of_options: count,
+                options_len: self.len(),
+            })
         }
     }
 }
@@ -197,13 +228,25 @@ mod tests {
     fn multiple() {
         let mut data = Vec::new();
         data.extend_from_slice(&ipv4(1));
-        data.extend_from_slice(&[0x00, 0x05, LOAD_BALANCING_TYPE, 0x00, 0x12, 0x34, 0x56, 0x78]);
+        data.extend_from_slice(&[
+            0x00,
+            0x05,
+            LOAD_BALANCING_TYPE,
+            0x00,
+            0x12,
+            0x34,
+            0x56,
+            0x78,
+        ]);
         data.extend_from_slice(&ipv4(2));
 
         let index = SdOptionsIndex::from_slice(&data).unwrap();
         assert_eq!(index.len(), 3);
         assert!(matches!(index.get(0), Some(SdOptionSlice::Ipv4Endpoint(_))));
-        assert!(matches!(index.get(1), Some(SdOptionSlice::LoadBalancing(_))));
+        assert!(matches!(
+            index.get(1),
+            Some(SdOptionSlice::LoadBalancing(_))
+        ));
         assert!(matches!(index.get(2), Some(SdOptionSlice::Ipv4Endpoint(_))));
 
         match (index.get(0).unwrap(), index.get(2).unwrap()) {
@@ -220,6 +263,18 @@ mod tests {
         // length says 9 but not enough payload
         let data = [0x00, 0x09, IPV4_ENDPOINT_TYPE, 0x00, 0x00];
         assert!(SdOptionsIndex::from_slice(&data).is_err());
+    }
+
+    #[test]
+    fn from_slice_rejects_oversized_array_without_panicking() {
+        let data = vec![0; MAX_OPTIONS_LEN_USIZE + 1];
+        assert_eq!(
+            SdOptionsIndex::from_slice(&data),
+            Err(SdOptionSliceError::OptionsArrayLengthTooLarge {
+                len: MAX_OPTIONS_LEN_USIZE + 1,
+                max_len: MAX_OPTIONS_LEN_USIZE,
+            })
+        );
     }
 
     #[test]
@@ -266,6 +321,24 @@ mod tests {
         let index = SdOptionsIndex::from_slice(&data).unwrap();
         let iter = index.run(0, U4::N3);
         assert_eq!(iter.size_hint(), (0, Some(3)));
+    }
+
+    #[test]
+    fn validate_run_rejects_out_of_bounds_references() {
+        let data = ipv4(1);
+        let index = SdOptionsIndex::from_slice(&data).unwrap();
+
+        assert!(index.validate_run(1, 0, U4::N1).is_ok());
+        assert!(index.validate_run(1, u8::MAX, U4::ZERO).is_ok());
+        assert!(matches!(
+            index.validate_run(2, 1, U4::N1),
+            Err(SdReadError::SdOptionRunOutOfBounds {
+                run: 2,
+                start_index: 1,
+                number_of_options: 1,
+                options_len: 1,
+            })
+        ));
     }
 
     #[test]

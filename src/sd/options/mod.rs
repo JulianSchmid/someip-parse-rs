@@ -57,14 +57,8 @@ pub use unknown_slice::*;
 
 /// Maximum length of options array that is supported by the read & from slice functions.
 ///
-/// This constant is used to make sure no attacks with large length
-/// values can trigger large allocations. E.g. if a some ip sd header
-/// with an options array length of 4 gigabytes gets passed to the `read` function
-/// it could triggering an allocation of 4 gigabytes. This allocation would then
-/// take a very long time or lead to a failure and potential crash.
-///
-/// To prevent attacks like these the length gets checked against
-/// this constant before any allocation gets triggered.
+/// This limit both bounds the fixed-capacity parser storage and rejects length
+/// fields that cannot fit in a valid SOME/IP-SD UDP payload.
 ///
 /// The maximum entry length is calculated from the fact that SOMEIP SD is
 /// only allowed via UDP and that the SOMEIP specification states the following

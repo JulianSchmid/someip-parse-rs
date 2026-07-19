@@ -1,6 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/someip_parse.svg)](https://crates.io/crates/someip_parse)
 [![docs.rs](https://docs.rs/someip_parse/badge.svg)](https://docs.rs/someip_parse)
-[![Build Status Github](https://github.com/JulianSchmid/someip-parse-rs/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/JulianSchmid/someip-parse-rs/actions/workflows/main.yml)
+[![Build Status Github](https://github.com/JulianSchmid/someip-parse-rs/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/JulianSchmid/someip-parse-rs/actions/workflows/main.yml)
 
 # {{crate}}
 

@@ -16,8 +16,13 @@ exclude = [
     ".gitlab-ci.yml",
 ]
 
+[features]
+default = ["std"]
+alloc = []
+std = ["alloc", "arrayvec/std"]
+
 [dependencies]
-arrayvec = "0.7.6"
+arrayvec = { version = "0.7.8", default-features = false }
 
 [dev-dependencies]
 assert_matches = "1.5.0"

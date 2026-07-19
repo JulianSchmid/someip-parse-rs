@@ -28,25 +28,25 @@ fn main() -> Result<(), Error> {
         };
 
         // count based on ip versions
-        use InternetSlice::*;
-        match eth_slice.ip {
-            Some(Ipv4(_, _)) => {
+        use NetSlice::*;
+        match eth_slice.net {
+            Some(Ipv4(_)) => {
                 stats.ipv4 += 1;
             }
-            Some(Ipv6(_, _)) => {
+            Some(Ipv6(_)) => {
                 stats.ipv6 += 1;
             }
-            None => {}
+            Some(Arp(_)) | None => {}
         }
 
         // count transport layers
         use TransportSlice::*;
         match eth_slice.transport {
-            Some(Udp(_)) => {
+            Some(Udp(udp_slice)) => {
                 stats.udp += 1;
 
                 //try parsing some ip message
-                for someip_message in SomeipMsgsIterator::new(eth_slice.payload) {
+                for someip_message in SomeipMsgsIterator::new(udp_slice.payload()) {
                     match someip_message {
                         Ok(value) => {
                             stats.someip_message_ok += 1;

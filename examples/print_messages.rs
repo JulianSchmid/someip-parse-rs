@@ -21,16 +21,13 @@ fn main() -> Result<(), Error> {
         };
 
         // check that the packet is an UDP packet
-        use TransportSlice::*;
-        let _ = if let Some(Udp(u)) = eth_slice.transport {
-            u
-        } else {
+        let Some(TransportSlice::Udp(udp_slice)) = eth_slice.transport else {
             // skip non udp packets
             continue;
         };
 
         // trying parsing some ip messages located in a udp payload
-        for someip_message in SomeipMsgsIterator::new(eth_slice.payload) {
+        for someip_message in SomeipMsgsIterator::new(udp_slice.payload()) {
             match someip_message {
                 Ok(value) => {
                     if value.is_someip_sd() {

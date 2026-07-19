@@ -1,4 +1,4 @@
-use crate::err::SdReadError;
+use crate::err::{SdError, SdSliceError};
 use crate::sd::{
     entries::{ENTRY_LEN, MAX_ENTRIES_LEN},
     options::MAX_OPTIONS_LEN,
@@ -57,7 +57,7 @@ impl<'a> SdSlice<'a> {
     ///
     /// In addition to the SD payload, this validates the fixed SOME/IP header
     /// values required by PRS_SOMEIPSD_00151 through PRS_SOMEIPSD_00164.
-    pub fn from_someip(message: &crate::SomeipMsgSlice<'a>) -> Result<Self, SdReadError> {
+    pub fn from_someip(message: &crate::SomeipMsgSlice<'a>) -> Result<Self, SdSliceError> {
         Self::from_someip_with_flag(message, false)
     }
 
@@ -66,31 +66,35 @@ impl<'a> SdSlice<'a> {
     pub fn from_someip_with_flag(
         message: &crate::SomeipMsgSlice<'a>,
         discard_unknown_option: bool,
-    ) -> Result<Self, SdReadError> {
+    ) -> Result<Self, SdSliceError> {
         if message.message_id() != crate::SOMEIP_SD_MESSAGE_ID {
-            return Err(SdReadError::SdMessageIdInvalid(message.message_id()));
+            return Err(SdSliceError::Content(SdError::SdMessageIdInvalid(
+                message.message_id(),
+            )));
         }
 
         let request_id = message.request_id();
         let client_id = (request_id >> 16) as u16;
         if client_id != 0 {
-            return Err(SdReadError::SdClientIdInvalid(client_id));
+            return Err(SdSliceError::Content(SdError::SdClientIdInvalid(client_id)));
         }
         if request_id as u16 == 0 {
-            return Err(SdReadError::SdSessionIdZero);
+            return Err(SdSliceError::Content(SdError::SdSessionIdZero));
         }
         if message.interface_version() != 1 {
-            return Err(SdReadError::SdInterfaceVersionInvalid(
+            return Err(SdSliceError::Content(SdError::SdInterfaceVersionInvalid(
                 message.interface_version(),
-            ));
+            )));
         }
         if message.message_type_raw() != crate::MessageType::Notification as u8 {
-            return Err(SdReadError::SdMessageTypeInvalid(
+            return Err(SdSliceError::Content(SdError::SdMessageTypeInvalid(
                 message.message_type_raw(),
-            ));
+            )));
         }
         if message.return_code() != 0 {
-            return Err(SdReadError::SdReturnCodeInvalid(message.return_code()));
+            return Err(SdSliceError::Content(SdError::SdReturnCodeInvalid(
+                message.return_code(),
+            )));
         }
 
         Self::from_slice_with_flag(message.payload(), discard_unknown_option)
@@ -100,19 +104,19 @@ impl<'a> SdSlice<'a> {
     ///
     /// # Errors
     ///
-    /// - [`SdReadError::UnexpectedEndOfSlice`] if the slice is too short to
+    /// - [`SdSliceError::UnexpectedEndOfSlice`] if the slice is too short to
     ///   contain the header or the announced entries/options arrays.
-    /// - [`SdReadError::SdEntriesArrayLengthTooLarge`] /
-    ///   [`SdReadError::SdOptionsArrayLengthTooLarge`] if an announced array
+    /// - [`SdError::SdEntriesArrayLengthTooLarge`] /
+    ///   [`SdError::SdOptionsArrayLengthTooLarge`] if an announced array
     ///   length exceeds the maximum allowed value.
-    /// - [`SdReadError::SdPayloadLengthMismatch`] if bytes remain after the
+    /// - [`SdError::SdPayloadLengthMismatch`] if bytes remain after the
     ///   announced options array.
-    /// - [`SdReadError::SdOption`] if an option can not be decoded.
-    /// - [`SdReadError::UnknownSdOptionType`] for an unknown non-discardable
+    /// - [`SdError::SdOption`] if an option can not be decoded.
+    /// - [`SdError::UnknownSdOptionType`] for an unknown non-discardable
     ///   option.
-    /// - [`SdReadError::SdOptionRunOutOfBounds`] if an entry references
+    /// - [`SdError::SdOptionRunOutOfBounds`] if an entry references
     ///   options outside the options array.
-    pub fn from_slice(slice: &'a [u8]) -> Result<Self, SdReadError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<Self, SdSliceError> {
         Self::from_slice_with_flag(slice, false)
     }
 
@@ -124,9 +128,9 @@ impl<'a> SdSlice<'a> {
     pub fn from_slice_with_flag(
         slice: &'a [u8],
         discard_unknown_option: bool,
-    ) -> Result<Self, SdReadError> {
+    ) -> Result<Self, SdSliceError> {
         if slice.len() < MIN_SD_HEADER_LENGTH {
-            return Err(SdReadError::UnexpectedEndOfSlice(MIN_SD_HEADER_LENGTH));
+            return Err(SdSliceError::UnexpectedEndOfSlice(MIN_SD_HEADER_LENGTH));
         }
 
         // flags (byte 0) followed by 3 reserved bytes
@@ -139,17 +143,21 @@ impl<'a> SdSlice<'a> {
         // entries array length
         let entries_len = u32::from_be_bytes([slice[4], slice[5], slice[6], slice[7]]);
         if entries_len > MAX_ENTRIES_LEN {
-            return Err(SdReadError::SdEntriesArrayLengthTooLarge(entries_len));
+            return Err(SdSliceError::Content(SdError::SdEntriesArrayLengthTooLarge(
+                entries_len,
+            )));
         }
         if entries_len % ENTRY_LEN as u32 != 0 {
-            return Err(SdReadError::SdEntriesArrayLengthInvalid(entries_len));
+            return Err(SdSliceError::Content(SdError::SdEntriesArrayLengthInvalid(
+                entries_len,
+            )));
         }
         let entries_len = entries_len as usize;
 
         // entries array + the 4 byte options length that follows it
         let options_len_start = 8 + entries_len;
         if slice.len() < options_len_start + 4 {
-            return Err(SdReadError::UnexpectedEndOfSlice(options_len_start + 4));
+            return Err(SdSliceError::UnexpectedEndOfSlice(options_len_start + 4));
         }
         let entries = &slice[8..options_len_start];
 
@@ -161,24 +169,28 @@ impl<'a> SdSlice<'a> {
             slice[options_len_start + 3],
         ]);
         if options_len > MAX_OPTIONS_LEN {
-            return Err(SdReadError::SdOptionsArrayLengthTooLarge(options_len));
+            return Err(SdSliceError::Content(SdError::SdOptionsArrayLengthTooLarge(
+                options_len,
+            )));
         }
         let payload_len = MIN_SD_HEADER_LENGTH as u32 + entries_len as u32 + options_len;
         if payload_len > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP {
-            return Err(SdReadError::SdPayloadLengthTooLarge(payload_len));
+            return Err(SdSliceError::Content(SdError::SdPayloadLengthTooLarge(
+                payload_len,
+            )));
         }
         let options_len = options_len as usize;
 
         let options_start = options_len_start + 4;
         let options_end = options_start + options_len;
         if slice.len() < options_end {
-            return Err(SdReadError::UnexpectedEndOfSlice(options_end));
+            return Err(SdSliceError::UnexpectedEndOfSlice(options_end));
         }
         if slice.len() != options_end {
-            return Err(SdReadError::SdPayloadLengthMismatch {
+            return Err(SdSliceError::Content(SdError::SdPayloadLengthMismatch {
                 expected_len: options_end,
                 actual_len: slice.len(),
-            });
+            }));
         }
         let options = &slice[options_start..options_end];
 
@@ -187,7 +199,9 @@ impl<'a> SdSlice<'a> {
             for option_index in 0..options_index.len() {
                 if let Some(SdOptionSlice::Unknown(unknown)) = options_index.get(option_index) {
                     if !unknown.discardable() {
-                        return Err(SdReadError::UnknownSdOptionType(unknown.option_type()));
+                        return Err(SdSliceError::Content(SdError::UnknownSdOptionType(
+                            unknown.option_type(),
+                        )));
                     }
                 }
             }
@@ -336,7 +350,7 @@ mod tests {
         let message = crate::SomeipMsgSlice::from_slice(&invalid).unwrap();
         assert!(matches!(
             SdSlice::from_someip(&message),
-            Err(SdReadError::SdMessageIdInvalid(_))
+            Err(SdSliceError::Content(SdError::SdMessageIdInvalid(_)))
         ));
 
         let mut invalid = bytes.clone();
@@ -344,7 +358,7 @@ mod tests {
         let message = crate::SomeipMsgSlice::from_slice(&invalid).unwrap();
         assert!(matches!(
             SdSlice::from_someip(&message),
-            Err(SdReadError::SdClientIdInvalid(1))
+            Err(SdSliceError::Content(SdError::SdClientIdInvalid(1)))
         ));
 
         let mut invalid = bytes.clone();
@@ -352,7 +366,7 @@ mod tests {
         let message = crate::SomeipMsgSlice::from_slice(&invalid).unwrap();
         assert!(matches!(
             SdSlice::from_someip(&message),
-            Err(SdReadError::SdSessionIdZero)
+            Err(SdSliceError::Content(SdError::SdSessionIdZero))
         ));
 
         let mut invalid = bytes.clone();
@@ -360,7 +374,7 @@ mod tests {
         let message = crate::SomeipMsgSlice::from_slice(&invalid).unwrap();
         assert!(matches!(
             SdSlice::from_someip(&message),
-            Err(SdReadError::SdInterfaceVersionInvalid(2))
+            Err(SdSliceError::Content(SdError::SdInterfaceVersionInvalid(2)))
         ));
 
         let mut invalid = bytes.clone();
@@ -368,7 +382,7 @@ mod tests {
         let message = crate::SomeipMsgSlice::from_slice(&invalid).unwrap();
         assert!(matches!(
             SdSlice::from_someip(&message),
-            Err(SdReadError::SdMessageTypeInvalid(0))
+            Err(SdSliceError::Content(SdError::SdMessageTypeInvalid(0)))
         ));
 
         let mut invalid = bytes;
@@ -376,7 +390,7 @@ mod tests {
         let message = crate::SomeipMsgSlice::from_slice(&invalid).unwrap();
         assert!(matches!(
             SdSlice::from_someip(&message),
-            Err(SdReadError::SdReturnCodeInvalid(1))
+            Err(SdSliceError::Content(SdError::SdReturnCodeInvalid(1)))
         ));
     }
 
@@ -384,7 +398,7 @@ mod tests {
     fn from_slice_too_short() {
         assert!(matches!(
             SdSlice::from_slice(&[0u8; MIN_SD_HEADER_LENGTH - 1]),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -398,7 +412,7 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdEntriesArrayLengthTooLarge(_))
+            Err(SdSliceError::Content(SdError::SdEntriesArrayLengthTooLarge(_)))
         ));
     }
 
@@ -412,7 +426,7 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdEntriesArrayLengthInvalid(1))
+            Err(SdSliceError::Content(SdError::SdEntriesArrayLengthInvalid(1)))
         ));
     }
 
@@ -425,7 +439,7 @@ mod tests {
 
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdOptionRunOutOfBounds { .. })
+            Err(SdSliceError::Content(SdError::SdOptionRunOutOfBounds { .. }))
         ));
     }
 
@@ -439,7 +453,7 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdOptionsArrayLengthTooLarge(_))
+            Err(SdSliceError::Content(SdError::SdOptionsArrayLengthTooLarge(_)))
         ));
     }
 
@@ -456,7 +470,7 @@ mod tests {
 
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdPayloadLengthTooLarge(len))
+            Err(SdSliceError::Content(SdError::SdPayloadLengthTooLarge(len)))
                 if len > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP
         ));
     }
@@ -480,7 +494,7 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -493,7 +507,7 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -508,10 +522,10 @@ mod tests {
 
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdPayloadLengthMismatch {
+            Err(SdSliceError::Content(SdError::SdPayloadLengthMismatch {
                 expected_len: MIN_SD_HEADER_LENGTH,
                 actual_len,
-            }) if actual_len == MIN_SD_HEADER_LENGTH + 1
+            })) if actual_len == MIN_SD_HEADER_LENGTH + 1
         ));
     }
 
@@ -527,7 +541,7 @@ mod tests {
         buf.extend_from_slice(&[0x00, 0x09, IPV4_ENDPOINT_TYPE, 0x00, 0x00]);
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::SdOption(_))
+            Err(SdSliceError::Content(SdError::SdOption(_)))
         ));
     }
 
@@ -541,7 +555,7 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdReadError::UnknownSdOptionType(0xaa))
+            Err(SdSliceError::Content(SdError::UnknownSdOptionType(0xaa)))
         ));
         assert!(SdSlice::from_slice_with_flag(&buf, true).is_ok());
 

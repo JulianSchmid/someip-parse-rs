@@ -152,8 +152,8 @@ impl SomeipHeader {
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn read<T: std::io::Read>(
         reader: &mut T,
-    ) -> Result<SomeipHeader, err::SomeipHeaderReadError> {
-        use err::{SomeipHeaderError::*, SomeipHeaderReadError::*};
+    ) -> Result<SomeipHeader, err::SomeipHeaderIoReadError> {
+        use err::{SomeipHeaderError::*, SomeipHeaderIoReadError::*};
 
         // read the header
         let mut header_bytes: [u8; SOMEIP_HEADER_LENGTH] = [0; SOMEIP_HEADER_LENGTH];

@@ -41,6 +41,66 @@ pub enum SdValueError {
     },
 }
 
+impl core::fmt::Display for SdValueError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        use SdValueError::*;
+        match self {
+            CounterTooLarge(v) => write!(
+                f,
+                "SOMEIP SD Value Error: The counter value '{v}' exceeds the maximum of 4 bits (15)."
+            ),
+            TtlTooLarge(v) => write!(
+                f,
+                "SOMEIP SD Value Error: The TTL value '{v}' exceeds the maximum of 24 bits (16777215)."
+            ),
+            TtlZeroIndicatesStopOffering => write!(
+                f,
+                "SOMEIP SD Value Error: A TTL of zero indicates 'stop offering' of a service entry and can not be set explicitly."
+            ),
+            NumberOfOption1TooLarge(v) => write!(
+                f,
+                "SOMEIP SD Value Error: The 'number of options 1' value '{v}' exceeds the maximum of 4 bits (15)."
+            ),
+            NumberOfOption2TooLarge(v) => write!(
+                f,
+                "SOMEIP SD Value Error: The 'number of options 2' value '{v}' exceeds the maximum of 4 bits (15)."
+            ),
+            SdUnknownDiscardableOption(t) => write!(
+                f,
+                "SOMEIP SD Value Error: An 'unknown discardable' option of type '{t}' can not be serialized."
+            ),
+            SdEntriesArrayTooLarge => write!(
+                f,
+                "SOMEIP SD Value Error: The serialized entries array is too large for the fixed-size buffer."
+            ),
+            SdOptionsArrayTooLarge => write!(
+                f,
+                "SOMEIP SD Value Error: The serialized options array is too large for the fixed-size buffer."
+            ),
+            SdConfigurationString(err) => err.fmt(f),
+            SdOptionRunOutOfBounds {
+                run,
+                start_index,
+                number_of_options,
+                options_len,
+            } => write!(
+                f,
+                "SOMEIP SD Value Error: Option run {run} (start index {start_index}, {number_of_options} option(s)) references options outside the options array of {options_len} entries."
+            ),
+        }
+    }
+}
+
+impl core::error::Error for SdValueError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        use SdValueError::*;
+        match self {
+            SdConfigurationString(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
 impl From<crate::sd::options::SdConfigurationStringError> for SdValueError {
     fn from(err: crate::sd::options::SdConfigurationStringError) -> Self {
         SdValueError::SdConfigurationString(err)

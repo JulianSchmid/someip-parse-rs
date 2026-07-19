@@ -1,5 +1,5 @@
 use crate::{
-    err::SdReadError,
+    err::{SdError, SdSliceError},
     sd::{entries::ENTRY_LEN, SdEntrySlice},
 };
 
@@ -65,7 +65,9 @@ impl<'a> Iterator for SdEntriesCheckedIterator<'a> {
                     };
                     return Some(entry);
                 }
-                Err(SdReadError::UnknownSdServiceEntryType(_)) if self.slice.len() >= ENTRY_LEN => {
+                Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(_)))
+                    if self.slice.len() >= ENTRY_LEN =>
+                {
                     self.slice = unsafe {
                         core::slice::from_raw_parts(
                             self.slice.as_ptr().add(ENTRY_LEN),

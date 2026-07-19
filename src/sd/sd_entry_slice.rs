@@ -1,4 +1,4 @@
-use crate::err::SdReadError;
+use crate::err::{SdError, SdSliceError};
 use crate::sd::{entries::*, SdEntry};
 
 /// Zero-copy reference to a serialized SOMEIP SD entry.
@@ -35,13 +35,13 @@ impl<'a> SdEntrySlice<'a> {
     ///
     /// # Errors
     ///
-    /// - [`SdReadError::UnexpectedEndOfSlice`] if `slice.len() < ENTRY_LEN`
-    /// - [`SdReadError::UnknownSdServiceEntryType`] if the type byte is
+    /// - [`SdSliceError::UnexpectedEndOfSlice`] if `slice.len() < ENTRY_LEN`
+    /// - [`SdError::UnknownSdServiceEntryType`] if the type byte is
     ///   not a recognised entry type
     #[inline]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SdEntrySlice<'a>, SdReadError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<SdEntrySlice<'a>, SdSliceError> {
         if slice.len() < ENTRY_LEN {
-            return Err(SdReadError::UnexpectedEndOfSlice(ENTRY_LEN));
+            return Err(SdSliceError::UnexpectedEndOfSlice(ENTRY_LEN));
         }
 
         Ok(match slice[0] {
@@ -54,7 +54,7 @@ impl<'a> SdEntrySlice<'a> {
                 // SAFETY: slice.len() >= ENTRY_LEN is checked above & type byte is 0x06 or 0x07.
                 unsafe { EventGroupEntrySlice::from_slice_unchecked(slice) },
             ),
-            other => return Err(SdReadError::UnknownSdServiceEntryType(other)),
+            other => return Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(other))),
         })
     }
 
@@ -157,7 +157,7 @@ mod tests {
         let buf = [0u8; ENTRY_LEN - 1];
         assert!(matches!(
             SdEntrySlice::from_slice(&buf),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -165,7 +165,7 @@ mod tests {
     fn from_slice_empty() {
         assert!(matches!(
             SdEntrySlice::from_slice(&[]),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -175,7 +175,7 @@ mod tests {
         buf[0] = 0xFF;
         assert!(matches!(
             SdEntrySlice::from_slice(&buf),
-            Err(SdReadError::UnknownSdServiceEntryType(0xFF))
+            Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(0xFF)))
         ));
     }
 

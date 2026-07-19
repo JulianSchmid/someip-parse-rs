@@ -1,4 +1,4 @@
-use crate::err::SdReadError;
+use crate::err::{SdError, SdSliceError};
 use crate::sd::{entries::ENTRY_LEN, SdEntrySlice};
 
 /// Iterator over SD entries in a byte slice, yielding [`SdEntrySlice`]
@@ -48,7 +48,7 @@ impl<'a> SdEntriesIterator<'a> {
 }
 
 impl<'a> Iterator for SdEntriesIterator<'a> {
-    type Item = Result<SdEntrySlice<'a>, SdReadError>;
+    type Item = Result<SdEntrySlice<'a>, SdSliceError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -67,7 +67,9 @@ impl<'a> Iterator for SdEntriesIterator<'a> {
                     };
                     return Some(Ok(entry));
                 }
-                Err(SdReadError::UnknownSdServiceEntryType(_)) if self.slice.len() >= ENTRY_LEN => {
+                Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(_)))
+                    if self.slice.len() >= ENTRY_LEN =>
+                {
                     // AUTOSAR PRS_SOMEIPSD_00841 requires receivers to ignore
                     // entries of unknown type and continue with later entries.
                     self.slice = unsafe {
@@ -152,7 +154,7 @@ mod tests {
         assert!(iter.next().unwrap().is_ok());
 
         let err = iter.next().unwrap().unwrap_err();
-        assert!(matches!(err, SdReadError::UnexpectedEndOfSlice(_)));
+        assert!(matches!(err, SdSliceError::UnexpectedEndOfSlice(_)));
 
         assert!(iter.rest().is_empty());
         assert!(iter.next().is_none());
@@ -178,7 +180,7 @@ mod tests {
         let mut iter = SdEntriesIterator::new(&data);
 
         let err = iter.next().unwrap().unwrap_err();
-        assert!(matches!(err, SdReadError::UnexpectedEndOfSlice(_)));
+        assert!(matches!(err, SdSliceError::UnexpectedEndOfSlice(_)));
 
         assert!(iter.rest().is_empty());
         assert!(iter.next().is_none());

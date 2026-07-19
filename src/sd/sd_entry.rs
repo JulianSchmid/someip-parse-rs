@@ -211,21 +211,21 @@ impl SdEntry {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
-    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
+    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdIoReadError> {
         let mut entry_bytes: [u8; ENTRY_LEN] = [0; ENTRY_LEN];
         reader.read_exact(&mut entry_bytes)?;
-        Self::from_bytes(entry_bytes)
+        Ok(Self::from_bytes(entry_bytes)?)
     }
 
     /// Read an entry from a slice.
     #[inline]
-    pub fn from_slice(slice: &[u8]) -> Result<Self, SdReadError> {
+    pub fn from_slice(slice: &[u8]) -> Result<Self, SdSliceError> {
         SdEntrySlice::from_slice(slice).map(|v| v.to_owned())
     }
 
     /// Read an entry from a byte array.
     #[inline]
-    pub fn from_bytes(entry_bytes: [u8; ENTRY_LEN]) -> Result<Self, SdReadError> {
+    pub fn from_bytes(entry_bytes: [u8; ENTRY_LEN]) -> Result<Self, SdSliceError> {
         Self::from_slice(&entry_bytes)
     }
 
@@ -233,7 +233,7 @@ impl SdEntry {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdIoWriteError> {
         writer.write_all(&self.to_bytes())?;
         Ok(())
     }
@@ -286,7 +286,10 @@ mod tests {
         buffer[0] = 0xFF;
         let mut cursor = std::io::Cursor::new(buffer);
         let result = SdEntry::read(&mut cursor);
-        assert_matches!(result, Err(SdReadError::UnknownSdServiceEntryType(0xFF)));
+        assert_matches!(
+            result,
+            Err(SdIoReadError::Content(SdError::UnknownSdServiceEntryType(0xFF)))
+        );
     }
 
     #[test]

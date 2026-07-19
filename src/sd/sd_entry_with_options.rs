@@ -1,4 +1,4 @@
-use crate::err::SdReadError;
+use crate::err::SdSliceError;
 use crate::sd::{
     SdEntriesCheckedIterator, SdEntriesIterator, SdEntrySlice, SdOptionRunIter, SdOptionsIndex,
 };
@@ -20,7 +20,7 @@ impl<'a, 'i> SdEntryWithOptions<'a, 'i> {
     pub(crate) fn new(
         entry: SdEntrySlice<'a>,
         options: &'i SdOptionsIndex<'a>,
-    ) -> Result<Self, SdReadError> {
+    ) -> Result<Self, SdSliceError> {
         options.validate_run(
             1,
             entry.start_index_options_1(),
@@ -92,7 +92,7 @@ impl<'a, 'i> SdEntriesWithOptionsIterator<'a, 'i> {
 }
 
 impl<'a, 'i> Iterator for SdEntriesWithOptionsIterator<'a, 'i> {
-    type Item = Result<SdEntryWithOptions<'a, 'i>, SdReadError>;
+    type Item = Result<SdEntryWithOptions<'a, 'i>, SdSliceError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.failed {
@@ -160,6 +160,7 @@ mod tests {
     use alloc::{format, vec::Vec};
 
     use super::*;
+    use crate::err::SdError;
     use crate::sd::entries::*;
     use crate::sd::options::*;
     use crate::sd::{SdOptionSlice, SdOptionsIndex};
@@ -244,7 +245,7 @@ mod tests {
         let mut iter = SdEntriesWithOptionsIterator::new(&entries, &index);
         assert!(matches!(
             iter.next(),
-            Some(Err(SdReadError::UnexpectedEndOfSlice(_)))
+            Some(Err(SdSliceError::UnexpectedEndOfSlice(_)))
         ));
         assert!(iter.next().is_none());
     }
@@ -258,12 +259,12 @@ mod tests {
 
         assert!(matches!(
             iter.next(),
-            Some(Err(SdReadError::SdOptionRunOutOfBounds {
+            Some(Err(SdSliceError::Content(SdError::SdOptionRunOutOfBounds {
                 run: 1,
                 start_index: 2,
                 number_of_options: 2,
                 options_len: 3,
-            }))
+            })))
         ));
         assert!(iter.next().is_none());
     }

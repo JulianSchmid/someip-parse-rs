@@ -7,14 +7,31 @@ pub use len_error::*;
 mod len_source;
 pub use len_source::*;
 
+mod sd_error;
+pub use sd_error::*;
+
 mod sd_option_slice_error;
 pub use sd_option_slice_error::*;
 
-mod sd_read_error;
-pub use sd_read_error::*;
+mod sd_slice_error;
+pub use sd_slice_error::*;
 
-mod sd_write_error;
-pub use sd_write_error::*;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+mod sd_io_read_error;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub use sd_io_read_error::*;
+
+mod sd_slice_write_error;
+pub use sd_slice_write_error::*;
+
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+mod sd_io_write_error;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+pub use sd_io_write_error::*;
 
 mod slice_write_space_error;
 pub use slice_write_space_error::*;
@@ -24,10 +41,10 @@ pub use someip_header_error::*;
 
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-mod someip_header_read_error;
+mod someip_header_io_read_error;
 #[cfg(feature = "std")]
 #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-pub use someip_header_read_error::*;
+pub use someip_header_io_read_error::*;
 
 mod someip_slice_error;
 pub use someip_slice_error::*;

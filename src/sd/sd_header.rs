@@ -287,7 +287,7 @@ impl SdHeader {
     ///
     /// The `index` must be obtained from [`options_index`](Self::options_index)
     /// on the same header. Invalid option-run references are returned as
-    /// [`SdReadError::SdOptionRunOutOfBounds`].
+    /// [`SdError::SdOptionRunOutOfBounds`].
     pub fn entries_with_options<'s>(
         &'s self,
         index: &'s SdOptionsIndex<'s>,
@@ -508,7 +508,7 @@ impl SdHeader {
         any(target_pointer_width = "32", target_pointer_width = "64")
     ))]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
+    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdIoReadError> {
         SdHeader::read_with_flag(reader, false)
     }
 
@@ -521,7 +521,7 @@ impl SdHeader {
     pub fn read_with_flag<T: Read + Seek>(
         reader: &mut T,
         discard_unknown_option: bool,
-    ) -> Result<Self, SdReadError> {
+    ) -> Result<Self, SdIoReadError> {
         const HEADER_LENGTH: usize = 1 + 3 + 4; // flags + rev + entries length
         let mut header_bytes: [u8; HEADER_LENGTH] = [0; HEADER_LENGTH];
         reader.read_exact(&mut header_bytes)?;
@@ -535,10 +535,14 @@ impl SdHeader {
             ]);
 
             if length_entries > MAX_ENTRIES_LEN {
-                return Err(SdReadError::SdEntriesArrayLengthTooLarge(length_entries));
+                return Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthTooLarge(
+                    length_entries,
+                )));
             }
             if length_entries % ENTRY_LEN as u32 != 0 {
-                return Err(SdReadError::SdEntriesArrayLengthInvalid(length_entries));
+                return Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthInvalid(
+                    length_entries,
+                )));
             }
 
             length_entries as usize
@@ -547,9 +551,9 @@ impl SdHeader {
         let mut entries_data = [0; MAX_ENTRIES_LEN_USIZE];
         if entries_length > 0 {
             if entries_length > entries_data.len() {
-                return Err(SdReadError::SdEntriesArrayLengthTooLarge(
+                return Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthTooLarge(
                     entries_length as u32,
-                ));
+                )));
             }
             reader.read_exact(&mut entries_data[..entries_length])?;
         }
@@ -560,11 +564,15 @@ impl SdHeader {
             let len = u32::from_be_bytes(options_length_bytes);
 
             if len > MAX_OPTIONS_LEN {
-                return Err(SdReadError::SdOptionsArrayLengthTooLarge(len));
+                return Err(SdIoReadError::Content(SdError::SdOptionsArrayLengthTooLarge(
+                    len,
+                )));
             }
             let payload_len = MIN_SD_HEADER_LENGTH as u32 + entries_length as u32 + len;
             if payload_len > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP {
-                return Err(SdReadError::SdPayloadLengthTooLarge(payload_len));
+                return Err(SdIoReadError::Content(SdError::SdPayloadLengthTooLarge(
+                    payload_len,
+                )));
             }
 
             len as usize
@@ -573,9 +581,9 @@ impl SdHeader {
         let mut options_data = [0; MAX_OPTIONS_LEN_USIZE];
         if options_length > 0 {
             if options_length > options_data.len() {
-                return Err(SdReadError::SdOptionsArrayLengthTooLarge(
+                return Err(SdIoReadError::Content(SdError::SdOptionsArrayLengthTooLarge(
                     options_length as u32,
-                ));
+                )));
             }
             reader.read_exact(&mut options_data[..options_length])?;
         }
@@ -589,7 +597,9 @@ impl SdHeader {
                 .expect("option index built from the same options array");
             if let SdOptionSlice::Unknown(unknown) = option {
                 if !unknown.discardable() && !discard_unknown_option {
-                    return Err(SdReadError::UnknownSdOptionType(unknown.option_type()));
+                    return Err(SdIoReadError::Content(SdError::UnknownSdOptionType(
+                        unknown.option_type(),
+                    )));
                 }
             }
         }
@@ -630,7 +640,7 @@ impl SdHeader {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdIoWriteError> {
         self.validate_option_runs()?;
         writer.write_all(&self.flags.to_bytes())?;
         writer.write_all(&(self.entries_len as u32).to_be_bytes())?;
@@ -642,12 +652,11 @@ impl SdHeader {
 
     /// Writes the header to a slice.
     #[inline]
-    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), SdWriteError> {
+    pub fn write_to_slice(&self, slice: &mut [u8]) -> Result<(), SdSliceWriteError> {
         self.validate_option_runs()?;
         let required_len = self.header_len();
         if slice.len() < required_len {
-            use crate::err::SdWriteError::*;
-            return Err(UnexpectedEndOfSlice(required_len));
+            return Err(SdSliceWriteError::UnexpectedEndOfSlice(required_len));
         }
 
         slice[..4].copy_from_slice(&self.flags.to_bytes());
@@ -742,7 +751,7 @@ mod tests {
 
         let header = SdHeader::default();
         let result = header.write_to_slice(&mut []);
-        assert_matches!(result, Err(SdWriteError::UnexpectedEndOfSlice(_)));
+        assert_matches!(result, Err(SdSliceWriteError::UnexpectedEndOfSlice(_)));
     }
 
     #[cfg(feature = "std")]
@@ -763,7 +772,7 @@ mod tests {
         );
         assert_matches!(
             header.write(&mut Vec::new()),
-            Err(SdWriteError::ValueError(
+            Err(SdIoWriteError::Value(
                 SdValueError::SdOptionRunOutOfBounds { .. }
             ))
         );
@@ -782,7 +791,7 @@ mod tests {
             let mut cursor = Cursor::new(&buffer);
             assert_matches!(
                 SdHeader::read(&mut cursor),
-                Err(SdReadError::SdEntriesArrayLengthTooLarge(_))
+                Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthTooLarge(_)))
             );
         }
 
@@ -797,7 +806,7 @@ mod tests {
             let mut cursor = Cursor::new(&buffer);
             assert_matches!(
                 SdHeader::read(&mut cursor),
-                Err(SdReadError::SdOptionsArrayLengthTooLarge(_))
+                Err(SdIoReadError::Content(SdError::SdOptionsArrayLengthTooLarge(_)))
             );
         }
 
@@ -811,7 +820,7 @@ mod tests {
             ];
             assert_matches!(
                 SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdReadError::SdEntriesArrayLengthInvalid(1))
+                Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthInvalid(1)))
             );
         }
 
@@ -838,7 +847,7 @@ mod tests {
             ];
             assert_matches!(
                 SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdReadError::SdOption(_))
+                Err(SdIoReadError::Content(SdError::SdOption(_)))
             );
         }
 
@@ -853,7 +862,7 @@ mod tests {
             ];
             assert_matches!(
                 SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdReadError::UnknownSdOptionType(0xaa))
+                Err(SdIoReadError::Content(SdError::UnknownSdOptionType(0xaa)))
             );
             assert!(SdHeader::read_with_flag(&mut Cursor::new(buffer), true).is_ok());
         }
@@ -866,7 +875,7 @@ mod tests {
             buffer[11] = 0x10; // first run references one option
             assert_matches!(
                 SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdReadError::SdOptionRunOutOfBounds { .. })
+                Err(SdIoReadError::Content(SdError::SdOptionRunOutOfBounds { .. }))
             );
         }
 
@@ -878,7 +887,7 @@ mod tests {
             buffer.extend_from_slice(&(ENTRY_LEN as u32).to_be_bytes());
             assert_matches!(
                 SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdReadError::SdPayloadLengthTooLarge(_))
+                Err(SdIoReadError::Content(SdError::SdPayloadLengthTooLarge(_)))
             );
         }
     }

@@ -1,4 +1,6 @@
-use crate::err::{SdReadError, SdValueError, SdWriteError};
+use crate::err::{SdSliceError, SdSliceWriteError, SdValueError};
+#[cfg(feature = "std")]
+use crate::err::{SdError, SdIoReadError, SdIoWriteError};
 #[cfg(feature = "std")]
 use std::io::{Read, Seek, Write};
 

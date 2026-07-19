@@ -1,4 +1,4 @@
-use crate::err::SdReadError;
+use crate::err::{SdError, SdSliceError};
 use crate::sd::entries::*;
 
 /// Zero-copy reference to a serialized SOMEIP SD eventgroup entry.
@@ -21,18 +21,18 @@ impl<'a> EventGroupEntrySlice<'a> {
     ///
     /// # Errors
     ///
-    /// - [`SdReadError::UnexpectedEndOfSlice`] if `slice.len() < ENTRY_LEN`
-    /// - [`SdReadError::UnknownSdEventGroupEntryType`] if byte 0 is not a
+    /// - [`SdSliceError::UnexpectedEndOfSlice`] if `slice.len() < ENTRY_LEN`
+    /// - [`SdError::UnknownSdEventGroupEntryType`] if byte 0 is not a
     ///   recognised [`EventGroupEntryType`] value
     #[inline]
-    pub fn from_slice(slice: &'a [u8]) -> Result<(Self, &'a [u8]), SdReadError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<(Self, &'a [u8]), SdSliceError> {
         if slice.len() < ENTRY_LEN {
-            return Err(SdReadError::UnexpectedEndOfSlice(ENTRY_LEN));
+            return Err(SdSliceError::UnexpectedEndOfSlice(ENTRY_LEN));
         }
 
         match slice[0] {
             0x06 | 0x07 => {}
-            other => return Err(SdReadError::UnknownSdEventGroupEntryType(other)),
+            other => return Err(SdSliceError::Content(SdError::UnknownSdEventGroupEntryType(other))),
         }
 
         Ok((
@@ -202,7 +202,7 @@ mod tests {
         let buf = [0u8; ENTRY_LEN - 1];
         assert!(matches!(
             EventGroupEntrySlice::from_slice(&buf),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -212,7 +212,7 @@ mod tests {
         buf[0] = 0xFF;
         assert!(matches!(
             EventGroupEntrySlice::from_slice(&buf),
-            Err(SdReadError::UnknownSdEventGroupEntryType(0xFF))
+            Err(SdSliceError::Content(SdError::UnknownSdEventGroupEntryType(0xFF)))
         ));
     }
 
@@ -223,7 +223,7 @@ mod tests {
             buf[0] = typ;
             assert!(matches!(
                 EventGroupEntrySlice::from_slice(&buf),
-                Err(SdReadError::UnknownSdEventGroupEntryType(_))
+                Err(SdSliceError::Content(SdError::UnknownSdEventGroupEntryType(_)))
             ));
         }
     }

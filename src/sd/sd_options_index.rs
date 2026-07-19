@@ -1,4 +1,4 @@
-use crate::err::{SdOptionSliceError, SdReadError};
+use crate::err::{SdError, SdOptionSliceError, SdSliceError};
 use crate::sd::entries::U4;
 use crate::sd::{options::MAX_OPTIONS_LEN_USIZE, SdOptionSlice};
 use arrayvec::ArrayVec;
@@ -132,19 +132,19 @@ impl<'a> SdOptionsIndex<'a> {
     }
 
     #[inline]
-    pub(crate) fn validate_run(&self, run: u8, start: u8, count: U4) -> Result<(), SdReadError> {
+    pub(crate) fn validate_run(&self, run: u8, start: u8, count: U4) -> Result<(), SdSliceError> {
         let count = count.value();
         // PRS_SOMEIPSD_00834: a zero-length run is ignored even if its
         // index is non-zero.
         if count == 0 || usize::from(start) + usize::from(count) <= self.len() {
             Ok(())
         } else {
-            Err(SdReadError::SdOptionRunOutOfBounds {
+            Err(SdSliceError::Content(SdError::SdOptionRunOutOfBounds {
                 run,
                 start_index: start,
                 number_of_options: count,
                 options_len: self.len(),
-            })
+            }))
         }
     }
 }
@@ -334,12 +334,12 @@ mod tests {
         assert!(index.validate_run(1, u8::MAX, U4::ZERO).is_ok());
         assert!(matches!(
             index.validate_run(2, 1, U4::N1),
-            Err(SdReadError::SdOptionRunOutOfBounds {
+            Err(SdSliceError::Content(SdError::SdOptionRunOutOfBounds {
                 run: 2,
                 start_index: 1,
                 number_of_options: 1,
                 options_len: 1,
-            })
+            }))
         ));
     }
 

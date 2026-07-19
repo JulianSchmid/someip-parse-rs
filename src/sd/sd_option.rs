@@ -93,7 +93,7 @@ impl SdOption {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
-    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), SdReadError> {
+    pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), SdIoReadError> {
         SdOption::read_with_flag(reader, false)
     }
 
@@ -104,16 +104,16 @@ impl SdOption {
     pub fn read_with_flag<T: Read + Seek>(
         reader: &mut T,
         discard_unknown_option: bool,
-    ) -> Result<(u16, Self), SdReadError> {
+    ) -> Result<(u16, Self), SdIoReadError> {
         use self::SdOption::*;
-        use SdReadError::*;
+        use SdError::*;
 
         let mut option_bytes: [u8; 4] = [0; 4];
         reader.read_exact(&mut option_bytes)?;
 
         let length = u16::from_be_bytes([option_bytes[0], option_bytes[1]]);
         if length < 1 {
-            return Err(SdOptionLengthZero);
+            return Err(SdOptionLengthZero.into());
         }
 
         let type_raw = option_bytes[2];
@@ -122,7 +122,7 @@ impl SdOption {
 
         // Helper function that returns an SdOptionUnexpectedLen error
         // when the expected_len does not match the len.
-        let expect_len = |expected_len: u16| -> Result<(), SdReadError> {
+        let expect_len = |expected_len: u16| -> Result<(), SdIoReadError> {
             if expected_len == length {
                 Ok(())
             } else {
@@ -130,7 +130,8 @@ impl SdOption {
                     expected_len,
                     actual_len: length,
                     option_type: type_raw,
-                })
+                }
+                .into())
             }
         };
 
@@ -139,7 +140,7 @@ impl SdOption {
             CONFIGURATION_TYPE => {
                 let length_array = (length - 1) as usize;
                 if length_array > ConfigurationOption::MAX_CONFIGURATION_STRING_LEN {
-                    return Err(SdConfigurationOptionLenTooLarge(length));
+                    return Err(SdConfigurationOptionLenTooLarge(length).into());
                 }
                 let mut configuration_string = ArrayVec::new();
                 unsafe {
@@ -151,7 +152,7 @@ impl SdOption {
                     configuration_string,
                 };
                 option.validate().map_err(|err| {
-                    SdReadError::SdOption(crate::err::SdOptionSliceError::from(err))
+                    SdIoReadError::from(crate::err::SdOptionSliceError::from(err))
                 })?;
                 Configuration(option)
             }
@@ -255,7 +256,7 @@ impl SdOption {
                         option_type,
                     })
                 } else {
-                    return Err(UnknownSdOptionType(option_type));
+                    return Err(UnknownSdOptionType(option_type).into());
                 }
             }
         };
@@ -266,7 +267,7 @@ impl SdOption {
     #[inline]
     fn read_ip4_option<T: Read>(
         reader: &mut T,
-    ) -> Result<([u8; 4], TransportProtocol, u16), SdReadError> {
+    ) -> Result<([u8; 4], TransportProtocol, u16), SdIoReadError> {
         let mut ipv4endpoint_bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut ipv4endpoint_bytes)?;
 
@@ -295,7 +296,7 @@ impl SdOption {
     #[inline]
     fn read_ip6_option<T: Read>(
         reader: &mut T,
-    ) -> Result<([u8; 16], TransportProtocol, u16), SdReadError> {
+    ) -> Result<([u8; 16], TransportProtocol, u16), SdIoReadError> {
         let mut ipv6endpoint_bytes: [u8; 20] = [0; 20];
         reader.read_exact(&mut ipv6endpoint_bytes)?;
 
@@ -336,7 +337,7 @@ impl SdOption {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdIoWriteError> {
         use self::SdOption::*;
 
         fn write_ipv4<R: Write>(
@@ -346,7 +347,7 @@ impl SdOption {
             addr: [u8; 4],
             tp: TransportProtocol,
             port: u16,
-        ) -> Result<(), SdWriteError> {
+        ) -> Result<(), SdIoWriteError> {
             let len_be = len.to_be_bytes();
             let port_be = port.to_be_bytes();
             writer.write_all(&[
@@ -373,7 +374,7 @@ impl SdOption {
             addr: [u8; 16],
             tp: TransportProtocol,
             port: u16,
-        ) -> Result<(), SdWriteError> {
+        ) -> Result<(), SdIoWriteError> {
             let len_be = len.to_be_bytes();
             let port_be = port.to_be_bytes();
             writer.write_all(&[
@@ -408,7 +409,7 @@ impl SdOption {
         match self {
             Configuration(c) => {
                 c.validate()
-                    .map_err(|err| SdWriteError::ValueError(err.into()))?;
+                    .map_err(|err| SdIoWriteError::Value(err.into()))?;
                 let len_be = (1u16 + c.configuration_string.len() as u16).to_be_bytes();
                 writer.write_all(&[
                     len_be[0],
@@ -484,7 +485,7 @@ impl SdOption {
                 o.transport_protocol,
                 o.port,
             ),
-            UnknownDiscardable(o) => Err(SdWriteError::ValueError(
+            UnknownDiscardable(o) => Err(SdIoWriteError::Value(
                 SdValueError::SdUnknownDiscardableOption(o.option_type),
             )),
         }
@@ -800,7 +801,7 @@ mod tests {
             let buffer = [0x00, 0x00, IPV4_ENDPOINT_TYPE, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(result, Err(SdReadError::SdOptionLengthZero));
+            assert_matches!(result, Err(SdIoReadError::Content(SdError::SdOptionLengthZero)));
         }
         // configuration option length too large
         {
@@ -811,7 +812,7 @@ mod tests {
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(SdReadError::SdConfigurationOptionLenTooLarge(v)) if v == too_large
+                Err(SdIoReadError::Content(SdError::SdConfigurationOptionLenTooLarge(v))) if v == too_large
             );
         }
         // ipv4 length check errors
@@ -825,11 +826,11 @@ mod tests {
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(SdReadError::SdOptionUnexpectedLen {
+                Err(SdIoReadError::Content(SdError::SdOptionUnexpectedLen {
                     expected_len: 0x9,
                     actual_len: 0x1,
                     option_type: _,
-                })
+                }))
             );
         }
         // ipv6 length check errors
@@ -843,11 +844,11 @@ mod tests {
             let result = SdOption::read(&mut cursor);
             assert_matches!(
                 result,
-                Err(SdReadError::SdOptionUnexpectedLen {
+                Err(SdIoReadError::Content(SdError::SdOptionUnexpectedLen {
                     expected_len: 0x15,
                     actual_len: 0x1,
                     option_type: _,
-                })
+                }))
             );
         }
         // unknown option type (non discardable)
@@ -855,7 +856,10 @@ mod tests {
             let buffer = [0x00, 0x01, 0xff, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(result, Err(SdReadError::UnknownSdOptionType(0xFF)));
+            assert_matches!(
+                result,
+                Err(SdIoReadError::Content(SdError::UnknownSdOptionType(0xFF)))
+            );
         }
         // unknown option type (non discardable, discard option set)
         {

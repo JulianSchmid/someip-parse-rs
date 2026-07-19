@@ -1,4 +1,4 @@
-use crate::err::SdReadError;
+use crate::err::{SdError, SdSliceError};
 use crate::sd::entries::*;
 
 /// Zero-copy reference to a serialized SOMEIP SD service entry.
@@ -21,18 +21,18 @@ impl<'a> ServiceEntrySlice<'a> {
     ///
     /// # Errors
     ///
-    /// - [`SdReadError::UnexpectedEndOfSlice`] if `slice.len() < ENTRY_LEN`
-    /// - [`SdReadError::UnknownSdServiceEntryType`] if byte 0 is not a
+    /// - [`SdSliceError::UnexpectedEndOfSlice`] if `slice.len() < ENTRY_LEN`
+    /// - [`SdError::UnknownSdServiceEntryType`] if byte 0 is not a
     ///   recognised [`SdServiceEntryType`] value
     #[inline]
-    pub fn from_slice(slice: &'a [u8]) -> Result<(Self, &'a [u8]), SdReadError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<(Self, &'a [u8]), SdSliceError> {
         if slice.len() < ENTRY_LEN {
-            return Err(SdReadError::UnexpectedEndOfSlice(ENTRY_LEN));
+            return Err(SdSliceError::UnexpectedEndOfSlice(ENTRY_LEN));
         }
 
         match slice[0] {
             0x00 | 0x01 => {}
-            other => return Err(SdReadError::UnknownSdServiceEntryType(other)),
+            other => return Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(other))),
         }
 
         Ok((
@@ -191,7 +191,7 @@ mod tests {
         let buf = [0u8; ENTRY_LEN - 1];
         assert!(matches!(
             ServiceEntrySlice::from_slice(&buf),
-            Err(SdReadError::UnexpectedEndOfSlice(_))
+            Err(SdSliceError::UnexpectedEndOfSlice(_))
         ));
     }
 
@@ -201,7 +201,7 @@ mod tests {
         buf[0] = 0xFF;
         assert!(matches!(
             ServiceEntrySlice::from_slice(&buf),
-            Err(SdReadError::UnknownSdServiceEntryType(0xFF))
+            Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(0xFF)))
         ));
     }
 

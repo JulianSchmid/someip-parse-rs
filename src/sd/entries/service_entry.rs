@@ -1,5 +1,5 @@
 #[cfg(feature = "std")]
-use crate::err::SdWriteError;
+use crate::err::SdIoWriteError;
 use crate::sd::entries::*;
 #[cfg(feature = "std")]
 use std::io::Write;
@@ -59,7 +59,7 @@ impl ServiceEntry {
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
-    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdIoWriteError> {
         writer.write_all(&self.to_bytes())?;
         Ok(())
     }

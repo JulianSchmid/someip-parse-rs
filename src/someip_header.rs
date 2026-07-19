@@ -108,6 +108,8 @@ impl SomeipHeader {
     }
 
     ///Serialize the header.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn write_raw<T: std::io::Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
         writer.write_all(&self.base_to_bytes())?;
         if let Some(ref tp) = self.tp_header {
@@ -146,10 +148,12 @@ impl SomeipHeader {
     }
 
     ///Read a header from a byte stream.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn read<T: std::io::Read>(
         reader: &mut T,
-    ) -> Result<SomeipHeader, err::SomeipHeaderReadError> {
-        use err::{SomeipHeaderError::*, SomeipHeaderReadError::*};
+    ) -> Result<SomeipHeader, err::SomeipHeaderIoReadError> {
+        use err::{SomeipHeaderError::*, SomeipHeaderIoReadError::*};
 
         // read the header
         let mut header_bytes: [u8; SOMEIP_HEADER_LENGTH] = [0; SOMEIP_HEADER_LENGTH];
@@ -230,6 +234,8 @@ impl Default for SomeipHeader {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+
     use super::proptest_generators::*;
     use super::*;
     use proptest::prelude::*;
@@ -264,6 +270,7 @@ mod tests {
         assert_eq!(0, header.return_code);
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn write_read(ref input_base in someip_header_any()) {
@@ -290,6 +297,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn from_slice(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
@@ -367,13 +375,14 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn unknown_message_type(length in SOMEIP_LEN_OFFSET_TO_PAYLOAD..1234,
                                 ref input_base in someip_header_any(),
                                 message_type in any::<u8>().prop_filter("message type must be unknown",
-                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| (v == &x ||
-                                                                             (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | v) == x)))
+                               |v| !MESSAGE_TYPE_VALUES_RAW.iter().any(|&x| v == &x ||
+                                                                             (SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG | v) == x))
             )
         {
             //add the tp header length in case the tp flag is set
@@ -413,6 +422,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn read_unsupported_protocol_version() {
         let mut buffer = Vec::new();
@@ -432,6 +442,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn read_too_small_length_field() {
         //0
@@ -485,6 +496,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn service_id(packet in someip_header_with_payload_any(),
@@ -504,6 +516,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn set_get_method_id(packet in someip_header_with_payload_any(),
@@ -530,6 +543,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn set_get_event_id(packet in someip_header_with_payload_any(),
@@ -558,6 +572,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn set_method_or_event_id(packet in someip_header_with_payload_any(),
@@ -580,6 +595,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn is_someip_sd(packet in someip_header_with_payload_any())

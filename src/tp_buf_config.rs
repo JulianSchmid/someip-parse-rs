@@ -88,6 +88,8 @@ impl core::default::Default for TpBufConfig {
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::*;
 
     #[test]

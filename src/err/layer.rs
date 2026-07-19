@@ -7,6 +7,8 @@ pub enum Layer {
     SomeipTpHeader,
     /// Error occured in the SOMEIP payload.
     SomeipPayload,
+    /// Error occured in a SOME/IP SD option.
+    SdOption,
 }
 
 impl Layer {
@@ -17,6 +19,7 @@ impl Layer {
             SomeipHeader => "SOMEIP Header Error",
             SomeipTpHeader => "SOMEIP TP Header Error",
             SomeipPayload => "SOMEIP Payload Error",
+            SdOption => "SOMEIP SD Option Error",
         }
     }
 }
@@ -28,12 +31,15 @@ impl core::fmt::Display for Layer {
             SomeipHeader => write!(f, "SOMEIP header"),
             SomeipTpHeader => write!(f, "SOMEIP TP header"),
             SomeipPayload => write!(f, "SOMEIP payload"),
+            SdOption => write!(f, "SOMEIP SD option"),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::Layer::*;
     use std::{
         cmp::{Ord, Ordering},
@@ -71,6 +77,7 @@ mod test {
             (SomeipHeader, "SOMEIP Header Error"),
             (SomeipTpHeader, "SOMEIP TP Header Error"),
             (SomeipPayload, "SOMEIP Payload Error"),
+            (SdOption, "SOMEIP SD Option Error"),
         ];
         for test in tests {
             assert_eq!(test.0.error_title(), test.1);
@@ -83,6 +90,7 @@ mod test {
             (SomeipHeader, "SOMEIP header"),
             (SomeipTpHeader, "SOMEIP TP header"),
             (SomeipPayload, "SOMEIP payload"),
+            (SdOption, "SOMEIP SD option"),
         ];
         for test in tests {
             assert_eq!(format!("{}", test.0), test.1);

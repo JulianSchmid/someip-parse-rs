@@ -1,0 +1,145 @@
+#[cfg(feature = "std")]
+use crate::err::SdIoWriteError;
+use crate::sd::entries::*;
+#[cfg(feature = "std")]
+use std::io::Write;
+
+/// SOMEIP service discovery entry for an eventgroup.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct EventGroupEntry {
+    pub entry_type: EventGroupEntryType,
+    pub index_first_option_run: u8,
+    pub index_second_option_run: u8,
+    pub number_of_options_1: U4,
+    pub number_of_options_2: U4,
+    pub service_id: u16,
+    pub instance_id: u16,
+    pub major_version: u8,
+    pub ttl: U24,
+    /// Legacy Initial Data Requested flag removed in AUTOSAR R21-11.
+    ///
+    /// The value is retained for source compatibility, but serializers always
+    /// write the corresponding reserved bit as 0.
+    pub initial_data_requested: bool,
+    /// Distinguish identical subscribe eventgroups of the same subscriber.
+    pub counter: U4,
+    pub eventgroup_id: u16,
+}
+
+impl EventGroupEntry {
+    /// Serializes the eventgroup entry to bytes.
+    #[inline]
+    pub fn to_bytes(&self) -> [u8; ENTRY_LEN] {
+        let mut result = [0x00; ENTRY_LEN];
+
+        result[0] = self.entry_type as u8;
+        result[1] = self.index_first_option_run;
+        result[2] = self.index_second_option_run;
+        result[3] = ((self.number_of_options_1.value() & 0x0F) << 4)
+            | (self.number_of_options_2.value() & 0x0F);
+
+        let service_id_bytes = self.service_id.to_be_bytes();
+        result[4] = service_id_bytes[0];
+        result[5] = service_id_bytes[1];
+
+        let instance_id_bytes = self.instance_id.to_be_bytes();
+        result[6] = instance_id_bytes[0];
+        result[7] = instance_id_bytes[1];
+
+        result[8] = self.major_version;
+
+        let ttl_bytes = self.ttl.value().to_be_bytes();
+        result[9] = ttl_bytes[1];
+        result[10] = ttl_bytes[2];
+        result[11] = ttl_bytes[3];
+
+        // The 12 bits preceding the counter are reserved in AUTOSAR R23-11
+        // and stay at their initialized value of 0.
+        result[13] |= self.counter.value() & 0x0Fu8;
+
+        let eventgroup_id_bytes = self.eventgroup_id.to_be_bytes();
+        result[14] = eventgroup_id_bytes[0];
+        result[15] = eventgroup_id_bytes[1];
+
+        result
+    }
+
+    /// Writes the eventgroup entry to the given writer.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    #[inline]
+    pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdIoWriteError> {
+        writer.write_all(&self.to_bytes())?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::proptest_generators::*;
+    use crate::sd::{SdEntry, SdEntrySlice};
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn to_bytes_from_bytes_roundtrip(eventgroup_entry in someip_sd_eventgroup_entry_any()) {
+            let bytes = eventgroup_entry.to_bytes();
+            assert_eq!(
+                SdEntry::Eventgroup(eventgroup_entry),
+                SdEntrySlice::from_slice(&bytes).unwrap().to_owned()
+            );
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn bytes_serialization_consistency(eventgroup_entry in someip_sd_eventgroup_entry_any()) {
+            // EventGroupEntry::to_bytes() should produce same result as SdEntry::to_bytes()
+            let eventgroup_bytes = eventgroup_entry.to_bytes();
+            let sd_entry_bytes = SdEntry::Eventgroup(eventgroup_entry.clone()).to_bytes();
+
+            assert_eq!(eventgroup_bytes, sd_entry_bytes);
+        }
+    }
+
+    #[test]
+    fn removed_initial_data_flag_is_not_serialized() {
+        let entry = crate::sd::entries::EventGroupEntry {
+            entry_type: crate::sd::entries::EventGroupEntryType::SubscribeOrStop,
+            index_first_option_run: 0,
+            index_second_option_run: 0,
+            number_of_options_1: crate::sd::entries::U4::ZERO,
+            number_of_options_2: crate::sd::entries::U4::ZERO,
+            service_id: 1,
+            instance_id: 2,
+            major_version: 1,
+            ttl: crate::sd::entries::U24::ZERO,
+            initial_data_requested: true,
+            counter: crate::sd::entries::U4::N1,
+            eventgroup_id: 3,
+        };
+        assert_eq!(entry.to_bytes()[13], 1);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn write_matches_to_bytes() {
+        let entry = crate::sd::entries::EventGroupEntry {
+            entry_type: crate::sd::entries::EventGroupEntryType::SubscribeOrStop,
+            index_first_option_run: 1,
+            index_second_option_run: 2,
+            number_of_options_1: crate::sd::entries::U4::N1,
+            number_of_options_2: crate::sd::entries::U4::ZERO,
+            service_id: 0x1234,
+            instance_id: 0x5678,
+            major_version: 3,
+            ttl: crate::sd::entries::U24::try_new(3600).unwrap(),
+            initial_data_requested: false,
+            counter: crate::sd::entries::U4::N1,
+            eventgroup_id: 0x9abc,
+        };
+        let mut buffer = std::vec::Vec::new();
+        entry.write(&mut buffer).unwrap();
+        assert_eq!(buffer.as_slice(), &entry.to_bytes());
+    }
+}

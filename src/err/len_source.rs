@@ -6,10 +6,14 @@ pub enum LenSource {
     Slice,
     /// Length field in the SOMEIP header.
     SomeipHeaderLength,
+    /// Length field in a SOMEIP SD option header.
+    SdOptionLength,
 }
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::LenSource::*;
     use std::{
         cmp::{Ord, Ordering},

@@ -2,7 +2,7 @@ use super::*;
 
 /// Error when decoding an SOMEIP header via a `std::io::Read` source.
 #[derive(Debug)]
-pub enum SomeipHeaderReadError {
+pub enum SomeipHeaderIoReadError {
     /// IO error was encoutered while reading header.
     Io(std::io::Error),
 
@@ -10,23 +10,23 @@ pub enum SomeipHeaderReadError {
     Content(SomeipHeaderError),
 }
 
-impl SomeipHeaderReadError {
-    /// Returns the `std::io::Error` value if the `SomeipHeaderReadError` is `Io`.
+impl SomeipHeaderIoReadError {
+    /// Returns the `std::io::Error` value if the `SomeipHeaderIoReadError` is `Io`.
     /// Otherwise `None` is returned.
     #[inline]
     pub fn io_error(self) -> Option<std::io::Error> {
-        use SomeipHeaderReadError::*;
+        use SomeipHeaderIoReadError::*;
         match self {
             Io(value) => Some(value),
             _ => None,
         }
     }
 
-    /// Returns the [`crate::err::SomeipHeaderError`] value if the `SomeipHeaderReadError` is `Content`.
+    /// Returns the [`crate::err::SomeipHeaderError`] value if the `SomeipHeaderIoReadError` is `Content`.
     /// Otherwise `None` is returned.
     #[inline]
     pub fn content_error(self) -> Option<SomeipHeaderError> {
-        use SomeipHeaderReadError::*;
+        use SomeipHeaderIoReadError::*;
         match self {
             Content(value) => Some(value),
             _ => None,
@@ -34,9 +34,9 @@ impl SomeipHeaderReadError {
     }
 }
 
-impl core::fmt::Display for SomeipHeaderReadError {
+impl core::fmt::Display for SomeipHeaderIoReadError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        use SomeipHeaderReadError::*;
+        use SomeipHeaderIoReadError::*;
         match self {
             Io(err) => write!(f, "SOMEIP Header IO Error: {}", err),
             Content(value) => value.fmt(f),
@@ -44,9 +44,9 @@ impl core::fmt::Display for SomeipHeaderReadError {
     }
 }
 
-impl std::error::Error for SomeipHeaderReadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        use SomeipHeaderReadError::*;
+impl core::error::Error for SomeipHeaderIoReadError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        use SomeipHeaderIoReadError::*;
         match self {
             Io(err) => Some(err),
             Content(err) => Some(err),
@@ -56,7 +56,7 @@ impl std::error::Error for SomeipHeaderReadError {
 
 #[cfg(test)]
 mod test {
-    use super::{SomeipHeaderReadError::*, *};
+    use super::{SomeipHeaderIoReadError::*, *};
 
     #[test]
     fn debug() {
@@ -87,7 +87,7 @@ mod test {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
         assert!(Io(std::io::Error::new(
             std::io::ErrorKind::UnexpectedEof,
             "failed to fill whole buffer",

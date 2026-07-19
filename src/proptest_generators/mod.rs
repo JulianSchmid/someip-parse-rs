@@ -3,6 +3,7 @@ use super::*;
 use proptest::option;
 use proptest::prelude::*;
 
+use alloc::vec::Vec;
 fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
     prop_oneof![
         Just(MessageType::Request),
@@ -75,23 +76,45 @@ prop_compose! {
     pub fn sd_header_any()(
         reboot in any::<bool>(),
         unicast in any::<bool>(),
-        explicit_initial_data_control in any::<bool>(),
         entries in prop::collection::vec(someip_sd_entry_any(), 0..10),
         options in prop::collection::vec(someip_sd_option_any(), 0..10),
         )
     -> sd::SdHeader
     {
-        let mut header = sd::SdHeader::new(reboot, entries, options);
+        let mut header = sd::SdHeader::empty(reboot);
         header.flags.unicast = unicast;
-        header.flags.explicit_initial_data_control = explicit_initial_data_control;
+        for mut entry in entries {
+            // Entries and options are generated independently. Keep the
+            // generic header strategy valid by making both option runs empty;
+            // option-reference behavior has dedicated strategies/tests.
+            match &mut entry {
+                sd::SdEntry::Service(entry) => {
+                    entry.number_of_options_1 = sd::entries::U4::ZERO;
+                    entry.number_of_options_2 = sd::entries::U4::ZERO;
+                }
+                sd::SdEntry::Eventgroup(entry) => {
+                    entry.number_of_options_1 = sd::entries::U4::ZERO;
+                    entry.number_of_options_2 = sd::entries::U4::ZERO;
+                }
+            }
+            if header.add_entry(entry).is_err() {
+                break;
+            }
+        }
+        for option in options {
+            if header.add_option(option).is_err() {
+                break;
+            }
+        }
         header
     }
 }
 
-fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = SdEventGroupEntryType> {
+fn someip_sd_eventgroup_entry_type_any() -> impl Strategy<Value = sd::entries::EventGroupEntryType>
+{
     prop_oneof![
-        Just(SdEventGroupEntryType::Subscribe),
-        Just(SdEventGroupEntryType::SubscribeAck),
+        Just(sd::entries::EventGroupEntryType::SubscribeOrStop),
+        Just(sd::entries::EventGroupEntryType::SubscribeAckOrNack),
     ]
 }
 
@@ -100,76 +123,75 @@ prop_compose! {
             _type in someip_sd_eventgroup_entry_type_any(),
             index_first_option_run in any::<u8>(),
             index_second_option_run in any::<u8>(),
-            number_of_options_1 in 0..0x0Fu8,
-            number_of_options_2 in 0..0x0Fu8,
+            number_of_options_1 in 0..=0x0Fu8,
+            number_of_options_2 in 0..=0x0Fu8,
             service_id in any::<u16>(),
             instance_id in any::<u16>(),
             major_version in any::<u8>(),
-            ttl in 0..0x00FF_FFFFu32,
-            initial_data_requested in any::<bool>(),
-            counter in 0..0x0Fu8,
+            ttl in 0..=0x00FF_FFFFu32,
+            counter in 0..=0x0Fu8,
             eventgroup_id in any::<u16>(),
         )
-    -> sd::SdEntry
+    -> sd::entries::EventGroupEntry
     {
-        sd::SdEntry::new_eventgroup(
-            _type,
+        sd::entries::EventGroupEntry {
+            entry_type: _type,
             index_first_option_run,
             index_second_option_run,
-            number_of_options_1,
-            number_of_options_2,
+            number_of_options_1: sd::entries::U4::try_new(number_of_options_1).unwrap(),
+            number_of_options_2: sd::entries::U4::try_new(number_of_options_2).unwrap(),
             service_id,
             instance_id,
             major_version,
-            ttl,
-            initial_data_requested,
-            counter,
+            ttl: sd::entries::U24::try_new(ttl).unwrap(),
+            initial_data_requested: false,
+            counter: sd::entries::U4::try_new(counter).unwrap(),
             eventgroup_id,
-        ).unwrap()
+        }
     }
 }
 
-fn someip_sd_service_entry_type_any() -> impl Strategy<Value = SdServiceEntryType> {
+fn someip_sd_service_entry_type_any() -> impl Strategy<Value = sd::entries::SdServiceEntryType> {
     prop_oneof![
-        Just(SdServiceEntryType::FindService),
-        Just(SdServiceEntryType::OfferService),
+        Just(sd::entries::SdServiceEntryType::FindService),
+        Just(sd::entries::SdServiceEntryType::OfferService),
     ]
 }
 
 prop_compose! {
     pub fn someip_sd_service_entry_any()(
-            _type in someip_sd_service_entry_type_any(),
-            index_first_option_run in any::<u8>(),
-            index_second_option_run in any::<u8>(),
-            number_of_options_1 in 0..0x0Fu8,
-            number_of_options_2 in 0..0x0Fu8,
+            entry_type in someip_sd_service_entry_type_any(),
+            start_index_options_1 in any::<u8>(),
+            start_index_options_2 in any::<u8>(),
+            number_of_options_1 in 0..=0x0Fu8,
+            number_of_options_2 in 0..=0x0Fu8,
             service_id in any::<u16>(),
             instance_id in any::<u16>(),
             major_version in any::<u8>(),
-            ttl in 0..0x00FF_FFFFu32,
+            ttl in 0..=0x00FF_FFFFu32,
             minor_version in any::<u32>(),
         )
-    -> sd::SdEntry
+    -> sd::entries::ServiceEntry
     {
-        sd::SdEntry::new_service_entry(
-            _type,
-            index_first_option_run,
-            index_second_option_run,
-            number_of_options_1,
-            number_of_options_2,
+        sd::entries::ServiceEntry {
+            entry_type,
+            start_index_options_1,
+            start_index_options_2,
+            number_of_options_1: sd::entries::U4::try_new(number_of_options_1).unwrap(),
+            number_of_options_2: sd::entries::U4::try_new(number_of_options_2).unwrap(),
             service_id,
             instance_id,
             major_version,
-            ttl,
+            ttl: sd::entries::U24::try_new(ttl).unwrap(),
             minor_version,
-        ).unwrap()
+        }
     }
 }
 
 pub fn someip_sd_entry_any() -> impl Strategy<Value = sd::SdEntry> {
     prop_oneof![
-        someip_sd_eventgroup_entry_any(),
-        someip_sd_service_entry_any(),
+        someip_sd_eventgroup_entry_any().prop_map(|e| sd::SdEntry::Eventgroup(e)),
+        someip_sd_service_entry_any().prop_map(|e| sd::SdEntry::Service(e)),
     ]
 }
 
@@ -177,16 +199,16 @@ prop_compose! {
     pub fn someip_sd_transport_protocol_generic_any()(
             generic in 0x12..u8::MAX, // 0x12 skips tcp and udp
         )
-    -> TransportProtocol
+    -> sd::options::TransportProtocol
     {
-        TransportProtocol::Generic(generic)
+        sd::options::TransportProtocol::Generic(generic)
     }
 }
 
-pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = TransportProtocol> {
+pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = sd::options::TransportProtocol> {
     prop_oneof![
-        Just(TransportProtocol::Tcp),
-        Just(TransportProtocol::Udp),
+        Just(sd::options::TransportProtocol::Tcp),
+        Just(sd::options::TransportProtocol::Udp),
         someip_sd_transport_protocol_generic_any(),
     ]
 }
@@ -194,11 +216,24 @@ pub fn someip_sd_transport_protocol_any() -> impl Strategy<Value = TransportProt
 prop_compose! {
     pub fn someip_sd_option_configuration_any()(
         discardable in any::<bool>(),
-        configuration_string in any::<Vec<u8>>(),
-    ) -> sd_options::ConfigurationOption {
-        sd_options::ConfigurationOption {
+        values in proptest::collection::vec(
+            proptest::collection::vec(any::<u8>(), 0..=64),
+            0..=8,
+        ),
+    ) -> sd::options::ConfigurationOption {
+        let mut arr = arrayvec::ArrayVec::new();
+        for value in values {
+            // Every generated item uses the valid key "k" and an optional,
+            // arbitrary value.
+            arr.push((2 + value.len()) as u8);
+            arr.try_extend_from_slice(b"k=").unwrap();
+            arr.try_extend_from_slice(&value).unwrap();
+        }
+        // PRS_SOMEIPSD_00279 requires a zero-length terminator.
+        arr.push(0);
+        sd::options::ConfigurationOption {
             discardable,
-            configuration_string
+            configuration_string: arr,
         }
     }
 }
@@ -208,8 +243,8 @@ prop_compose! {
         discardable in any::<bool>(),
         priority in any::<u16>(),
         weight in any::<u16>(),
-    ) -> sd_options::LoadBalancingOption {
-        sd_options::LoadBalancingOption { discardable, priority, weight }
+    ) -> sd::options::LoadBalancingOption {
+        sd::options::LoadBalancingOption { discardable, priority, weight }
     }
 }
 
@@ -219,9 +254,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv4EndpointOption
+    -> sd::options::Ipv4EndpointOption
     {
-        sd_options::Ipv4EndpointOption {
+        sd::options::Ipv4EndpointOption {
             ipv4_address,
             transport_protocol,
             port
@@ -235,9 +270,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv6EndpointOption
+    -> sd::options::Ipv6EndpointOption
     {
-        sd_options::Ipv6EndpointOption {
+        sd::options::Ipv6EndpointOption {
             ipv6_address,
             transport_protocol,
             port
@@ -251,9 +286,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv4MulticastOption
+    -> sd::options::Ipv4MulticastOption
     {
-        sd_options::Ipv4MulticastOption {
+        sd::options::Ipv4MulticastOption {
             ipv4_address,
             transport_protocol,
             port
@@ -267,9 +302,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv6MulticastOption
+    -> sd::options::Ipv6MulticastOption
     {
-        sd_options::Ipv6MulticastOption {
+        sd::options::Ipv6MulticastOption {
             ipv6_address,
             transport_protocol,
             port
@@ -283,9 +318,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv4SdEndpointOption
+    -> sd::options::Ipv4SdEndpointOption
     {
-        sd_options::Ipv4SdEndpointOption {
+        sd::options::Ipv4SdEndpointOption {
             ipv4_address,
             transport_protocol,
             port
@@ -299,9 +334,9 @@ prop_compose! {
             transport_protocol in someip_sd_transport_protocol_any(),
             port in any::<u16>(),
         )
-    -> sd_options::Ipv6SdEndpointOption
+    -> sd::options::Ipv6SdEndpointOption
     {
-        sd_options::Ipv6SdEndpointOption {
+        sd::options::Ipv6SdEndpointOption {
             ipv6_address,
             transport_protocol,
             port

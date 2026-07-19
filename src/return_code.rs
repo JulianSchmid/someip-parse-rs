@@ -39,6 +39,8 @@ impl From<ReturnCode> for u8 {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
     use proptest::prelude::*;
 

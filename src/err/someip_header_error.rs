@@ -10,7 +10,7 @@ pub enum SomeipHeaderError {
 }
 
 impl core::fmt::Display for SomeipHeaderError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use SomeipHeaderError::*;
         match self {
             UnsupportedProtocolVersion(bad_version) => write!(f, "Unsupported protocol version '{bad_version}' found in SOMEIP header."),
@@ -20,10 +20,12 @@ impl core::fmt::Display for SomeipHeaderError {
     }
 }
 
-impl std::error::Error for SomeipHeaderError {}
+impl core::error::Error for SomeipHeaderError {}
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
 
     #[test]

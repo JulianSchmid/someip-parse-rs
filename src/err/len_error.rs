@@ -35,6 +35,7 @@ impl core::fmt::Display for LenError {
             match self.len_source {
                 Slice => "slice length",
                 SomeipHeaderLength => "length calculated from the SOMEIP header 'length' field",
+                SdOptionLength => "SOMEIP SD option 'length' field",
             }
         };
         write!(
@@ -49,19 +50,20 @@ impl core::fmt::Display for LenError {
     }
 }
 
-impl std::error::Error for LenError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for LenError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         None
     }
 }
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::*;
     use crate::err::Layer;
     use std::{
         collections::hash_map::DefaultHasher,
-        error::Error,
         hash::{Hash, Hasher},
     };
 
@@ -120,6 +122,7 @@ mod test {
             let len_source_tests = [
                 (Slice, "SOMEIP Header Error: Not enough data to decode 'SOMEIP header'. 2 byte(s) would be required, but only 1 byte(s) are available based on the slice length."),
                 (SomeipHeaderLength, "SOMEIP Header Error: Not enough data to decode 'SOMEIP header'. 2 byte(s) would be required, but only 1 byte(s) are available based on the length calculated from the SOMEIP header 'length' field."),
+                (SdOptionLength, "SOMEIP Header Error: Not enough data to decode 'SOMEIP header'. 2 byte(s) would be required, but only 1 byte(s) are available based on the SOMEIP SD option 'length' field."),
             ];
 
             for test in len_source_tests {
@@ -141,6 +144,7 @@ mod test {
 
     #[test]
     fn source() {
+        use core::error::Error;
         assert!(LenError {
             required_len: 0,
             len: 0,

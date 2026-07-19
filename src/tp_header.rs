@@ -84,6 +84,8 @@ impl TpHeader {
     }
 
     /// Read a header from a byte stream.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn read<T: std::io::Read>(reader: &mut T) -> Result<TpHeader, std::io::Error> {
         let mut buffer = [0u8; TP_HEADER_LENGTH];
         reader.read_exact(&mut buffer)?;
@@ -141,6 +143,8 @@ impl TpHeader {
     }
 
     /// Writes the header to the given writer.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn write<T: std::io::Write>(&self, writer: &mut T) -> Result<(), std::io::Error> {
         writer.write_all(&self.to_bytes())
@@ -179,6 +183,7 @@ impl TpHeader {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
 
     use super::*;
     use crate::err::TpOffsetNotMultipleOf16Error;

@@ -14,7 +14,7 @@ pub struct SomeipMsgSlice<'a> {
 
 impl<'a> SomeipMsgSlice<'a> {
     #[cfg(target_pointer_width = "64")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::SomeipSliceError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice<'a>, err::SomeipSliceError> {
         use err::{SomeipHeaderError::*, SomeipSliceError::*, *};
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
@@ -87,7 +87,7 @@ impl<'a> SomeipMsgSlice<'a> {
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice, err::SomeipSliceError> {
+    pub fn from_slice(slice: &'a [u8]) -> Result<SomeipMsgSlice<'a>, err::SomeipSliceError> {
         use err::{SomeipHeaderError::*, SomeipSliceError::*, *};
         //first check the length
         if slice.len() < SOMEIP_HEADER_LENGTH {
@@ -110,7 +110,7 @@ impl<'a> SomeipMsgSlice<'a> {
             }
 
             //NOTE: This additional check is needed for 32 bit systems, as otherwise an overflow could potentially be happening
-            const MAX_SUPPORTED_LEN: usize = std::usize::MAX - 4 * 2;
+            const MAX_SUPPORTED_LEN: usize = usize::MAX - 4 * 2;
             let len_usize = len as usize;
             if len_usize > MAX_SUPPORTED_LEN {
                 return Err(Len(LenError {
@@ -383,6 +383,8 @@ impl<'a> SomeipMsgSlice<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
     use crate::MessageType::*;
     use proptest::prelude::*;
@@ -396,6 +398,25 @@ mod tests {
                 tp: false,
                 slice: &buffer[..]
             }
+        );
+    }
+
+    #[test]
+    fn from_slice_tp_length_field_too_small() {
+        use err::{SomeipHeaderError::*, SomeipSliceError::*};
+
+        // A TP message requires room for the TP header (4 extra bytes) on top
+        // of the base SOME/IP length. A length that is valid for a non-TP
+        // message but too small for a TP message must be rejected.
+        let len = SOMEIP_LEN_OFFSET_TO_PAYLOAD; // 8, valid base length but < 8 + 4
+        let mut buffer = [0u8; SOMEIP_HEADER_LENGTH];
+        buffer[4..8].copy_from_slice(&len.to_be_bytes());
+        buffer[12] = SOMEIP_PROTOCOL_VERSION;
+        buffer[14] = SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG; // TP flag set
+
+        assert_eq!(
+            SomeipMsgSlice::from_slice(&buffer),
+            Err(Content(LengthFieldTooSmall(len)))
         );
     }
 

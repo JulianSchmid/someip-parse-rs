@@ -11,25 +11,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: stable
-        override: true
         components: llvm-tools-preview
-    - uses: actions-rs/cargo@v1
-      with:
-        toolchain: stable
-        command: install
-        args: cargo-binutils rustfilt
+    - name: Install coverage tools
+      run: cargo install cargo-binutils rustfilt
     - name: Install jq
       run: sudo apt install jq
     - name: Determine coverage
       run: coverage/coverage.bash
       shell: bash
     - name: Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       with:
         files: target/coverage/export.lcov.txt
+        disable_search: true
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}

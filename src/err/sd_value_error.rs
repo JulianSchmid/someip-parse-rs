@@ -141,4 +141,59 @@ mod tests {
         assert_eq!(Ordering::Equal, err.cmp(&err));
         assert_eq!(Some(Ordering::Equal), err.partial_cmp(&err));
     }
+
+    #[test]
+    fn fmt() {
+        use crate::sd::options::SdConfigurationStringError;
+
+        // Every variant must produce a non-empty message.
+        let variants = [
+            CounterTooLarge(0x10),
+            TtlTooLarge(0x0100_0000),
+            TtlZeroIndicatesStopOffering,
+            NumberOfOption1TooLarge(0x10),
+            NumberOfOption2TooLarge(0x10),
+            SdUnknownDiscardableOption(0xaa),
+            SdEntriesArrayTooLarge,
+            SdOptionsArrayTooLarge,
+            SdOptionRunOutOfBounds {
+                run: 1,
+                start_index: 2,
+                number_of_options: 3,
+                options_len: 4,
+            },
+        ];
+        for variant in variants {
+            assert!(!format!("{variant}").is_empty());
+        }
+
+        // The configuration string variant delegates to the inner error.
+        let inner = SdConfigurationStringError::MissingTerminator;
+        assert_eq!(
+            format!("{inner}"),
+            format!("{}", SdConfigurationString(inner))
+        );
+    }
+
+    #[test]
+    fn source() {
+        use core::error::Error;
+        use crate::sd::options::SdConfigurationStringError;
+
+        assert!(CounterTooLarge(0).source().is_none());
+        assert!(SdConfigurationString(SdConfigurationStringError::MissingTerminator)
+            .source()
+            .is_some());
+    }
+
+    #[test]
+    fn from_configuration_string_error() {
+        use crate::sd::options::SdConfigurationStringError;
+
+        let inner = SdConfigurationStringError::MissingTerminator;
+        assert_eq!(
+            super::SdValueError::from(inner.clone()),
+            SdConfigurationString(inner)
+        );
+    }
 }

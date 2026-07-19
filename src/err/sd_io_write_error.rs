@@ -113,6 +113,7 @@ mod tests {
         assert!(SdIoWriteError::Io(io_err()).io_error().is_some());
         assert!(SdIoWriteError::Io(io_err()).value_error().is_none());
         let value = SdValueError::TtlZeroIndicatesStopOffering;
+        assert!(SdIoWriteError::Value(value.clone()).io_error().is_none());
         assert_eq!(
             Some(value.clone()),
             SdIoWriteError::Value(value).value_error()

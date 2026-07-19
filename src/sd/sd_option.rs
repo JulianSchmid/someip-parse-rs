@@ -893,5 +893,90 @@ mod tests {
             );
             assert_eq!(4, len);
         }
+        // unknown discardable option with a payload (length > 2) is skipped.
+        {
+            let buffer = [0x00, 0x04, 0xff, 0b1000_0000, 0xaa, 0xbb, 0xcc];
+            let mut cursor = std::io::Cursor::new(buffer);
+            let (len, header) = SdOption::read(&mut cursor).unwrap();
+            assert_eq!(
+                header,
+                UnknownDiscardableOption {
+                    length: 4,
+                    option_type: 0xff,
+                }
+                .into()
+            );
+            assert_eq!(7, len);
+        }
+        // configuration option with an invalid DNS-SD string.
+        {
+            // length 2 (1 flags byte + 1 string byte), non-zero terminator missing.
+            let buffer = [0x00, 0x02, CONFIGURATION_TYPE, 0x00, 0x05];
+            let mut cursor = std::io::Cursor::new(buffer);
+            let result = SdOption::read(&mut cursor);
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(SdError::SdOption(
+                    crate::err::SdOptionSliceError::ConfigurationString(
+                        crate::sd::options::SdConfigurationStringError::ItemLengthExceedsRemaining {
+                            item_offset: 0,
+                            item_length: 5,
+                            remaining: 0,
+                        }
+                    )
+                ))
+            );
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn write_unknown_discardable_is_rejected() {
+        let option: SdOption = UnknownDiscardableOption {
+            length: 1,
+            option_type: 0xaa,
+        }
+        .into();
+
+        // write to a std::io::Write
+        let mut buffer = Vec::new();
+        assert_eq!(
+            option.write(&mut buffer).unwrap_err().value_error(),
+            Some(SdValueError::SdUnknownDiscardableOption(0xaa))
+        );
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn serialize_unknown_discardable_is_rejected() {
+        let option: SdOption = UnknownDiscardableOption {
+            length: 1,
+            option_type: 0xaa,
+        }
+        .into();
+
+        // append_bytes_to_vec
+        let mut buffer = Vec::new();
+        assert_eq!(
+            option.append_bytes_to_vec(&mut buffer),
+            Err(SdValueError::SdUnknownDiscardableOption(0xaa))
+        );
+
+        // to_bytes
+        assert_eq!(
+            option.to_bytes(),
+            Err(SdValueError::SdUnknownDiscardableOption(0xaa))
+        );
+    }
+
+    #[test]
+    fn header_len_unknown_discardable() {
+        let option: SdOption = UnknownDiscardableOption {
+            length: 5,
+            option_type: 0xaa,
+        }
+        .into();
+        // 3 bytes of fixed header + the announced length.
+        assert_eq!(option.header_len(), 3 + 5);
     }
 }

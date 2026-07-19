@@ -120,4 +120,26 @@ mod tests {
         };
         assert_eq!(entry.to_bytes()[13], 1);
     }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn write_matches_to_bytes() {
+        let entry = crate::sd::entries::EventGroupEntry {
+            entry_type: crate::sd::entries::EventGroupEntryType::SubscribeOrStop,
+            index_first_option_run: 1,
+            index_second_option_run: 2,
+            number_of_options_1: crate::sd::entries::U4::N1,
+            number_of_options_2: crate::sd::entries::U4::ZERO,
+            service_id: 0x1234,
+            instance_id: 0x5678,
+            major_version: 3,
+            ttl: crate::sd::entries::U24::try_new(3600).unwrap(),
+            initial_data_requested: false,
+            counter: crate::sd::entries::U4::N1,
+            eventgroup_id: 0x9abc,
+        };
+        let mut buffer = std::vec::Vec::new();
+        entry.write(&mut buffer).unwrap();
+        assert_eq!(buffer.as_slice(), &entry.to_bytes());
+    }
 }

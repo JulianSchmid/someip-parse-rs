@@ -278,6 +278,55 @@ mod tests {
         }
     }
 
+    #[test]
+    fn from_impls_and_header_len() {
+        let service = ServiceEntry {
+            entry_type: SdServiceEntryType::OfferService,
+            start_index_options_1: 0,
+            start_index_options_2: 0,
+            number_of_options_1: U4::ZERO,
+            number_of_options_2: U4::ZERO,
+            service_id: 0x1234,
+            instance_id: 0x5678,
+            major_version: 1,
+            ttl: U24::try_new(3600).unwrap(),
+            minor_version: 0,
+        };
+        let eventgroup = EventGroupEntry {
+            entry_type: EventGroupEntryType::SubscribeOrStop,
+            index_first_option_run: 0,
+            index_second_option_run: 0,
+            number_of_options_1: U4::ZERO,
+            number_of_options_2: U4::ZERO,
+            service_id: 0x1234,
+            instance_id: 0x5678,
+            major_version: 1,
+            ttl: U24::try_new(3600).unwrap(),
+            initial_data_requested: false,
+            counter: U4::ZERO,
+            eventgroup_id: 0x9abc,
+        };
+
+        // From<ServiceEntry> / From<EventGroupEntry>
+        assert_eq!(
+            SdEntry::from(service.clone()),
+            SdEntry::Service(service.clone())
+        );
+        assert_eq!(
+            SdEntry::from(eventgroup.clone()),
+            SdEntry::Eventgroup(eventgroup.clone())
+        );
+
+        // From<SdEntrySlice>
+        let bytes = SdEntry::Service(service.clone()).to_bytes();
+        let slice = SdEntrySlice::from_slice(&bytes).unwrap();
+        assert_eq!(SdEntry::from(slice), SdEntry::Service(service.clone()));
+
+        // header_len is constant for both variants.
+        assert_eq!(SdEntry::Service(service).header_len(), 16);
+        assert_eq!(SdEntry::Eventgroup(eventgroup).header_len(), 16);
+    }
+
     #[cfg(feature = "std")]
     #[test]
     fn service_entry_read_unknown_service_entry_type() {

@@ -401,6 +401,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn from_slice_tp_length_field_too_small() {
+        use err::{SomeipHeaderError::*, SomeipSliceError::*};
+
+        // A TP message requires room for the TP header (4 extra bytes) on top
+        // of the base SOME/IP length. A length that is valid for a non-TP
+        // message but too small for a TP message must be rejected.
+        let len = SOMEIP_LEN_OFFSET_TO_PAYLOAD; // 8, valid base length but < 8 + 4
+        let mut buffer = [0u8; SOMEIP_HEADER_LENGTH];
+        buffer[4..8].copy_from_slice(&len.to_be_bytes());
+        buffer[12] = SOMEIP_PROTOCOL_VERSION;
+        buffer[14] = SOMEIP_HEADER_MESSAGE_TYPE_TP_FLAG; // TP flag set
+
+        assert_eq!(
+            SomeipMsgSlice::from_slice(&buffer),
+            Err(Content(LengthFieldTooSmall(len)))
+        );
+    }
+
     const MESSAGE_TYPE_VALUES_RAW: &[u8; 10] = &[
         Request as u8,
         RequestNoReturn as u8,

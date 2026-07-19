@@ -731,6 +731,86 @@ mod tests {
     }
 
     #[test]
+    fn new_rejects_oversized_arrays() {
+        // More entries than the fixed entries buffer can hold.
+        let entry =
+            SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
+                .unwrap();
+        let too_many_entries = alloc::vec![entry.clone(); (MAX_ENTRIES_LEN_USIZE / 16) + 1];
+        assert_eq!(
+            SdHeader::new(false, &too_many_entries, std::iter::empty()),
+            Err(SdValueError::SdEntriesArrayTooLarge)
+        );
+
+        // More options than fit into the UDP payload limit.
+        let option = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+            ipv4_address: [127, 0, 0, 1],
+            transport_protocol: TransportProtocol::Udp,
+            port: 30490,
+        });
+        let too_many_options = alloc::vec![option; 200];
+        assert_eq!(
+            SdHeader::new(false, std::iter::empty(), &too_many_options),
+            Err(SdValueError::SdOptionsArrayTooLarge)
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn write_matches_write_to_slice() {
+        let entries = alloc::vec![SdEntry::new_offer_service_entry(
+            0, 0, 1, 0, 0x1234, 0x5678, 1, 3600, 0x01000000
+        )
+        .unwrap()];
+        let options = alloc::vec![SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+            ipv4_address: [127, 0, 0, 1],
+            transport_protocol: TransportProtocol::Udp,
+            port: 30490,
+        })];
+        let header = SdHeader::new(true, &entries, &options).unwrap();
+
+        let mut written = Vec::new();
+        header.write(&mut written).unwrap();
+
+        let mut expected = alloc::vec![0u8; header.header_len()];
+        header.write_to_slice(&mut expected).unwrap();
+
+        assert_eq!(written, expected);
+
+        // Round-trips back to the same header.
+        let mut cursor = Cursor::new(&written);
+        assert_eq!(SdHeader::read(&mut cursor).unwrap(), header);
+    }
+
+    #[test]
+    fn entries_with_options_iterates_resolved_runs() {
+        let entries = alloc::vec![SdEntry::new_offer_service_entry(
+            0, 0, 1, 0, 0x1234, 0x5678, 1, 3600, 0x01000000
+        )
+        .unwrap()];
+        let options = alloc::vec![SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+            ipv4_address: [127, 0, 0, 1],
+            transport_protocol: TransportProtocol::Udp,
+            port: 30490,
+        })];
+        let header = SdHeader::new(false, &entries, &options).unwrap();
+
+        let index = header.options_index();
+        let mut iter = header.entries_with_options(&index);
+        let entry = iter.next().unwrap().unwrap();
+        assert_eq!(entry.entry().service_id(), 0x1234);
+        let ports: Vec<u16> = entry
+            .options_run_1()
+            .map(|o| match o {
+                SdOptionSlice::Ipv4Endpoint(s) => s.port(),
+                _ => panic!("expected Ipv4Endpoint"),
+            })
+            .collect();
+        assert_eq!(ports, alloc::vec![30490]);
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
     fn new_into_iter_ref() {
         let entries = alloc::vec![SdEntry::new_offer_service_entry(
             0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000

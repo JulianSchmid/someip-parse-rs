@@ -213,4 +213,50 @@ mod tests {
             Err(KeyContainsOnlyWhitespace { item_offset: 0 })
         );
     }
+
+    #[test]
+    fn validate_delegates_to_validate_configuration_string() {
+        use arrayvec::ArrayVec;
+
+        let mut configuration_string = ArrayVec::new();
+        configuration_string.push(0u8);
+        let option = ConfigurationOption {
+            discardable: true,
+            configuration_string,
+        };
+        assert_eq!(option.validate(), Ok(()));
+
+        let option = ConfigurationOption {
+            discardable: false,
+            configuration_string: ArrayVec::new(),
+        };
+        assert_eq!(option.validate(), Err(MissingTerminator));
+    }
+
+    #[test]
+    fn error_fmt() {
+        use alloc::format;
+
+        let variants = [
+            MissingTerminator,
+            ItemLengthExceedsRemaining {
+                item_offset: 1,
+                item_length: 5,
+                remaining: 2,
+            },
+            TrailingDataAfterTerminator {
+                terminator_offset: 3,
+            },
+            EmptyKey { item_offset: 4 },
+            InvalidKeyByte {
+                item_offset: 5,
+                byte_offset: 6,
+                value: 0x1f,
+            },
+            KeyContainsOnlyWhitespace { item_offset: 7 },
+        ];
+        for variant in variants {
+            assert!(!format!("{variant}").is_empty());
+        }
+    }
 }

@@ -323,6 +323,13 @@ mod tests {
         assert_eq!(sd.options().count(), 2);
         assert_eq!(sd.options_index().len(), 2);
 
+        // The raw entries slice holds exactly one serialized entry.
+        assert_eq!(sd.entries_slice().len(), ENTRY_LEN);
+        assert_eq!(
+            sd.entries_slice(),
+            sd.entries().next().unwrap().unwrap().slice()
+        );
+
         let entry = sd.entries_with_options().next().unwrap().unwrap();
         assert_eq!(entry.entry().service_id(), 0x1234);
         let ports: Vec<u16> = entry

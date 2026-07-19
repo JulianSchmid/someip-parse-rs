@@ -92,4 +92,14 @@ mod tests {
             assert_eq!(service_bytes, sd_entry_bytes);
         }
     }
+
+    #[cfg(feature = "std")]
+    proptest! {
+        #[test]
+        fn write_matches_to_bytes(service_entry in someip_sd_service_entry_any()) {
+            let mut buffer = std::vec::Vec::new();
+            service_entry.write(&mut buffer).unwrap();
+            assert_eq!(buffer.as_slice(), &service_entry.to_bytes());
+        }
+    }
 }

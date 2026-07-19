@@ -120,6 +120,10 @@ mod tests {
             };
             assert_eq!(format!("{}", &err), format!("{}", Len(err)));
         }
+        {
+            let err = crate::sd::options::SdConfigurationStringError::MissingTerminator;
+            assert_eq!(format!("{}", &err), format!("{}", ConfigurationString(err)));
+        }
     }
 
     #[test]
@@ -138,6 +142,18 @@ mod tests {
         })
         .source()
         .is_some());
+        assert!(ConfigurationString(
+            crate::sd::options::SdConfigurationStringError::MissingTerminator
+        )
+        .source()
+        .is_some());
+    }
+
+    #[test]
+    fn from_configuration_string_error() {
+        let inner = crate::sd::options::SdConfigurationStringError::MissingTerminator;
+        let err: SdOptionSliceError = inner.clone().into();
+        assert_eq!(err, ConfigurationString(inner));
     }
 
     #[test]

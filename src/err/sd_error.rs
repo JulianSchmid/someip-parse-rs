@@ -232,11 +232,16 @@ mod tests {
                 option_type: 1,
             },
             SdConfigurationOptionLenTooLarge(0),
+            SdOption(SdOptionSliceError::OptionLengthZero),
         ];
         for value in values {
             assert!(!format!("{value}").is_empty());
             let _ = format!("{value:?}");
         }
+
+        // The wrapped option error delegates to the inner Display impl.
+        let inner = SdOptionSliceError::OptionLengthZero;
+        assert_eq!(format!("{inner}"), format!("{}", SdOption(inner)));
     }
 
     #[test]

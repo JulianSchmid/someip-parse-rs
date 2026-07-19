@@ -102,6 +102,10 @@ mod test {
         assert_eq!(s.ipv4_address(), [0x7f, 0x00, 0x00, 0x01]);
         assert_eq!(s.transport_protocol(), TransportProtocol::Udp);
         assert_eq!(s.port(), 80);
+
+        let slice_generic = [0x00, 0x0a, 0x00, 0x00, 0x01, 0x00, 0x99, 0x00, 0x50];
+        let s = Ipv4SdEndpointSlice::from_slice(&slice_generic).unwrap();
+        assert_eq!(s.transport_protocol(), TransportProtocol::Generic(0x99));
     }
 
     #[test]

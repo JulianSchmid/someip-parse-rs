@@ -118,6 +118,11 @@ mod test {
         );
         assert_eq!(s.transport_protocol(), TransportProtocol::Udp);
         assert_eq!(s.port(), 80);
+
+        let mut slice_generic = [0u8; 21];
+        slice_generic[18] = 0x99;
+        let s = Ipv6EndpointSlice::from_slice(&slice_generic).unwrap();
+        assert_eq!(s.transport_protocol(), TransportProtocol::Generic(0x99));
     }
 
     #[test]

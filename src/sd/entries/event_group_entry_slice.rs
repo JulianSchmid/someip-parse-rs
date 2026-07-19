@@ -32,7 +32,11 @@ impl<'a> EventGroupEntrySlice<'a> {
 
         match slice[0] {
             0x06 | 0x07 => {}
-            other => return Err(SdSliceError::Content(SdError::UnknownSdEventGroupEntryType(other))),
+            other => {
+                return Err(SdSliceError::Content(
+                    SdError::UnknownSdEventGroupEntryType(other),
+                ))
+            }
         }
 
         Ok((
@@ -212,7 +216,9 @@ mod tests {
         buf[0] = 0xFF;
         assert!(matches!(
             EventGroupEntrySlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::UnknownSdEventGroupEntryType(0xFF)))
+            Err(SdSliceError::Content(
+                SdError::UnknownSdEventGroupEntryType(0xFF)
+            ))
         ));
     }
 
@@ -223,7 +229,9 @@ mod tests {
             buf[0] = typ;
             assert!(matches!(
                 EventGroupEntrySlice::from_slice(&buf),
-                Err(SdSliceError::Content(SdError::UnknownSdEventGroupEntryType(_)))
+                Err(SdSliceError::Content(
+                    SdError::UnknownSdEventGroupEntryType(_)
+                ))
             ));
         }
     }

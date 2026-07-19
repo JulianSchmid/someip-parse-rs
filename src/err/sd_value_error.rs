@@ -177,13 +177,15 @@ mod tests {
 
     #[test]
     fn source() {
-        use core::error::Error;
         use crate::sd::options::SdConfigurationStringError;
+        use core::error::Error;
 
         assert!(CounterTooLarge(0).source().is_none());
-        assert!(SdConfigurationString(SdConfigurationStringError::MissingTerminator)
-            .source()
-            .is_some());
+        assert!(
+            SdConfigurationString(SdConfigurationStringError::MissingTerminator)
+                .source()
+                .is_some()
+        );
     }
 
     #[test]

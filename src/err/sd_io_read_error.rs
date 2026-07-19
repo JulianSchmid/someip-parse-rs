@@ -147,7 +147,10 @@ mod tests {
 
     #[test]
     fn from_impls() {
-        assert!(matches!(SdIoReadError::from(io_err()), SdIoReadError::Io(_)));
+        assert!(matches!(
+            SdIoReadError::from(io_err()),
+            SdIoReadError::Io(_)
+        ));
         assert!(matches!(
             SdIoReadError::from(SdError::SdSessionIdZero),
             SdIoReadError::Content(SdError::SdSessionIdZero)

@@ -54,7 +54,11 @@ impl<'a> SdEntrySlice<'a> {
                 // SAFETY: slice.len() >= ENTRY_LEN is checked above & type byte is 0x06 or 0x07.
                 unsafe { EventGroupEntrySlice::from_slice_unchecked(slice) },
             ),
-            other => return Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(other))),
+            other => {
+                return Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(
+                    other,
+                )))
+            }
         })
     }
 
@@ -175,7 +179,9 @@ mod tests {
         buf[0] = 0xFF;
         assert!(matches!(
             SdEntrySlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(0xFF)))
+            Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(
+                0xFF
+            )))
         ));
     }
 

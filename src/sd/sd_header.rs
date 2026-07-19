@@ -535,14 +535,14 @@ impl SdHeader {
             ]);
 
             if length_entries > MAX_ENTRIES_LEN {
-                return Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthTooLarge(
-                    length_entries,
-                )));
+                return Err(SdIoReadError::Content(
+                    SdError::SdEntriesArrayLengthTooLarge(length_entries),
+                ));
             }
             if length_entries % ENTRY_LEN as u32 != 0 {
-                return Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthInvalid(
-                    length_entries,
-                )));
+                return Err(SdIoReadError::Content(
+                    SdError::SdEntriesArrayLengthInvalid(length_entries),
+                ));
             }
 
             length_entries as usize
@@ -551,9 +551,9 @@ impl SdHeader {
         let mut entries_data = [0; MAX_ENTRIES_LEN_USIZE];
         if entries_length > 0 {
             if entries_length > entries_data.len() {
-                return Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthTooLarge(
-                    entries_length as u32,
-                )));
+                return Err(SdIoReadError::Content(
+                    SdError::SdEntriesArrayLengthTooLarge(entries_length as u32),
+                ));
             }
             reader.read_exact(&mut entries_data[..entries_length])?;
         }
@@ -564,9 +564,9 @@ impl SdHeader {
             let len = u32::from_be_bytes(options_length_bytes);
 
             if len > MAX_OPTIONS_LEN {
-                return Err(SdIoReadError::Content(SdError::SdOptionsArrayLengthTooLarge(
-                    len,
-                )));
+                return Err(SdIoReadError::Content(
+                    SdError::SdOptionsArrayLengthTooLarge(len),
+                ));
             }
             let payload_len = MIN_SD_HEADER_LENGTH as u32 + entries_length as u32 + len;
             if payload_len > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP {
@@ -581,9 +581,9 @@ impl SdHeader {
         let mut options_data = [0; MAX_OPTIONS_LEN_USIZE];
         if options_length > 0 {
             if options_length > options_data.len() {
-                return Err(SdIoReadError::Content(SdError::SdOptionsArrayLengthTooLarge(
-                    options_length as u32,
-                )));
+                return Err(SdIoReadError::Content(
+                    SdError::SdOptionsArrayLengthTooLarge(options_length as u32),
+                ));
             }
             reader.read_exact(&mut options_data[..options_length])?;
         }

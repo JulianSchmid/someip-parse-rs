@@ -32,7 +32,11 @@ impl<'a> ServiceEntrySlice<'a> {
 
         match slice[0] {
             0x00 | 0x01 => {}
-            other => return Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(other))),
+            other => {
+                return Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(
+                    other,
+                )))
+            }
         }
 
         Ok((
@@ -201,7 +205,9 @@ mod tests {
         buf[0] = 0xFF;
         assert!(matches!(
             ServiceEntrySlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(0xFF)))
+            Err(SdSliceError::Content(SdError::UnknownSdServiceEntryType(
+                0xFF
+            )))
         ));
     }
 

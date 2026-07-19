@@ -81,7 +81,9 @@ mod tests {
     #[test]
     fn source() {
         use core::error::Error;
-        assert!(SdSliceWriteError::UnexpectedEndOfSlice(4).source().is_none());
+        assert!(SdSliceWriteError::UnexpectedEndOfSlice(4)
+            .source()
+            .is_none());
         assert!(
             SdSliceWriteError::Value(SdValueError::TtlZeroIndicatesStopOffering)
                 .source()

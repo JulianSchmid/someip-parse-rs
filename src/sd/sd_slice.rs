@@ -143,9 +143,9 @@ impl<'a> SdSlice<'a> {
         // entries array length
         let entries_len = u32::from_be_bytes([slice[4], slice[5], slice[6], slice[7]]);
         if entries_len > MAX_ENTRIES_LEN {
-            return Err(SdSliceError::Content(SdError::SdEntriesArrayLengthTooLarge(
-                entries_len,
-            )));
+            return Err(SdSliceError::Content(
+                SdError::SdEntriesArrayLengthTooLarge(entries_len),
+            ));
         }
         if entries_len % ENTRY_LEN as u32 != 0 {
             return Err(SdSliceError::Content(SdError::SdEntriesArrayLengthInvalid(
@@ -169,9 +169,9 @@ impl<'a> SdSlice<'a> {
             slice[options_len_start + 3],
         ]);
         if options_len > MAX_OPTIONS_LEN {
-            return Err(SdSliceError::Content(SdError::SdOptionsArrayLengthTooLarge(
-                options_len,
-            )));
+            return Err(SdSliceError::Content(
+                SdError::SdOptionsArrayLengthTooLarge(options_len),
+            ));
         }
         let payload_len = MIN_SD_HEADER_LENGTH as u32 + entries_len as u32 + options_len;
         if payload_len > crate::SOMEIP_MAX_PAYLOAD_LEN_UDP {
@@ -419,7 +419,9 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::SdEntriesArrayLengthTooLarge(_)))
+            Err(SdSliceError::Content(
+                SdError::SdEntriesArrayLengthTooLarge(_)
+            ))
         ));
     }
 
@@ -433,7 +435,9 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::SdEntriesArrayLengthInvalid(1)))
+            Err(SdSliceError::Content(SdError::SdEntriesArrayLengthInvalid(
+                1
+            )))
         ));
     }
 
@@ -446,7 +450,9 @@ mod tests {
 
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::SdOptionRunOutOfBounds { .. }))
+            Err(SdSliceError::Content(
+                SdError::SdOptionRunOutOfBounds { .. }
+            ))
         ));
     }
 
@@ -460,7 +466,9 @@ mod tests {
         ];
         assert!(matches!(
             SdSlice::from_slice(&buf),
-            Err(SdSliceError::Content(SdError::SdOptionsArrayLengthTooLarge(_)))
+            Err(SdSliceError::Content(
+                SdError::SdOptionsArrayLengthTooLarge(_)
+            ))
         ));
     }
 

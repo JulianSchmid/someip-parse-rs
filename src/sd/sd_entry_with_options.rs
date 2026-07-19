@@ -259,12 +259,14 @@ mod tests {
 
         assert!(matches!(
             iter.next(),
-            Some(Err(SdSliceError::Content(SdError::SdOptionRunOutOfBounds {
-                run: 1,
-                start_index: 2,
-                number_of_options: 2,
-                options_len: 3,
-            })))
+            Some(Err(SdSliceError::Content(
+                SdError::SdOptionRunOutOfBounds {
+                    run: 1,
+                    start_index: 2,
+                    number_of_options: 2,
+                    options_len: 3,
+                }
+            )))
         ));
         assert!(iter.next().is_none());
     }

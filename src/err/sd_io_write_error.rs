@@ -122,7 +122,10 @@ mod tests {
 
     #[test]
     fn from_impls() {
-        assert!(matches!(SdIoWriteError::from(io_err()), SdIoWriteError::Io(_)));
+        assert!(matches!(
+            SdIoWriteError::from(io_err()),
+            SdIoWriteError::Io(_)
+        ));
         assert!(matches!(
             SdIoWriteError::from(SdValueError::TtlZeroIndicatesStopOffering),
             SdIoWriteError::Value(SdValueError::TtlZeroIndicatesStopOffering)

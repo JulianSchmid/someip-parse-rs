@@ -29,7 +29,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 arrayvec = { version = "0.7.8", default-features = false }
 
 [dev-dependencies]
-assert_matches = "1.5.0"
 etherparse = { version = "0.13.0", default-features = false }
 proptest = "1.3.1"
 rpcap = "1.0.0"

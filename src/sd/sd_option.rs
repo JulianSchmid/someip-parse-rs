@@ -740,7 +740,6 @@ mod tests {
 
     use super::*;
     use crate::proptest_generators::*;
-    use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Cursor;
 
@@ -801,7 +800,10 @@ mod tests {
             let buffer = [0x00, 0x00, IPV4_ENDPOINT_TYPE, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(result, Err(SdIoReadError::Content(SdError::SdOptionLengthZero)));
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(SdError::SdOptionLengthZero)
+            );
         }
         // configuration option length too large
         {
@@ -810,9 +812,9 @@ mod tests {
             let buffer = [len_be[0], len_be[1], CONFIGURATION_TYPE, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(
-                result,
-                Err(SdIoReadError::Content(SdError::SdConfigurationOptionLenTooLarge(v))) if v == too_large
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(SdError::SdConfigurationOptionLenTooLarge(too_large))
             );
         }
         // ipv4 length check errors
@@ -824,13 +826,13 @@ mod tests {
             let buffer = [0x00, 0x01, t, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(
-                result,
-                Err(SdIoReadError::Content(SdError::SdOptionUnexpectedLen {
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(SdError::SdOptionUnexpectedLen {
                     expected_len: 0x9,
                     actual_len: 0x1,
-                    option_type: _,
-                }))
+                    option_type: t,
+                })
             );
         }
         // ipv6 length check errors
@@ -842,13 +844,13 @@ mod tests {
             let buffer = [0x00, 0x01, t, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(
-                result,
-                Err(SdIoReadError::Content(SdError::SdOptionUnexpectedLen {
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(SdError::SdOptionUnexpectedLen {
                     expected_len: 0x15,
                     actual_len: 0x1,
-                    option_type: _,
-                }))
+                    option_type: t,
+                })
             );
         }
         // unknown option type (non discardable)
@@ -856,9 +858,9 @@ mod tests {
             let buffer = [0x00, 0x01, 0xff, 0x00];
             let mut cursor = std::io::Cursor::new(buffer);
             let result = SdOption::read(&mut cursor);
-            assert_matches!(
-                result,
-                Err(SdIoReadError::Content(SdError::UnknownSdOptionType(0xFF)))
+            assert_eq!(
+                result.unwrap_err().content_error(),
+                Some(SdError::UnknownSdOptionType(0xff))
             );
         }
         // unknown option type (non discardable, discard option set)

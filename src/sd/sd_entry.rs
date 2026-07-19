@@ -259,7 +259,6 @@ mod tests {
 
     use super::*;
     use crate::proptest_generators::*;
-    use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Cursor;
 
@@ -286,9 +285,9 @@ mod tests {
         buffer[0] = 0xFF;
         let mut cursor = std::io::Cursor::new(buffer);
         let result = SdEntry::read(&mut cursor);
-        assert_matches!(
-            result,
-            Err(SdIoReadError::Content(SdError::UnknownSdServiceEntryType(0xFF)))
+        assert_eq!(
+            result.unwrap_err().content_error(),
+            Some(SdError::UnknownSdServiceEntryType(0xFF))
         );
     }
 
@@ -324,7 +323,7 @@ mod tests {
                 0,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
         }
         // number_of_options_2 too large
         {
@@ -340,7 +339,7 @@ mod tests {
                 0,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0xFF)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption2TooLarge(0xFF)));
         }
         // ttl too large
         {
@@ -356,7 +355,7 @@ mod tests {
                 0x0100_0000,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::TtlTooLarge(0x0100_0000)));
+            assert_eq!(result, Err(SdValueError::TtlTooLarge(0x0100_0000)));
         }
     }
 
@@ -375,17 +374,17 @@ mod tests {
         // ttl too large
         {
             let result = SdEntry::new_find_service_entry(0, 0, 0, 0, 0, 0, 0, 0xFFFF_FFFF, 0);
-            assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
+            assert_eq!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
         }
         // number_of_options_1 too large
         {
             let result = SdEntry::new_find_service_entry(0, 0, 0x10, 0, 0, 0, 0, 1, 0);
-            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
         }
         // number_of_options_2 too large
         {
             let result = SdEntry::new_find_service_entry(0, 0, 0, 0x10, 0, 0, 0, 1, 0);
-            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
         }
     }
 
@@ -399,22 +398,22 @@ mod tests {
         // zero ttl
         {
             let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0, 0);
-            assert_matches!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
+            assert_eq!(result, Err(SdValueError::TtlZeroIndicatesStopOffering));
         }
         // ttl too large
         {
             let result = SdEntry::new_offer_service_entry(0, 0, 0, 0, 0, 0, 0, 0xFFFF_FFFF, 0);
-            assert_matches!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
+            assert_eq!(result, Err(SdValueError::TtlTooLarge(0xFFFF_FFFF)));
         }
         // number_of_options_1 too large
         {
             let result = SdEntry::new_offer_service_entry(0, 0, 0x10, 0, 0, 0, 0, 1, 0);
-            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
         }
         // number_of_options_2 too large
         {
             let result = SdEntry::new_offer_service_entry(0, 0, 0, 0x10, 0, 0, 0, 1, 0);
-            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
         }
     }
 
@@ -428,12 +427,12 @@ mod tests {
         // number_of_options_1 too large
         {
             let result = SdEntry::new_stop_offer_service_entry(0, 0, 0x10, 0, 0, 0, 0, 0);
-            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
         }
         // number_of_options_2 too large
         {
             let result = SdEntry::new_stop_offer_service_entry(0, 0, 0, 0x10, 0, 0, 0, 0);
-            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
         }
     }
 
@@ -473,7 +472,7 @@ mod tests {
                 0,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption1TooLarge(0x10)));
         }
         // number_of_options_2 too large
         {
@@ -491,7 +490,7 @@ mod tests {
                 0,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::NumberOfOption2TooLarge(0x10)));
         }
         // ttl too large
         {
@@ -509,7 +508,7 @@ mod tests {
                 0,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::TtlTooLarge(0x0100_0000)));
+            assert_eq!(result, Err(SdValueError::TtlTooLarge(0x0100_0000)));
         }
         // counter too large
         {
@@ -527,7 +526,7 @@ mod tests {
                 0x10,
                 0,
             );
-            assert_matches!(result, Err(SdValueError::CounterTooLarge(0x10)));
+            assert_eq!(result, Err(SdValueError::CounterTooLarge(0x10)));
         }
     }
 }

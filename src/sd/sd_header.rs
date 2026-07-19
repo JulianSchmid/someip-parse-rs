@@ -708,7 +708,6 @@ mod tests {
 
     use super::*;
     use crate::proptest_generators::*;
-    use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Cursor;
 
@@ -747,11 +746,12 @@ mod tests {
 
     #[test]
     fn write_unexpected_end_of_slice() {
-        use assert_matches::*;
-
         let header = SdHeader::default();
-        let result = header.write_to_slice(&mut []);
-        assert_matches!(result, Err(SdSliceWriteError::UnexpectedEndOfSlice(_)));
+        let required_len = header.header_len();
+        assert_eq!(
+            header.write_to_slice(&mut []),
+            Err(SdSliceWriteError::UnexpectedEndOfSlice(required_len))
+        );
     }
 
     #[cfg(feature = "std")]
@@ -759,22 +759,23 @@ mod tests {
     fn write_rejects_out_of_bounds_option_runs() {
         let entry =
             SdEntry::new_offer_service_entry(0, 0, 1, 0, 0x1234, 0x5678, 1, 3600, 0).unwrap();
-        assert_matches!(
+        let expected = SdValueError::SdOptionRunOutOfBounds {
+            run: 1,
+            start_index: 0,
+            number_of_options: 1,
+            options_len: 0,
+        };
+        assert_eq!(
             SdHeader::new(false, [&entry], std::iter::empty()),
-            Err(SdValueError::SdOptionRunOutOfBounds { .. })
+            Err(expected.clone())
         );
 
         let mut header = SdHeader::default();
         header.add_entry(entry).unwrap();
-        assert_matches!(
-            header.to_bytes_vec(),
-            Err(SdValueError::SdOptionRunOutOfBounds { .. })
-        );
-        assert_matches!(
-            header.write(&mut Vec::new()),
-            Err(SdIoWriteError::Value(
-                SdValueError::SdOptionRunOutOfBounds { .. }
-            ))
+        assert_eq!(header.to_bytes_vec(), Err(expected.clone()));
+        assert_eq!(
+            header.write(&mut Vec::new()).unwrap_err().value_error(),
+            Some(expected)
         );
     }
 
@@ -789,9 +790,9 @@ mod tests {
                 len_be[0], len_be[1], len_be[2], len_be[3], 0, 0, 0, 0,
             ];
             let mut cursor = Cursor::new(&buffer);
-            assert_matches!(
-                SdHeader::read(&mut cursor),
-                Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthTooLarge(_)))
+            assert_eq!(
+                SdHeader::read(&mut cursor).unwrap_err().content_error(),
+                Some(SdError::SdEntriesArrayLengthTooLarge(len))
             );
         }
 
@@ -804,9 +805,9 @@ mod tests {
                 len_be[0], len_be[1], len_be[2], len_be[3], 0, 0, 0, 0,
             ];
             let mut cursor = Cursor::new(&buffer);
-            assert_matches!(
-                SdHeader::read(&mut cursor),
-                Err(SdIoReadError::Content(SdError::SdOptionsArrayLengthTooLarge(_)))
+            assert_eq!(
+                SdHeader::read(&mut cursor).unwrap_err().content_error(),
+                Some(SdError::SdOptionsArrayLengthTooLarge(len))
             );
         }
 
@@ -818,9 +819,11 @@ mod tests {
                 0, // entry data
                 0, 0, 0, 0, // options array length
             ];
-            assert_matches!(
-                SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdIoReadError::Content(SdError::SdEntriesArrayLengthInvalid(1)))
+            assert_eq!(
+                SdHeader::read(&mut Cursor::new(buffer))
+                    .unwrap_err()
+                    .content_error(),
+                Some(SdError::SdEntriesArrayLengthInvalid(1))
             );
         }
 
@@ -845,9 +848,12 @@ mod tests {
                 0,
                 0, // truncated option
             ];
-            assert_matches!(
-                SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdIoReadError::Content(SdError::SdOption(_)))
+            let option_error = SdOptionsIndex::from_slice(&buffer[12..]).unwrap_err();
+            assert_eq!(
+                SdHeader::read(&mut Cursor::new(buffer))
+                    .unwrap_err()
+                    .content_error(),
+                Some(SdError::SdOption(option_error))
             );
         }
 
@@ -860,9 +866,11 @@ mod tests {
                 0, 0, 0, 4, // options array length
                 0, 1, 0xaa, 0, // unknown, non-discardable option
             ];
-            assert_matches!(
-                SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdIoReadError::Content(SdError::UnknownSdOptionType(0xaa)))
+            assert_eq!(
+                SdHeader::read(&mut Cursor::new(buffer))
+                    .unwrap_err()
+                    .content_error(),
+                Some(SdError::UnknownSdOptionType(0xaa))
             );
             assert!(SdHeader::read_with_flag(&mut Cursor::new(buffer), true).is_ok());
         }
@@ -873,9 +881,16 @@ mod tests {
             buffer[4..8].copy_from_slice(&(ENTRY_LEN as u32).to_be_bytes());
             buffer[8] = 0x01; // OfferService
             buffer[11] = 0x10; // first run references one option
-            assert_matches!(
-                SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdIoReadError::Content(SdError::SdOptionRunOutOfBounds { .. }))
+            assert_eq!(
+                SdHeader::read(&mut Cursor::new(buffer))
+                    .unwrap_err()
+                    .content_error(),
+                Some(SdError::SdOptionRunOutOfBounds {
+                    run: 1,
+                    start_index: 0,
+                    number_of_options: 1,
+                    options_len: 0,
+                })
             );
         }
 
@@ -885,9 +900,12 @@ mod tests {
             let mut buffer = alloc::vec![0; 8 + entries_len];
             buffer[4..8].copy_from_slice(&(entries_len as u32).to_be_bytes());
             buffer.extend_from_slice(&(ENTRY_LEN as u32).to_be_bytes());
-            assert_matches!(
-                SdHeader::read(&mut Cursor::new(buffer)),
-                Err(SdIoReadError::Content(SdError::SdPayloadLengthTooLarge(_)))
+            let payload_len = MIN_SD_HEADER_LENGTH as u32 + entries_len as u32 + ENTRY_LEN as u32;
+            assert_eq!(
+                SdHeader::read(&mut Cursor::new(buffer))
+                    .unwrap_err()
+                    .content_error(),
+                Some(SdError::SdPayloadLengthTooLarge(payload_len))
             );
         }
     }
@@ -970,7 +988,7 @@ mod tests {
 
         // Try to add one more - should fail
         let result = header.add_entry(service_entry);
-        assert_matches!(result, Err(SdValueError::SdEntriesArrayTooLarge));
+        assert_eq!(result, Err(SdValueError::SdEntriesArrayTooLarge));
 
         // Exactly 1400 payload bytes are supported, but no more.
         let endpoint = SdOption::Ipv4Endpoint(Ipv4EndpointOption {
@@ -983,7 +1001,7 @@ mod tests {
             header.header_len(),
             crate::SOMEIP_MAX_PAYLOAD_LEN_UDP as usize
         );
-        assert_matches!(
+        assert_eq!(
             header.add_option(endpoint),
             Err(SdValueError::SdOptionsArrayTooLarge)
         );

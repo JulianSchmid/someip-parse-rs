@@ -6,7 +6,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! someip_parse = "0.7.1"
+//! someip_parse = "0.7.2"
 //! ```
 //!
 //! # Feature Flags

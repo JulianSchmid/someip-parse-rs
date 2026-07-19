@@ -105,4 +105,14 @@ cargo cov -- export --format=text \
     $(printf -- "-object %s " $(cat "${coverage_dir}/raw/filenames.txt")) \
   > "${coverage_dir}/export.json"
 
+cargo cov -- export --format=text \
+    --Xdemangler=rustfilt \
+    --ignore-filename-regex='/.cargo/registry' \
+    --ignore-filename-regex='/.rustup/toolchains' \
+    --ignore-filename-regex='/rustc' \
+    --ignore-filename-regex='tests/' \
+    "--instr-profile=${coverage_dir}/raw/merge.profdata" \
+    $(printf -- "-object %s " $(cat "${coverage_dir}/raw/filenames.txt")) \
+  > "${coverage_dir}/export_without_tests.json"
+
 popd

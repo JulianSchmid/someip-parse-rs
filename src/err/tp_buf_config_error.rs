@@ -5,7 +5,7 @@ pub enum TpBufConfigError {
 }
 
 impl core::fmt::Display for TpBufConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use TpBufConfigError::*;
         match self {
             MaxPayloadLenTooBig {
@@ -16,10 +16,12 @@ impl core::fmt::Display for TpBufConfigError {
     }
 }
 
-impl std::error::Error for TpBufConfigError {}
+impl core::error::Error for TpBufConfigError {}
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::TpBufConfigError::*;
 
     #[test]
@@ -67,7 +69,7 @@ mod tests {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
         assert!(MaxPayloadLenTooBig {
             allowed_max: 10,
             actual: 12

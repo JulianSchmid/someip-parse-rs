@@ -1,5 +1,7 @@
+#[cfg(feature = "std")]
 use crate::err::SdWriteError;
 use crate::sd::entries::*;
+#[cfg(feature = "std")]
 use std::io::Write;
 
 /// SOMEIP service discovery entry for a service.
@@ -54,6 +56,8 @@ impl ServiceEntry {
     }
 
     /// Writes the service entry to the given writer.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         writer.write_all(&self.to_bytes())?;

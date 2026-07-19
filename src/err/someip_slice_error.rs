@@ -21,8 +21,8 @@ impl core::fmt::Display for SomeipSliceError {
     }
 }
 
-impl std::error::Error for SomeipSliceError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for SomeipSliceError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use SomeipSliceError::*;
         match self {
             Len(err) => Some(err),
@@ -33,6 +33,8 @@ impl std::error::Error for SomeipSliceError {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::{SomeipSliceError::*, *};
 
     #[test]
@@ -86,7 +88,7 @@ mod tests {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
 
         assert!(Len(LenError {
             required_len: 1,

@@ -56,6 +56,8 @@ impl<'a> Iterator for SdOptionsCheckedIterator<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::sd::options::*;
 

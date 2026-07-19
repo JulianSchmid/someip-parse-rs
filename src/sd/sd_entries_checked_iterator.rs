@@ -81,6 +81,8 @@ impl<'a> Iterator for SdEntriesCheckedIterator<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::sd::entries::*;
 

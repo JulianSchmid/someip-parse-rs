@@ -44,8 +44,8 @@ impl core::fmt::Display for SomeipHeaderReadError {
     }
 }
 
-impl std::error::Error for SomeipHeaderReadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for SomeipHeaderReadError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use SomeipHeaderReadError::*;
         match self {
             Io(err) => Some(err),
@@ -87,7 +87,7 @@ mod test {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
         assert!(Io(std::io::Error::new(
             std::io::ErrorKind::UnexpectedEof,
             "failed to fill whole buffer",

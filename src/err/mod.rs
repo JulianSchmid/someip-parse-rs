@@ -22,7 +22,11 @@ pub use slice_write_space_error::*;
 mod someip_header_error;
 pub use someip_header_error::*;
 
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 mod someip_header_read_error;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub use someip_header_read_error::*;
 
 mod someip_slice_error;

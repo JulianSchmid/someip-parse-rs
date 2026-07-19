@@ -3,6 +3,7 @@ use super::*;
 use proptest::option;
 use proptest::prelude::*;
 
+use alloc::vec::Vec;
 fn someip_header_message_type() -> impl Strategy<Value = MessageType> {
     prop_oneof![
         Just(MessageType::Request),

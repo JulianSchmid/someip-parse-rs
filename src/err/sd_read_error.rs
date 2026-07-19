@@ -1,9 +1,13 @@
 ///Errors that can occur when reading someip headers.
 #[derive(Debug)]
 pub enum SdReadError {
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     IoError(std::io::Error),
     /// Allocation error when trying to reserving memory.
-    AllocationError(std::collections::TryReserveError),
+    #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+    AllocationError(alloc::collections::TryReserveError),
     /// The enclosing SOME/IP message does not use the SD message ID.
     SdMessageIdInvalid(u32),
     /// The SOME/IP Client ID of an SD message is not zero.
@@ -59,6 +63,8 @@ pub enum SdReadError {
     SdOption(crate::err::SdOptionSliceError),
 }
 
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl From<std::io::Error> for SdReadError {
     fn from(err: std::io::Error) -> SdReadError {
         SdReadError::IoError(err)
@@ -71,21 +77,33 @@ impl From<crate::err::SdOptionSliceError> for SdReadError {
     }
 }
 
-impl From<std::collections::TryReserveError> for SdReadError {
-    fn from(err: std::collections::TryReserveError) -> SdReadError {
+#[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+impl From<alloc::collections::TryReserveError> for SdReadError {
+    fn from(err: alloc::collections::TryReserveError) -> SdReadError {
         SdReadError::AllocationError(err)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
 
     #[test]
     fn debug_write() {
         use SdReadError::*;
+
+        #[cfg(feature = "std")]
+        {
+            let _ = format!(
+                "{:?}",
+                IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))
+            );
+        }
+
         for value in [
-            IoError(std::io::Error::new(std::io::ErrorKind::Other, "oh no!")),
             SdMessageIdInvalid(0),
             SdClientIdInvalid(1),
             SdSessionIdZero,

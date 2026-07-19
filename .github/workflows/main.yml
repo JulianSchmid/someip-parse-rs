@@ -106,3 +106,30 @@ jobs:
     - name: cross test --no-default-features
       if: matrix.target != ''
       run: cross test --target ${{ matrix.target }} --no-default-features
+
+  no_std_build:
+    name: no_std build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ensure_no_std
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-unknown-none
+    - run: cargo build --target x86_64-unknown-none
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: read rust-version from Cargo.toml
+      id: msrv
+      run: |
+        MSRV=$(sed -n 's/^rust-version *= *"\(.*\)"/\1/p' Cargo.toml)
+        echo "version=$MSRV" >> "$GITHUB_OUTPUT"
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ steps.msrv.outputs.version }}
+    - run: cargo check --all-features

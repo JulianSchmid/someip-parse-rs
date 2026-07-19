@@ -50,19 +50,20 @@ impl core::fmt::Display for LenError {
     }
 }
 
-impl std::error::Error for LenError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for LenError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         None
     }
 }
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::*;
     use crate::err::Layer;
     use std::{
         collections::hash_map::DefaultHasher,
-        error::Error,
         hash::{Hash, Hasher},
     };
 
@@ -143,6 +144,7 @@ mod test {
 
     #[test]
     fn source() {
+        use core::error::Error;
         assert!(LenError {
             required_len: 0,
             len: 0,

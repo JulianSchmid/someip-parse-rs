@@ -157,6 +157,8 @@ impl<'a, 'i> Iterator for SdEntriesWithOptionsCheckedIterator<'a, 'i> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::sd::entries::*;
     use crate::sd::options::*;
@@ -215,8 +217,8 @@ mod tests {
         let item = iter.next().unwrap().unwrap();
 
         assert_eq!(item.entry().service_id(), 0);
-        assert_eq!(ports(item.options_run_1()), vec![10, 20]);
-        assert_eq!(ports(item.options_run_2()), vec![30]);
+        assert_eq!(ports(item.options_run_1()), alloc::vec![10, 20]);
+        assert_eq!(ports(item.options_run_2()), alloc::vec![30]);
         assert!(iter.next().is_none());
     }
 
@@ -228,7 +230,7 @@ mod tests {
         let entries = service_entry(1, 1, 0, 0);
         let mut iter = unsafe { SdEntriesWithOptionsCheckedIterator::new(&entries, &index) };
         let item = iter.next().unwrap();
-        assert_eq!(ports(item.options_run_1()), vec![20]);
+        assert_eq!(ports(item.options_run_1()), alloc::vec![20]);
         assert_eq!(item.options_run_2().count(), 0);
         assert!(item.options_index().len() == 3);
         assert!(iter.next().is_none());

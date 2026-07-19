@@ -66,7 +66,7 @@ impl core::fmt::Display for SdConfigurationStringError {
     }
 }
 
-impl std::error::Error for SdConfigurationStringError {}
+impl core::error::Error for SdConfigurationStringError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigurationOption {

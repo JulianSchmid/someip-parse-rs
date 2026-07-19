@@ -208,6 +208,8 @@ impl SdEntry {
         }
     }
 
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
         let mut entry_bytes: [u8; ENTRY_LEN] = [0; ENTRY_LEN];
@@ -228,6 +230,8 @@ impl SdEntry {
     }
 
     /// Writes the eventgroup entry to the given writer.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         writer.write_all(&self.to_bytes())?;
@@ -251,12 +255,15 @@ impl SdEntry {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+
     use super::*;
     use crate::proptest_generators::*;
     use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Cursor;
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn write_read(service_entry in someip_sd_entry_any()) {
@@ -272,6 +279,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn service_entry_read_unknown_service_entry_type() {
         let mut buffer = [0x00; ENTRY_LEN];

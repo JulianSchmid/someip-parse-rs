@@ -17,6 +17,17 @@ Add the following to your `Cargo.toml`:
 someip_parse = "0.6.1"
 ```
 
+## Feature Flags
+
+* `std` (default): Enables `std::io` read/write helpers and the `TpPool`
+  helper.
+* `alloc`: Enables heap-using APIs such as `TpBuf` and
+  `sd::SdHeader::to_bytes_vec` (automatically enabled by `std`).
+
+The crate can be used in `no_std` environments with
+`default-features = false`. Add the `alloc` feature if heap allocation is
+available.
+
 ## Example
 [examples/print_messages.rs](examples/print_messages.rs):
 ```rust

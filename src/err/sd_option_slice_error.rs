@@ -36,8 +36,8 @@ impl core::fmt::Display for SdOptionSliceError {
     }
 }
 
-impl std::error::Error for SdOptionSliceError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for SdOptionSliceError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use SdOptionSliceError::*;
         match self {
             Len(err) => Some(err),
@@ -61,6 +61,8 @@ impl From<crate::sd::options::SdConfigurationStringError> for SdOptionSliceError
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::SdOptionSliceError::*;
     use super::*;
 
@@ -122,7 +124,7 @@ mod tests {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
 
         assert!(OptionLengthZero.source().is_none());
         assert!(OptionsArrayLengthTooLarge { len: 2, max_len: 1 }

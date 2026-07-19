@@ -200,6 +200,8 @@ impl<'a> SdOptionSlice<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::err::{Layer, LenSource, SdOptionSliceError};
     use crate::sd::options::{

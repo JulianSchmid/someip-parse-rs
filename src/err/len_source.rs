@@ -12,6 +12,8 @@ pub enum LenSource {
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::LenSource::*;
     use std::{
         cmp::{Ord, Ordering},

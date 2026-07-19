@@ -27,14 +27,16 @@ impl core::fmt::Display for SliceWriteSpaceError {
     }
 }
 
-impl std::error::Error for SliceWriteSpaceError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for SliceWriteSpaceError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         None
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
 
     #[test]
@@ -86,7 +88,7 @@ mod tests {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
         assert!(SliceWriteSpaceError {
             required_len: 4,
             len: 1,

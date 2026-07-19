@@ -49,6 +49,8 @@ impl From<crate::sd::options::SdConfigurationStringError> for SdValueError {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::SdValueError::*;
 
     #[test]

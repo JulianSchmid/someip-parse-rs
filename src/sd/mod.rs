@@ -1,4 +1,5 @@
 use crate::err::{SdReadError, SdValueError, SdWriteError};
+#[cfg(feature = "std")]
 use std::io::{Read, Seek, Write};
 
 /// SOMEIP Service Discovery Entries (constants & entry data types).

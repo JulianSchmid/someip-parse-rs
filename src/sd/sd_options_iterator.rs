@@ -68,6 +68,8 @@ impl<'a> Iterator for SdOptionsIterator<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::err::{self, Layer, LenSource};
     use crate::sd::options::*;

@@ -32,10 +32,12 @@ use crate::sd::{
 ///     // index1=0, index2=0, count1=1, count2=0
 ///     SdEntry::new_offer_service_entry(0, 0, 1, 0, 0x1234, 0x5678, 1, 3600, 0x01000000).unwrap()
 /// ).unwrap();
-/// let bytes = header.to_bytes_vec().unwrap();
+/// let mut buffer = [0u8; 64];
+/// let len = header.header_len();
+/// header.write_to_slice(&mut buffer[..len]).unwrap();
 ///
 /// // parse it back without copying the payload
-/// let sd = SdSlice::from_slice(&bytes).unwrap();
+/// let sd = SdSlice::from_slice(&buffer[..len]).unwrap();
 /// for entry in sd.entries_with_options() {
 ///     let entry = entry.unwrap();
 ///     for option in entry.options_run_1() {
@@ -251,6 +253,8 @@ impl<'a> SdSlice<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::sd::{entries::*, options::*, SdEntry, SdHeader, SdOption, SdOptionSlice};
 
@@ -280,6 +284,7 @@ mod tests {
         header
     }
 
+    #[cfg(feature = "std")]
     fn someip_sd_message(payload: &[u8]) -> Vec<u8> {
         let header = crate::SomeipHeader::new_sd_header(
             crate::SOMEIP_LEN_OFFSET_TO_PAYLOAD + payload.len() as u32,
@@ -292,6 +297,7 @@ mod tests {
         bytes
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn from_slice_roundtrip() {
         let header = sample_header();
@@ -312,10 +318,11 @@ mod tests {
                 _ => panic!("expected Ipv4Endpoint"),
             })
             .collect();
-        assert_eq!(ports, vec![100, 200]);
+        assert_eq!(ports, alloc::vec![100, 200]);
         assert_eq!(entry.options_run_2().count(), 0);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn from_someip_validates_sd_header() {
         let payload = sample_header().to_bytes_vec().unwrap();
@@ -492,7 +499,7 @@ mod tests {
 
     #[test]
     fn from_slice_rejects_trailing_bytes() {
-        let mut buf = vec![
+        let mut buf = alloc::vec![
             0, 0, 0, 0, // flags + reserved
             0, 0, 0, 0, // entries length
             0, 0, 0, 0, // options length
@@ -511,7 +518,7 @@ mod tests {
     #[test]
     fn from_slice_bad_option() {
         // options length = 5 but the option is truncated
-        let mut buf = vec![
+        let mut buf = alloc::vec![
             0, 0, 0, 0, // flags + reserved
             0, 0, 0, 0, // entries length
             0, 0, 0, 5, // options length
@@ -526,7 +533,7 @@ mod tests {
 
     #[test]
     fn from_slice_unknown_option_policy() {
-        let mut buf = vec![
+        let mut buf = alloc::vec![
             0, 0, 0, 0, // flags + reserved
             0, 0, 0, 0, // entries length
             0, 0, 0, 4, // options length
@@ -542,6 +549,7 @@ mod tests {
         assert!(SdSlice::from_slice(&buf).is_ok());
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn clone_debug_eq() {
         let header = sample_header();
@@ -554,6 +562,7 @@ mod tests {
     use crate::proptest_generators::*;
     use proptest::prelude::*;
 
+    #[cfg(feature = "alloc")]
     proptest! {
         // Build a header with some options and entries that reference valid
         // option runs, serialize it, parse it back with SdSlice and assert
@@ -630,6 +639,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "alloc")]
     proptest! {
         // The zero-copy SdSlice must observe the same entries and options as
         // the owned SdHeader for any serialized header.

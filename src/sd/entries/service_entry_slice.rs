@@ -180,6 +180,8 @@ impl<'a> ServiceEntrySlice<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
     use crate::proptest_generators::*;
     use proptest::prelude::*;

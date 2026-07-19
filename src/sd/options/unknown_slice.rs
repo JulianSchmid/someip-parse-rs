@@ -72,6 +72,8 @@ impl<'a> UnknownSlice<'a> {
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::*;
     use crate::sd::options::DISCARDABLE_FLAG;
 

@@ -26,7 +26,7 @@ pub enum TpReassembleError {
 }
 
 impl core::fmt::Display for TpReassembleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use TpReassembleError::*;
         match self {
             UnalignedTpPayloadLen{ offset, payload_len } => write!(f, "Payload length {payload_len} of SOMEIP TP segment (offset {offset}) is not a multiple of 16. This is only allowed for TP packets where the 'more segements' flag is not set."),
@@ -37,10 +37,12 @@ impl core::fmt::Display for TpReassembleError {
     }
 }
 
-impl std::error::Error for TpReassembleError {}
+impl core::error::Error for TpReassembleError {}
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::TpReassembleError::*;
 
     #[test]
@@ -87,7 +89,7 @@ mod tests {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
         assert!(AllocationFailure { len: 0 }.source().is_none());
     }
 }

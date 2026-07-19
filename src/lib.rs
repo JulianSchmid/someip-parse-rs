@@ -9,6 +9,17 @@
 //! someip_parse = "0.6.1"
 //! ```
 //!
+//! # Feature Flags
+//!
+//! * `std` (default): Enables `std::io` read/write helpers and the [`TpPool`]
+//!   helper.
+//! * `alloc`: Enables heap-using APIs such as [`TpBuf`] and
+//!   [`sd::SdHeader::to_bytes_vec`] (automatically enabled by `std`).
+//!
+//! The crate can be used in `no_std` environments with
+//! `default-features = false`. Add the `alloc` feature if heap allocation is
+//! available.
+//!
 //! # Example
 //! [examples/print_messages.rs](https://github.com/JulianSchmid/someip-parse-rs/blob/0.2.0/examples/print_messages.rs):
 //! ```
@@ -68,6 +79,13 @@
 // is more visually striking and is not as easy to overlook as the single
 // character '!'.
 #![allow(clippy::bool_comparison)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+#[cfg(any(feature = "alloc", test))]
+extern crate alloc;
+#[cfg(any(feature = "std", test))]
+extern crate std;
 
 #[cfg(test)]
 mod proptest_generators;
@@ -99,13 +117,21 @@ pub use someip_msg_slice::*;
 mod tp_buf_config;
 pub use tp_buf_config::*;
 
+#[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 mod tp_buf;
+#[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub use tp_buf::*;
 
 mod tp_header;
 pub use tp_header::*;
 
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 mod tp_pool;
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub use tp_pool::*;
 
 /// Maximum allowed TP segment length.

@@ -38,6 +38,8 @@ impl core::fmt::Display for Layer {
 
 #[cfg(test)]
 mod test {
+    use alloc::format;
+
     use super::Layer::*;
     use std::{
         cmp::{Ord, Ordering},

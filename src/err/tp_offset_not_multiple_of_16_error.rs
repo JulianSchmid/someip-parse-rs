@@ -10,7 +10,7 @@ pub struct TpOffsetNotMultipleOf16Error {
 }
 
 impl core::fmt::Display for TpOffsetNotMultipleOf16Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "Error SOMEIP TP offset {} is not a multiple of 16 (this is required).",
@@ -19,10 +19,12 @@ impl core::fmt::Display for TpOffsetNotMultipleOf16Error {
     }
 }
 
-impl std::error::Error for TpOffsetNotMultipleOf16Error {}
+impl core::error::Error for TpOffsetNotMultipleOf16Error {}
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
 
     #[test]
@@ -64,7 +66,7 @@ mod tests {
 
     #[test]
     fn source() {
-        use std::error::Error;
+        use core::error::Error;
         assert!(TpOffsetNotMultipleOf16Error { bad_offset: 123 }
             .source()
             .is_none());

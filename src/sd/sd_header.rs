@@ -1,4 +1,6 @@
 use crate::sd::{entries::*, options::*, *};
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 /// SOMEIP service discovery header
 ///
@@ -35,7 +37,8 @@ use crate::sd::{entries::*, options::*, *};
 /// header.add_option(endpoint.into()).unwrap();
 ///
 /// // The header can now be serialized without any allocations
-/// let bytes = header.to_bytes_vec().unwrap();
+/// let mut bytes = [0u8; 64];
+/// header.write_to_slice(&mut bytes[..header.header_len()]).unwrap();
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdHeader {
@@ -500,13 +503,21 @@ impl SdHeader {
     }
 
     #[inline]
-    #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+    #[cfg(all(
+        feature = "std",
+        any(target_pointer_width = "32", target_pointer_width = "64")
+    ))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<Self, SdReadError> {
         SdHeader::read_with_flag(reader, false)
     }
 
     #[inline]
-    #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+    #[cfg(all(
+        feature = "std",
+        any(target_pointer_width = "32", target_pointer_width = "64")
+    ))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn read_with_flag<T: Read + Seek>(
         reader: &mut T,
         discard_unknown_option: bool,
@@ -616,6 +627,8 @@ impl SdHeader {
     }
 
     /// Writes the header to the given writer.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         self.validate_option_runs()?;
@@ -656,8 +669,10 @@ impl SdHeader {
     }
 
     /// Writes the header to a slice without checking the slice length.
+    #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     #[inline]
-    pub fn to_bytes_vec(&self) -> Result<Vec<u8>, SdValueError> {
+    pub fn to_bytes_vec(&self) -> Result<alloc::vec::Vec<u8>, SdValueError> {
         self.validate_option_runs()?;
         // pre-allocate the resulting buffer (4*3 for flags, entries len & options len)
         let mut bytes = Vec::with_capacity(4 * 3 + self.entries_len + self.options_len);
@@ -680,6 +695,7 @@ impl SdHeader {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
 
     use super::*;
     use crate::proptest_generators::*;
@@ -687,6 +703,7 @@ mod tests {
     use proptest::prelude::*;
     use std::io::Cursor;
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn write_read(header in sd_header_any()) {
@@ -707,12 +724,11 @@ mod tests {
 
     #[test]
     fn new_into_iter_ref() {
-        let entries =
-            vec![
-                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
-                    .unwrap(),
-            ];
-        let options = vec![SdOption::Ipv4Endpoint(Ipv4EndpointOption {
+        let entries = alloc::vec![SdEntry::new_offer_service_entry(
+            0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000
+        )
+        .unwrap(),];
+        let options = alloc::vec![SdOption::Ipv4Endpoint(Ipv4EndpointOption {
             ipv4_address: [0; 4],
             transport_protocol: TransportProtocol::Udp,
             port: 1234,
@@ -729,6 +745,7 @@ mod tests {
         assert_matches!(result, Err(SdWriteError::UnexpectedEndOfSlice(_)));
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn write_rejects_out_of_bounds_option_runs() {
         let entry =
@@ -752,6 +769,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn read() {
         // entries array length too large error
@@ -855,7 +873,7 @@ mod tests {
         // The entries and options limits apply to their combined payload.
         {
             let entries_len = MAX_ENTRIES_LEN_USIZE - (MAX_ENTRIES_LEN_USIZE % ENTRY_LEN);
-            let mut buffer = vec![0; 8 + entries_len];
+            let mut buffer = alloc::vec![0; 8 + entries_len];
             buffer[4..8].copy_from_slice(&(entries_len as u32).to_be_bytes());
             buffer.extend_from_slice(&(ENTRY_LEN as u32).to_be_bytes());
             assert_matches!(
@@ -965,12 +983,11 @@ mod tests {
     #[test]
     fn new_with_different_iterator_types() {
         // Test with Vec
-        let entries_vec =
-            vec![
-                SdEntry::new_offer_service_entry(0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000)
-                    .unwrap(),
-            ];
-        let options_vec: Vec<SdOption> = vec![];
+        let entries_vec = alloc::vec![SdEntry::new_offer_service_entry(
+            0, 0, 0, 0, 0x1234, 0x5678, 1, 3600, 0x01000000
+        )
+        .unwrap(),];
+        let options_vec: Vec<SdOption> = alloc::vec![];
         let header1 = SdHeader::new(false, &entries_vec, &options_vec).unwrap();
         assert_eq!(header1.entries_count(), 1);
 

@@ -47,11 +47,14 @@ impl<'a> Iterator for SomeipMsgsIterator<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+
     use super::*;
     use crate::proptest_generators::*;
     use proptest::prelude::*;
     use std::io::Write;
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn iterator(expected in proptest::collection::vec(someip_header_with_payload_any(), 0..5))
@@ -83,6 +86,7 @@ mod tests {
 
     }
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn iterator_error(packet in someip_header_with_payload_any()) {

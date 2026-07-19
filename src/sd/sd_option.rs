@@ -90,12 +90,16 @@ impl From<options::UnknownDiscardableOption> for SdOption {
 
 impl SdOption {
     /// Read the value from a [`std::io::Read`] source.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn read<T: Read + Seek>(reader: &mut T) -> Result<(u16, Self), SdReadError> {
         SdOption::read_with_flag(reader, false)
     }
 
     /// Read the value from a [`std::io::Read`] source.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn read_with_flag<T: Read + Seek>(
         reader: &mut T,
@@ -258,6 +262,7 @@ impl SdOption {
         Ok((3 + length, option))
     }
 
+    #[cfg(feature = "std")]
     #[inline]
     fn read_ip4_option<T: Read>(
         reader: &mut T,
@@ -286,6 +291,7 @@ impl SdOption {
         Ok((ipv4_address, transport_protocol, transport_protocol_number))
     }
 
+    #[cfg(feature = "std")]
     #[inline]
     fn read_ip6_option<T: Read>(
         reader: &mut T,
@@ -327,6 +333,8 @@ impl SdOption {
     }
 
     /// Writes the eventgroup entry to the given writer.
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[inline]
     pub fn write<T: Write>(&self, writer: &mut T) -> Result<(), SdWriteError> {
         use self::SdOption::*;
@@ -483,11 +491,16 @@ impl SdOption {
     }
 
     /// Serializes option and append data to a vec
-    pub fn append_bytes_to_vec(&self, buffer: &mut Vec<u8>) -> Result<(), SdValueError> {
+    #[cfg(feature = "alloc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+    pub fn append_bytes_to_vec(
+        &self,
+        buffer: &mut alloc::vec::Vec<u8>,
+    ) -> Result<(), SdValueError> {
         use self::SdOption::*;
 
         fn append_ip4(
-            buffer: &mut Vec<u8>,
+            buffer: &mut alloc::vec::Vec<u8>,
             ipv4_address: [u8; 4],
             transport_protocol: TransportProtocol,
             port: u16,
@@ -499,7 +512,7 @@ impl SdOption {
         }
 
         fn append_ip6(
-            buffer: &mut Vec<u8>,
+            buffer: &mut alloc::vec::Vec<u8>,
             ipv6_address: [u8; 16],
             transport_protocol: TransportProtocol,
             port: u16,
@@ -722,12 +735,15 @@ impl SdOption {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+
     use super::*;
     use crate::proptest_generators::*;
     use assert_matches::*;
     use proptest::prelude::*;
     use std::io::Cursor;
 
+    #[cfg(feature = "std")]
     proptest! {
         #[test]
         fn write_read(option in someip_sd_option_any()) {
@@ -744,6 +760,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn to_bytes_matches_append_bytes_to_vec() {
         proptest!(|(option in someip_sd_option_any())| {
@@ -775,6 +792,7 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn read() {
         // too small length error

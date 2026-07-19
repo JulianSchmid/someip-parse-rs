@@ -181,6 +181,8 @@ impl<'a, 'i> Iterator for SdOptionRunIter<'a, 'i> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, vec::Vec};
+
     use super::*;
     use crate::sd::options::*;
 
@@ -267,7 +269,7 @@ mod tests {
 
     #[test]
     fn from_slice_rejects_oversized_array_without_panicking() {
-        let data = vec![0; MAX_OPTIONS_LEN_USIZE + 1];
+        let data = alloc::vec![0; MAX_OPTIONS_LEN_USIZE + 1];
         assert_eq!(
             SdOptionsIndex::from_slice(&data),
             Err(SdOptionSliceError::OptionsArrayLengthTooLarge {
@@ -292,7 +294,7 @@ mod tests {
                 _ => panic!("expected Ipv4Endpoint"),
             })
             .collect();
-        assert_eq!(ports, vec![2, 3]);
+        assert_eq!(ports, alloc::vec![2, 3]);
     }
 
     #[test]

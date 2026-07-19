@@ -110,7 +110,7 @@ impl<'a> SomeipMsgSlice<'a> {
             }
 
             //NOTE: This additional check is needed for 32 bit systems, as otherwise an overflow could potentially be happening
-            const MAX_SUPPORTED_LEN: usize = std::usize::MAX - 4 * 2;
+            const MAX_SUPPORTED_LEN: usize = usize::MAX - 4 * 2;
             let len_usize = len as usize;
             if len_usize > MAX_SUPPORTED_LEN {
                 return Err(Len(LenError {
@@ -383,6 +383,8 @@ impl<'a> SomeipMsgSlice<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
     use crate::MessageType::*;
     use proptest::prelude::*;

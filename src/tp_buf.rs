@@ -1,4 +1,5 @@
 use crate::*;
+use alloc::vec::Vec;
 
 /// Buffer to reconstruct one SOMEIP TP packet stream without checks that the
 /// message id & request id are the same for all packets (this has to be done by
@@ -269,6 +270,7 @@ impl TpBuf {
 #[cfg(test)]
 mod test {
     use crate::*;
+    use alloc::{format, vec::Vec};
 
     #[test]
     fn debug_clone_eq() {

@@ -16,7 +16,14 @@ jobs:
       with:
         components: llvm-tools-preview
     - name: Install coverage tools
-      run: cargo install cargo-binutils rustfilt
+      # cargo-binutils 0.4.0 panics with clap 4.x ("no-default-features's
+      # ArgAction ..."), which makes every `cargo cov`/`cargo profdata` call
+      # abort and silently produces empty coverage output (0.00%). Pin to the
+      # last known-good release and use --locked so a future dependency
+      # release cannot reintroduce the breakage.
+      run: |
+        cargo install cargo-binutils --version 0.3.6 --locked
+        cargo install rustfilt --locked
     - name: Install jq
       run: sudo apt install jq
     - name: Determine coverage
@@ -25,7 +32,15 @@ jobs:
     - name: Extract line coverage percentage
       id: coverage
       run: |
-        pct=$(jq '.data[0].totals.lines.percent' target/coverage/export_without_tests.json)
+        set -euo pipefail
+        json=target/coverage/export_without_tests.json
+        if [ ! -s "$json" ]; then
+          echo "::error::coverage export '$json' is missing or empty" >&2
+          exit 1
+        fi
+        # `jq -e` exits non-zero when the value is null/absent, so a broken
+        # coverage run fails loudly instead of publishing a bogus 0.00% badge.
+        pct=$(jq -e '.data[0].totals.lines.percent' "$json")
         printf 'pct=%.2f\n' "$pct" >> "$GITHUB_OUTPUT"
     - name: Update coverage badge gist
       if: github.ref == 'refs/heads/main'
